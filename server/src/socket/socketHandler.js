@@ -1,0 +1,61 @@
+/**
+ * WebSocket 연결 핸들러
+ */
+
+const { verifyToken } = require('../config/auth');
+const { AuthenticationError } = require('../utils/errors');
+const logger = require('../utils/logger');
+const roomHandler = require('./roomHandler');
+const messageHandler = require('./messageHandler');
+
+/**
+ * Socket.io 연결 처리
+ */
+const handleConnection = (io) => {
+  io.use(async (socket, next) => {
+    try {
+      // 토큰 추출: auth 객체 또는 query 파라미터에서
+      const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+      
+      if (!token) {
+        return next(new AuthenticationError('인증 토큰이 필요합니다'));
+      }
+      
+      // 토큰 검증
+      const decoded = verifyToken(token);
+      
+      // 소켓에 사용자 정보 저장
+      socket.userId = decoded.userId;
+      socket.userEmail = decoded.email;
+      
+      logger.info(`WebSocket 연결: user ${decoded.userId}`);
+      next();
+    } catch (error) {
+      logger.error('WebSocket 인증 실패:', error);
+      next(new AuthenticationError('유효하지 않은 토큰입니다'));
+    }
+  });
+  
+  io.on('connection', (socket) => {
+    logger.info(`사용자 연결: ${socket.userId} (socket: ${socket.id})`);
+    
+    // 방 관련 이벤트 핸들러
+    roomHandler(socket, io);
+    
+    // 메시지 관련 이벤트 핸들러
+    messageHandler(socket, io);
+    
+    // 연결 해제 처리
+    socket.on('disconnect', (reason) => {
+      logger.info(`사용자 연결 해제: ${socket.userId} (reason: ${reason})`);
+    });
+    
+    // 에러 처리
+    socket.on('error', (error) => {
+      logger.error(`Socket 에러 (user: ${socket.userId}):`, error);
+    });
+  });
+};
+
+module.exports = handleConnection;
+

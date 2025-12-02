@@ -1,0 +1,915 @@
+/* Reset & Base */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    --accent-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    --dark-bg: #0a0e27;
+    --light-bg: #ffffff;
+    --text-primary: #1a1a2e;
+    --text-secondary: #6c757d;
+    --text-light: #ffffff;
+    --card-bg: rgba(255, 255, 255, 0.95);
+    --shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+body {
+    font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: var(--text-primary);
+    line-height: 1.6;
+    overflow-x: hidden;
+    background: var(--light-bg);
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* Hero Section */
+.hero {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 80px 40px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+    background-size: 200% 200%;
+    animation: gradientShift 15s ease infinite;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    opacity: 0.3;
+}
+
+@keyframes gradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+.hero-content {
+    flex: 1;
+    max-width: 600px;
+    z-index: 1;
+    position: relative;
+}
+
+.logo-container {
+    margin-bottom: 40px;
+    animation: fadeInUp 0.8s ease;
+}
+
+.logo {
+    font-size: 72px;
+    font-weight: 900;
+    color: var(--text-light);
+    letter-spacing: -2px;
+    margin-bottom: 10px;
+    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.tagline {
+    font-size: 24px;
+    color: rgba(255, 255, 255, 0.95);
+    font-weight: 300;
+    letter-spacing: 1px;
+}
+
+.hero-description {
+    margin-bottom: 50px;
+    animation: fadeInUp 0.8s ease 0.2s both;
+}
+
+.main-text {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text-light);
+    margin-bottom: 15px;
+}
+
+.sub-text {
+    font-size: 20px;
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 300;
+    line-height: 1.8;
+}
+
+.cta-buttons {
+    display: flex;
+    gap: 20px;
+    animation: fadeInUp 0.8s ease 0.4s both;
+}
+
+.btn-primary,
+.btn-secondary {
+    padding: 16px 32px;
+    font-size: 18px;
+    font-weight: 600;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: 'Noto Sans KR', sans-serif;
+}
+
+.btn-primary {
+    background: var(--text-light);
+    color: #667eea;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3);
+}
+
+.btn-secondary {
+    background: transparent;
+    color: var(--text-light);
+    border: 2px solid var(--text-light);
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+}
+
+/* Hero Visual */
+.hero-visual {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1;
+    position: relative;
+    animation: fadeInRight 1s ease 0.6s both;
+}
+
+.phone-mockup {
+    width: 300px;
+    height: 600px;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    border-radius: 40px;
+    padding: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.phone-screen {
+    width: 100%;
+    height: 100%;
+    background: var(--light-bg);
+    border-radius: 30px;
+    padding: 30px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    overflow: hidden;
+}
+
+.chat-bubble {
+    padding: 12px 18px;
+    border-radius: 20px;
+    max-width: 70%;
+    animation: slideIn 0.5s ease;
+    font-size: 14px;
+}
+
+.chat-bubble.left {
+    background: #f0f0f0;
+    color: var(--text-primary);
+    align-self: flex-start;
+    border-bottom-left-radius: 5px;
+}
+
+.chat-bubble.right {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: var(--text-light);
+    align-self: flex-end;
+    border-bottom-right-radius: 5px;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInRight {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Features Section */
+.features {
+    padding: 100px 0;
+    background: var(--light-bg);
+}
+
+.section-title {
+    font-size: 48px;
+    font-weight: 900;
+    text-align: center;
+    margin-bottom: 60px;
+    color: var(--text-primary);
+    letter-spacing: -1px;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 40px;
+}
+
+.feature-card {
+    background: var(--card-bg);
+    padding: 40px 30px;
+    border-radius: 24px;
+    text-align: center;
+    transition: all 0.3s ease;
+    box-shadow: var(--shadow);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.feature-card:hover {
+    transform: translateY(-10px);
+    box-shadow: var(--shadow-lg);
+}
+
+.feature-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+    display: block;
+}
+
+.feature-card h3 {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 15px;
+    color: var(--text-primary);
+}
+
+.feature-card p {
+    font-size: 16px;
+    color: var(--text-secondary);
+    line-height: 1.8;
+}
+
+/* Use Cases Section */
+.use-cases {
+    padding: 100px 0;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.cases-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 40px;
+}
+
+.case-item {
+    background: var(--light-bg);
+    padding: 50px 40px;
+    border-radius: 24px;
+    text-align: center;
+    transition: all 0.3s ease;
+    box-shadow: var(--shadow);
+}
+
+.case-item:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+}
+
+.case-emoji {
+    font-size: 80px;
+    margin-bottom: 20px;
+}
+
+.case-item h3 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 15px;
+    color: var(--text-primary);
+}
+
+.case-item p {
+    font-size: 18px;
+    color: var(--text-secondary);
+    line-height: 1.8;
+}
+
+/* How It Works Section */
+.how-it-works {
+    padding: 100px 0;
+    background: var(--light-bg);
+}
+
+.steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 30px;
+}
+
+.step {
+    flex: 1;
+    min-width: 200px;
+    text-align: center;
+    padding: 30px;
+}
+
+.step-number {
+    width: 80px;
+    height: 80px;
+    background: var(--primary-gradient);
+    color: var(--text-light);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    font-weight: 900;
+    margin: 0 auto 20px;
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+}
+
+.step h3 {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: var(--text-primary);
+}
+
+.step p {
+    font-size: 16px;
+    color: var(--text-secondary);
+}
+
+.step-arrow {
+    font-size: 32px;
+    color: var(--text-secondary);
+    font-weight: 300;
+}
+
+/* Download Section */
+.download {
+    padding: 100px 0;
+    background: var(--primary-gradient);
+    text-align: center;
+}
+
+.download .section-title {
+    color: var(--text-light);
+}
+
+.download-subtitle {
+    font-size: 20px;
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: 40px;
+}
+
+.download-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    flex-wrap: wrap;
+}
+
+.download-btn {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 20px 40px;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 20px;
+    color: var(--text-light);
+    cursor: not-allowed;
+    opacity: 0.7;
+    transition: all 0.3s ease;
+}
+
+.download-btn:not(:disabled):hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: translateY(-2px);
+}
+
+.download-icon {
+    font-size: 40px;
+}
+
+.download-label {
+    display: block;
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.download-status {
+    display: block;
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+/* Footer */
+.footer {
+    background: var(--dark-bg);
+    color: var(--text-light);
+    padding: 60px 0 30px;
+}
+
+.footer-content {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 60px;
+    margin-bottom: 40px;
+}
+
+.footer-brand h3 {
+    font-size: 32px;
+    font-weight: 900;
+    margin-bottom: 10px;
+}
+
+.footer-tagline {
+    font-size: 16px;
+    opacity: 0.8;
+}
+
+.domain-story {
+    font-size: 14px;
+    line-height: 1.8;
+    opacity: 0.7;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.footer-bottom {
+    text-align: center;
+    padding-top: 30px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    opacity: 0.6;
+    font-size: 14px;
+}
+
+/* Responsive */
+@media (max-width: 968px) {
+    .hero {
+        flex-direction: column;
+        text-align: center;
+        padding: 40px 20px;
+        min-height: auto;
+    }
+
+    .hero-content {
+        max-width: 100%;
+        margin-bottom: 30px;
+    }
+
+    .logo-container {
+        margin-bottom: 25px;
+    }
+
+    .logo {
+        font-size: 48px;
+    }
+
+    .tagline {
+        font-size: 18px;
+    }
+
+    .hero-description {
+        margin-bottom: 30px;
+    }
+
+    .main-text {
+        font-size: 24px;
+        margin-bottom: 10px;
+    }
+
+    .sub-text {
+        font-size: 16px;
+    }
+
+    .cta-buttons {
+        gap: 15px;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+        padding: 14px 28px;
+        font-size: 16px;
+    }
+
+    .phone-mockup {
+        width: 200px;
+        height: 400px;
+        padding: 15px;
+    }
+
+    .phone-screen {
+        padding: 20px 15px;
+        gap: 10px;
+    }
+
+    .chat-bubble {
+        padding: 10px 14px;
+        font-size: 12px;
+    }
+
+    .features {
+        padding: 60px 0;
+    }
+
+    .section-title {
+        font-size: 32px;
+        margin-bottom: 40px;
+    }
+
+    .features-grid {
+        gap: 25px;
+    }
+
+    .feature-card {
+        padding: 30px 20px;
+    }
+
+    .feature-icon {
+        font-size: 48px;
+        margin-bottom: 15px;
+    }
+
+    .feature-card h3 {
+        font-size: 20px;
+        margin-bottom: 10px;
+    }
+
+    .feature-card p {
+        font-size: 14px;
+    }
+
+    .use-cases {
+        padding: 60px 0;
+    }
+
+    .cases-grid {
+        gap: 25px;
+    }
+
+    .case-item {
+        padding: 35px 25px;
+    }
+
+    .case-emoji {
+        font-size: 56px;
+        margin-bottom: 15px;
+    }
+
+    .case-item h3 {
+        font-size: 22px;
+        margin-bottom: 10px;
+    }
+
+    .case-item p {
+        font-size: 16px;
+    }
+
+    .how-it-works {
+        padding: 60px 0;
+    }
+
+    .steps {
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .step {
+        padding: 20px;
+    }
+
+    .step-number {
+        width: 60px;
+        height: 60px;
+        font-size: 28px;
+        margin-bottom: 15px;
+    }
+
+    .step h3 {
+        font-size: 20px;
+        margin-bottom: 8px;
+    }
+
+    .step p {
+        font-size: 14px;
+    }
+
+    .step-arrow {
+        transform: rotate(90deg);
+        font-size: 24px;
+    }
+
+    .download {
+        padding: 60px 0;
+    }
+
+    .download-subtitle {
+        font-size: 18px;
+        margin-bottom: 30px;
+    }
+
+    .download-buttons {
+        gap: 20px;
+    }
+
+    .download-btn {
+        padding: 16px 28px;
+    }
+
+    .download-icon {
+        font-size: 32px;
+    }
+
+    .download-label {
+        font-size: 16px;
+    }
+
+    .download-status {
+        font-size: 12px;
+    }
+
+    .footer {
+        padding: 40px 0 20px;
+    }
+
+    .footer-content {
+        grid-template-columns: 1fr;
+        gap: 30px;
+        margin-bottom: 30px;
+    }
+
+    .footer-brand h3 {
+        font-size: 28px;
+    }
+
+    .footer-tagline {
+        font-size: 14px;
+    }
+
+    .domain-story {
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 640px) {
+    .hero {
+        padding: 30px 15px;
+    }
+
+    .logo-container {
+        margin-bottom: 20px;
+    }
+
+    .logo {
+        font-size: 40px;
+    }
+
+    .tagline {
+        font-size: 16px;
+    }
+
+    .hero-description {
+        margin-bottom: 25px;
+    }
+
+    .main-text {
+        font-size: 20px;
+        margin-bottom: 8px;
+    }
+
+    .sub-text {
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    .cta-buttons {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+        width: 100%;
+        padding: 12px 24px;
+        font-size: 15px;
+    }
+
+    .phone-mockup {
+        width: 160px;
+        height: 320px;
+        padding: 12px;
+    }
+
+    .phone-screen {
+        padding: 15px 10px;
+        gap: 8px;
+    }
+
+    .chat-bubble {
+        padding: 8px 12px;
+        font-size: 11px;
+        max-width: 75%;
+    }
+
+    .features {
+        padding: 50px 0;
+    }
+
+    .section-title {
+        font-size: 28px;
+        margin-bottom: 30px;
+    }
+
+    .features-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .feature-card {
+        padding: 25px 20px;
+    }
+
+    .feature-icon {
+        font-size: 40px;
+        margin-bottom: 12px;
+    }
+
+    .feature-card h3 {
+        font-size: 18px;
+        margin-bottom: 8px;
+    }
+
+    .feature-card p {
+        font-size: 13px;
+        line-height: 1.6;
+    }
+
+    .use-cases {
+        padding: 50px 0;
+    }
+
+    .cases-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .case-item {
+        padding: 30px 20px;
+    }
+
+    .case-emoji {
+        font-size: 48px;
+        margin-bottom: 12px;
+    }
+
+    .case-item h3 {
+        font-size: 20px;
+        margin-bottom: 8px;
+    }
+
+    .case-item p {
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    .how-it-works {
+        padding: 50px 0;
+    }
+
+    .step {
+        padding: 15px;
+    }
+
+    .step-number {
+        width: 50px;
+        height: 50px;
+        font-size: 24px;
+        margin-bottom: 12px;
+    }
+
+    .step h3 {
+        font-size: 18px;
+        margin-bottom: 6px;
+    }
+
+    .step p {
+        font-size: 13px;
+    }
+
+    .step-arrow {
+        font-size: 20px;
+    }
+
+    .download {
+        padding: 50px 0;
+    }
+
+    .download .section-title {
+        font-size: 28px;
+    }
+
+    .download-subtitle {
+        font-size: 16px;
+        margin-bottom: 25px;
+    }
+
+    .download-buttons {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .download-btn {
+        width: 100%;
+        padding: 14px 24px;
+    }
+
+    .download-icon {
+        font-size: 28px;
+    }
+
+    .download-label {
+        font-size: 15px;
+    }
+
+    .download-status {
+        font-size: 11px;
+    }
+
+    .footer {
+        padding: 35px 0 15px;
+    }
+
+    .footer-content {
+        gap: 25px;
+        margin-bottom: 25px;
+    }
+
+    .footer-brand h3 {
+        font-size: 24px;
+    }
+
+    .footer-tagline {
+        font-size: 13px;
+    }
+
+    .domain-story {
+        font-size: 12px;
+        line-height: 1.7;
+    }
+
+    .footer-bottom {
+        padding-top: 20px;
+        font-size: 12px;
+    }
+}
+

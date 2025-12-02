@@ -1,0 +1,507 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		F4D05DC12ED9CA4E0044AACC /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = F4D05DC02ED9CA4E0044AACC /* SocketIO */; };
+		F4D05DC42ED9CAF30044AACC /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = F4D05DC32ED9CAF30044AACC /* FirebaseCrashlytics */; };
+		F4D05DC62ED9CAF30044AACC /* FirebaseInAppMessaging-Beta in Frameworks */ = {isa = PBXBuildFile; productRef = F4D05DC52ED9CAF30044AACC /* FirebaseInAppMessaging-Beta */; };
+		F4D05DC82ED9CAF30044AACC /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = F4D05DC72ED9CAF30044AACC /* FirebaseMessaging */; };
+		F4D05DCA2ED9CAF30044AACC /* FirebaseRemoteConfig in Frameworks */ = {isa = PBXBuildFile; productRef = F4D05DC92ED9CAF30044AACC /* FirebaseRemoteConfig */; };
+		F4D05DDA2ED9D6C80044AACC /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = F4D05DD92ED9D6C80044AACC /* GoogleSignIn */; };
+		F4D05DDC2ED9D6C80044AACC /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = F4D05DDB2ED9D6C80044AACC /* GoogleSignInSwift */; };
+		F4D05DDF2ED9D7860044AACC /* KakaoSDKAuth in Frameworks */ = {isa = PBXBuildFile; productRef = F4D05DDE2ED9D7860044AACC /* KakaoSDKAuth */; };
+		F4D05DE12ED9D7860044AACC /* KakaoSDKCommon in Frameworks */ = {isa = PBXBuildFile; productRef = F4D05DE02ED9D7860044AACC /* KakaoSDKCommon */; };
+		F4D05DE32ED9D7860044AACC /* KakaoSDKUser in Frameworks */ = {isa = PBXBuildFile; productRef = F4D05DE22ED9D7860044AACC /* KakaoSDKUser */; };
+		F4D05DE62ED9D7DC0044AACC /* NaverThirdPartyLogin in Frameworks */ = {isa = PBXBuildFile; productRef = F4D05DE52ED9D7DC0044AACC /* NaverThirdPartyLogin */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		F4D05D882ED9C7F70044AACC /* YEO.PE.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = YEO.PE.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		F4D05D8A2ED9C7F70044AACC /* YEO.PE */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = YEO.PE;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		F4D05D852ED9C7F70044AACC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F4D05DC82ED9CAF30044AACC /* FirebaseMessaging in Frameworks */,
+				F4D05DC12ED9CA4E0044AACC /* SocketIO in Frameworks */,
+				F4D05DDC2ED9D6C80044AACC /* GoogleSignInSwift in Frameworks */,
+				F4D05DE62ED9D7DC0044AACC /* NaverThirdPartyLogin in Frameworks */,
+				F4D05DC42ED9CAF30044AACC /* FirebaseCrashlytics in Frameworks */,
+				F4D05DE12ED9D7860044AACC /* KakaoSDKCommon in Frameworks */,
+				F4D05DC62ED9CAF30044AACC /* FirebaseInAppMessaging-Beta in Frameworks */,
+				F4D05DCA2ED9CAF30044AACC /* FirebaseRemoteConfig in Frameworks */,
+				F4D05DDA2ED9D6C80044AACC /* GoogleSignIn in Frameworks */,
+				F4D05DE32ED9D7860044AACC /* KakaoSDKUser in Frameworks */,
+				F4D05DDF2ED9D7860044AACC /* KakaoSDKAuth in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		F4D05D7F2ED9C7F70044AACC = {
+			isa = PBXGroup;
+			children = (
+				F4D05D8A2ED9C7F70044AACC /* YEO.PE */,
+				F4D05D892ED9C7F70044AACC /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		F4D05D892ED9C7F70044AACC /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				F4D05D882ED9C7F70044AACC /* YEO.PE.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		F4D05D872ED9C7F70044AACC /* YEO.PE */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F4D05D932ED9C7F90044AACC /* Build configuration list for PBXNativeTarget "YEO.PE" */;
+			buildPhases = (
+				F4D05D842ED9C7F70044AACC /* Sources */,
+				F4D05D852ED9C7F70044AACC /* Frameworks */,
+				F4D05D862ED9C7F70044AACC /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				F4D05D8A2ED9C7F70044AACC /* YEO.PE */,
+			);
+			name = YEO.PE;
+			packageProductDependencies = (
+				F4D05DC02ED9CA4E0044AACC /* SocketIO */,
+				F4D05DC32ED9CAF30044AACC /* FirebaseCrashlytics */,
+				F4D05DC52ED9CAF30044AACC /* FirebaseInAppMessaging-Beta */,
+				F4D05DC72ED9CAF30044AACC /* FirebaseMessaging */,
+				F4D05DC92ED9CAF30044AACC /* FirebaseRemoteConfig */,
+				F4D05DD92ED9D6C80044AACC /* GoogleSignIn */,
+				F4D05DDB2ED9D6C80044AACC /* GoogleSignInSwift */,
+				F4D05DDE2ED9D7860044AACC /* KakaoSDKAuth */,
+				F4D05DE02ED9D7860044AACC /* KakaoSDKCommon */,
+				F4D05DE22ED9D7860044AACC /* KakaoSDKUser */,
+				F4D05DE52ED9D7DC0044AACC /* NaverThirdPartyLogin */,
+			);
+			productName = YEO.PE;
+			productReference = F4D05D882ED9C7F70044AACC /* YEO.PE.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		F4D05D802ED9C7F70044AACC /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2600;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+					F4D05D872ED9C7F70044AACC = {
+						CreatedOnToolsVersion = 26.0.1;
+					};
+				};
+			};
+			buildConfigurationList = F4D05D832ED9C7F70044AACC /* Build configuration list for PBXProject "YEO.PE" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+				ko,
+			);
+			mainGroup = F4D05D7F2ED9C7F70044AACC;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				F4D05DBF2ED9CA4E0044AACC /* XCRemoteSwiftPackageReference "socket" */,
+				F4D05DC22ED9CAF30044AACC /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				F4D05DD82ED9D6C80044AACC /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+				F4D05DDD2ED9D7850044AACC /* XCRemoteSwiftPackageReference "kakao-ios-sdk" */,
+				F4D05DE42ED9D7DC0044AACC /* XCRemoteSwiftPackageReference "naveridlogin-sdk-ios" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = F4D05D892ED9C7F70044AACC /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				F4D05D872ED9C7F70044AACC /* YEO.PE */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		F4D05D862ED9C7F70044AACC /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		F4D05D842ED9C7F70044AACC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		F4D05D912ED9C7F90044AACC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = VC58838KPK;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		F4D05D922ED9C7F90044AACC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = VC58838KPK;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		F4D05D942ED9C7F90044AACC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = VC58838KPK;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "YEO-PE-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = " YEO.PE";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 15.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.oviwan.YEO-PE";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		F4D05D952ED9C7F90044AACC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = VC58838KPK;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "YEO-PE-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = " YEO.PE";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 15.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.oviwan.YEO-PE";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		F4D05D832ED9C7F70044AACC /* Build configuration list for PBXProject "YEO.PE" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F4D05D912ED9C7F90044AACC /* Debug */,
+				F4D05D922ED9C7F90044AACC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F4D05D932ED9C7F90044AACC /* Build configuration list for PBXNativeTarget "YEO.PE" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F4D05D942ED9C7F90044AACC /* Debug */,
+				F4D05D952ED9C7F90044AACC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		F4D05DBF2ED9CA4E0044AACC /* XCRemoteSwiftPackageReference "socket" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/socketio/socket.io-client-swift";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
+		F4D05DC22ED9CAF30044AACC /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.6.0;
+			};
+		};
+		F4D05DD82ED9D6C80044AACC /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.0.0;
+			};
+		};
+		F4D05DDD2ED9D7850044AACC /* XCRemoteSwiftPackageReference "kakao-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/kakao/kakao-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.26.0;
+			};
+		};
+		F4D05DE42ED9D7DC0044AACC /* XCRemoteSwiftPackageReference "naveridlogin-sdk-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/naver/naveridlogin-sdk-ios";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		F4D05DC02ED9CA4E0044AACC /* SocketIO */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F4D05DBF2ED9CA4E0044AACC /* XCRemoteSwiftPackageReference "socket" */;
+			productName = SocketIO;
+		};
+		F4D05DC32ED9CAF30044AACC /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F4D05DC22ED9CAF30044AACC /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
+		};
+		F4D05DC52ED9CAF30044AACC /* FirebaseInAppMessaging-Beta */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F4D05DC22ED9CAF30044AACC /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = "FirebaseInAppMessaging-Beta";
+		};
+		F4D05DC72ED9CAF30044AACC /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F4D05DC22ED9CAF30044AACC /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
+		};
+		F4D05DC92ED9CAF30044AACC /* FirebaseRemoteConfig */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F4D05DC22ED9CAF30044AACC /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseRemoteConfig;
+		};
+		F4D05DD92ED9D6C80044AACC /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F4D05DD82ED9D6C80044AACC /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+		F4D05DDB2ED9D6C80044AACC /* GoogleSignInSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F4D05DD82ED9D6C80044AACC /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignInSwift;
+		};
+		F4D05DDE2ED9D7860044AACC /* KakaoSDKAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F4D05DDD2ED9D7850044AACC /* XCRemoteSwiftPackageReference "kakao-ios-sdk" */;
+			productName = KakaoSDKAuth;
+		};
+		F4D05DE02ED9D7860044AACC /* KakaoSDKCommon */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F4D05DDD2ED9D7850044AACC /* XCRemoteSwiftPackageReference "kakao-ios-sdk" */;
+			productName = KakaoSDKCommon;
+		};
+		F4D05DE22ED9D7860044AACC /* KakaoSDKUser */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F4D05DDD2ED9D7850044AACC /* XCRemoteSwiftPackageReference "kakao-ios-sdk" */;
+			productName = KakaoSDKUser;
+		};
+		F4D05DE52ED9D7DC0044AACC /* NaverThirdPartyLogin */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F4D05DE42ED9D7DC0044AACC /* XCRemoteSwiftPackageReference "naveridlogin-sdk-ios" */;
+			productName = NaverThirdPartyLogin;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = F4D05D802ED9C7F70044AACC /* Project object */;
+}

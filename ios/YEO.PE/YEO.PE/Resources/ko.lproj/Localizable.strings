@@ -1,0 +1,47 @@
+/* 
+  Localizable.strings
+  YEO.PE
+*/
+
+// Common
+"cancel" = "취소";
+"confirm" = "확인";
+"close" = "닫기";
+"error" = "오류";
+"success" = "성공";
+
+// MainView
+"signal_active" = "신호 활성화";
+"chat" = "채팅";
+"profile" = "프로필";
+"login" = "로그인";
+"signal_matched" = "신호 감지됨";
+"signal_matched_message" = "근처에서 새로운 신호가 감지되었습니다.";
+"connect" = "연결";
+"start_chat_title" = "대화 시작?";
+"start_chat_message" = "이 신호와 대화를 시작하시겠습니까?";
+"start" = "시작";
+
+// LoginView
+"email" = "이메일";
+"password" = "비밀번호";
+"keep_me_logged_in" = "로그인 상태 유지";
+"create_account" = "계정 만들기";
+"login_button" = "로그인";
+
+// ProfileView
+"logout" = "로그아웃";
+"user" = "사용자";
+
+// SettingsView
+"settings" = "설정";
+"push_notifications" = "푸시 알림";
+"language" = "언어";
+"general" = "일반";
+
+// ChatView
+"type_message" = "메시지를 입력하세요...";
+"send" = "전송";
+"waiting_for_user" = "사용자 기다리는 중...";
+"active" = "활동 중";
+"connecting" = "연결 중";

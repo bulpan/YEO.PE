@@ -52,13 +52,15 @@ GPS 없이 **블루투스 신호(BLE)** 를 이용해 실제 가까이 있는 �
 
 
 ### 🧩 주요 구성요소
-| 영역 | 기술 | 역할 |
-|------|------|------|
-| **BLE Layer** | CoreBluetooth (iOS) / Android BLE | 근거리 사용자 탐색 |
-| **Server Layer** | Node.js / WebSocket / Firebase | 실시간 채팅, 푸시, TTL 관리 |
-| **DB Layer** | MongoDB / Redis | 대화방 및 세션 관리 |
-| **Storage Layer** | AWS S3 | 이미지, 이모지 등 파일 저장 |
-| **Push Layer** | FCM / APNs | 근처 방 생성 푸시 알림 |
+| 영역 | 기술 | 역할 | 상태 |
+|------|------|------|------|
+| **BLE Layer** | CoreBluetooth (iOS) / Android BLE | 근거리 사용자 탐색 | 🚧 예정 |
+| **Server Layer** | Node.js / Express.js / Socket.io | 실시간 채팅, TTL 관리 | ✅ 완료 |
+| **DB Layer** | PostgreSQL / Redis | 대화방 및 세션 관리 | ✅ 완료 |
+| **Storage Layer** | OCI Object Storage | 이미지, 이모지 등 파일 저장 | 📋 예정 |
+| **Push Layer** | FCM / APNs | 근처 방 생성 푸시 알림 | 🚧 예정 |
+| **Web Server** | Nginx | 리버스 프록시, SSL/TLS | ✅ 완료 |
+| **Infrastructure** | Oracle Cloud Infrastructure | 서버 호스팅 | ✅ 완료 |
 
 ---
 
@@ -77,7 +79,7 @@ GPS 없이 **블루투스 신호(BLE)** 를 이용해 실제 가까이 있는 �
 
 | 구분 | 정책 |
 |------|------|
-| **회원 정책** | 이메일 / 구글 / 애플 로그인 지원 |
+| **회원 정책** | 이메일 / 구글 / 애플 / 카카오 / 네이버 로그인 지원 |
 | **비회원 정책** | 탐색 및 열람만 가능, 글쓰기 및 방 생성 불가 |
 | **데이터 보관** | 채팅 내용은 서버 TTL(24h) 후 자동 삭제 |
 | **프라이버시 보호** | 닉네임 일부 마스킹, BLE UUID 임시 생성 |
@@ -151,6 +153,52 @@ GPS 없이 **블루투스 신호(BLE)** 를 이용해 실제 가까이 있는 �
 차세대 휘발성 SNS 서비스다.
 
 > "지도 밖에서 만나는 진짜 연결, YEO.PE."
+
+---
+
+## 13. 개발 진행 상황
+
+### ✅ 완료된 기능 (2024년 11월)
+
+#### 백엔드 서버 (MVP Phase 1-6)
+- ✅ 프로젝트 기본 구조 및 설정
+- ✅ PostgreSQL 데이터베이스 설계 및 구현
+- ✅ 사용자 인증 시스템 (이메일 회원가입/로그인, JWT)
+- ✅ 방 관리 API (생성, 조회, 참여, 나가기, 멤버 목록)
+- ✅ 실시간 채팅 시스템 (WebSocket, Socket.io)
+- ✅ 메시지 관리 (전송, 조회, 삭제)
+- ✅ TTL 자동 정리 시스템 (24시간 만료 방/메시지 자동 삭제)
+- ✅ 닉네임 마스킹 기능
+- ✅ Rate Limiting 및 보안 미들웨어
+- ✅ 서버 배포 및 도메인 설정 (yeop3.com)
+
+#### 인프라
+- ✅ Oracle Cloud Infrastructure 서버 설정
+- ✅ PostgreSQL, Redis 설치 및 구성
+- ✅ Nginx 리버스 프록시 설정
+- ✅ Cloudflare DNS 연동
+- ✅ SSL/TLS 설정 (임시 자체 서명 인증서)
+
+### 🚧 진행 중
+
+- 모바일 앱 개발 (iOS/Android)
+- 이미지 업로드 기능
+- 푸시 알림 연동 (Firebase Cloud Messaging)
+- Google/Apple/Kakao/Naver 소셜 로그인
+
+### 📋 예정된 작업
+
+- BLE 탐색 기능 구현
+- 비회원 모드 지원
+- 이미지 암호화 및 Object Storage 연동
+- 모니터링 및 로깅 시스템 구축
+
+### 📊 현재 상태
+
+- **서버**: 운영 중 (https://yeop3.com)
+- **데이터베이스**: PostgreSQL (Oracle Cloud)
+- **API**: REST API 및 WebSocket 정상 동작
+- **테스트**: API 및 WebSocket 테스트 완료
 
 ---
 

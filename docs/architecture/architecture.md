@@ -3,7 +3,7 @@
 > **프로젝트**: YEO.PE  
 > **버전**: 1.0  
 > **작성일**: 2024  
-> **참조**: `PROJECT_SPEC.md`
+> **참조**: [프로젝트 기획서](../planning/PROJECT_SPEC.md)
 
 ---
 
@@ -63,8 +63,8 @@
          ┌─────────────┼──────────────┐
          │             │               │
     ┌────▼────┐   ┌────▼────┐   ┌────▼────┐
-    │ MongoDB │   │  Redis  │   │  AWS S3 │
-    │   DB    │   │  Cache  │   │ Storage │
+    │PostgreSQL│   │  Redis  │   │OCI Object│
+    │   DB     │   │  Cache  │   │ Storage  │
     └─────────┘   └─────────┘   └─────────┘
 ```
 
@@ -101,14 +101,24 @@
 ### 2.2 백엔드 서버
 
 #### 런타임
-- **Node.js**: 18.x LTS
-- **프레임워크**: Express.js 4.x
-- **실시간 통신**: Socket.io 4.x (또는 ws)
-- **인증**: jsonwebtoken, bcrypt
-- **암호화**: crypto (AES-256)
+- **Node.js**: 18.x LTS ✅
+- **프레임워크**: Express.js 4.x ✅
+- **실시간 통신**: Socket.io 4.x ✅
+- **인증**: jsonwebtoken, bcrypt ✅
+- **암호화**: crypto (AES-256) ✅
 
 #### 데이터베이스
-- **MongoDB**: 6.0+ (주 데이터베이스)
+- **PostgreSQL**: 13+ ✅ (Oracle Cloud VM에 설치)
+- **Redis**: 6+ ✅ (세션 관리, 캐싱)
+
+#### 배포 환경
+- **인프라**: Oracle Cloud Infrastructure (Free Tier) ✅
+- **웹 서버**: Nginx (리버스 프록시) ✅
+- **도메인**: yeop3.com ✅
+- **SSL/TLS**: Cloudflare Flexible 모드 (임시 자체 서명 인증서)
+
+#### 데이터베이스
+- **PostgreSQL**: 13+ (주 데이터베이스) ✅
   - 채팅방, 메시지, 사용자 정보 저장
   - TTL 인덱스로 자동 삭제 관리
 - **Redis**: 7.0+ (캐시 및 세션)
@@ -118,7 +128,7 @@
   - TTL 기반 자동 만료
 
 #### 스토리지
-- **AWS S3**: 이미지, 이모지 파일 저장
+- **OCI Object Storage**: 이미지, 이모지 파일 저장 (예정)
 - **CDN**: CloudFront (이미지 전송 최적화)
 
 #### 푸시 알림
@@ -133,7 +143,7 @@
 ### 2.3 인프라 및 DevOps
 
 #### 클라우드
-- **AWS**: EC2, S3, CloudFront
+- **OCI**: Compute VM, Object Storage, Load Balancer
 - **또는**: Google Cloud Platform (Firebase 기반)
 
 #### 모니터링
@@ -212,38 +222,49 @@ server/
 ├── src/
 │   ├── index.js              # 서버 진입점
 │   ├── config/
-│   │   ├── database.js       # MongoDB, Redis 연결
-│   │   ├── s3.js             # AWS S3 설정
-│   │   └── auth.js           # JWT 설정
-│   ├── models/
-│   │   ├── User.js
-│   │   ├── Room.js
-│   │   ├── Message.js
-│   │   └── Session.js
+│   │   ├── database.js       # PostgreSQL 연결 ✅
+│   │   ├── redis.js          # Redis 연결 ✅
+│   │   ├── auth.js           # JWT 설정 ✅
+│   │   └── oci.js            # OCI Object Storage 설정 (예정)
+│   ├── models/               # PostgreSQL 스키마 (database/init.sql) ✅
+│   │   └── (SQL 스키마로 구현됨)
 │   ├── routes/
-│   │   ├── auth.js           # 인증 API
-│   │   ├── rooms.js          # 방 관련 API
-│   │   ├── users.js          # 사용자 API
-│   │   └── upload.js         # 파일 업로드
+│   │   ├── auth.js           # 인증 API ✅
+│   │   ├── rooms.js          # 방 관련 API ✅
+│   │   └── messages.js       # 메시지 API ✅
 │   ├── socket/
-│   │   ├── socketHandler.js  # WebSocket 핸들러
-│   │   ├── roomHandler.js    # 방 관련 소켓 이벤트
-│   │   └── messageHandler.js # 메시지 소켓 이벤트
+│   │   ├── socketHandler.js  # WebSocket 핸들러 ✅
+│   │   ├── roomHandler.js    # 방 관련 소켓 이벤트 ✅
+│   │   └── messageHandler.js # 메시지 소켓 이벤트 ✅
 │   ├── services/
-│   │   ├── bleService.js     # BLE 탐색 로직
-│   │   ├── pushService.js    # 푸시 알림 서비스
-│   │   ├── encryption.js     # 암호화 서비스
-│   │   └── ttlService.js     # TTL 관리 서비스
+│   │   ├── userService.js    # 사용자 서비스 ✅
+│   │   ├── roomService.js    # 방 관리 서비스 ✅
+│   │   ├── messageService.js # 메시지 서비스 ✅
+│   │   ├── ttlService.js     # TTL 관리 서비스 ✅
+│   │   ├── bleService.js     # BLE 탐색 로직 (예정)
+│   │   ├── pushService.js    # 푸시 알림 서비스 (예정)
+│   │   └── encryption.js     # 암호화 서비스 (예정)
 │   ├── middleware/
-│   │   ├── auth.js           # JWT 인증 미들웨어
-│   │   ├── validation.js     # 입력 검증
-│   │   └── rateLimit.js      # Rate Limiting
+│   │   ├── auth.js           # JWT 인증 미들웨어 ✅
+│   │   ├── validation.js     # 입력 검증 ✅
+│   │   └── rateLimit.js      # Rate Limiting ✅
 │   └── utils/
-│       ├── logger.js         # 로깅 유틸
-│       └── errors.js         # 에러 핸들링
+│       ├── logger.js         # Winston 로깅 유틸 ✅
+│       ├── errors.js         # 커스텀 에러 클래스 ✅
+│       └── nickname.js       # 닉네임 마스킹 유틸 ✅
+├── database/
+│   ├── init.sql              # PostgreSQL 스키마 초기화 ✅
+│   └── ttl_cleanup.sql       # TTL 정리 함수 ✅
+├── nginx/
+│   ├── yeop3.com.conf        # Nginx 설정 파일 ✅
+│   └── README.md             # Nginx 설정 가이드 ✅
 ├── tests/
-│   ├── unit/
-│   └── integration/
+│   ├── api.test.js           # API 통합 테스트 ✅
+│   ├── websocket.test.js     # WebSocket 테스트 ✅
+│   ├── websocket-client.js   # WebSocket 클라이언트 테스트 도구 ✅
+│   ├── websocket-test.html   # 브라우저 WebSocket 테스트 ✅
+│   ├── manual-test.md        # 수동 테스트 가이드 ✅
+│   └── test-helper.js        # 테스트 헬퍼 ✅
 └── package.json
 ```
 
@@ -251,95 +272,122 @@ server/
 
 ## 4. 데이터베이스 설계
 
-### 4.1 MongoDB 스키마
+### 4.1 PostgreSQL 스키마 ✅
 
-#### Users Collection
-```javascript
-{
-  _id: ObjectId,
-  email: String,              // 이메일 (고유)
-  authProvider: String,        // "email" | "google" | "apple"
-  providerId: String,          // OAuth Provider ID
-  nickname: String,            // 사용자 닉네임
-  nicknameMask: String,        // 마스킹된 닉네임 (예: "김**")
-  createdAt: Date,
-  lastLoginAt: Date,
-  isActive: Boolean,
-  settings: {
-    bleVisible: Boolean,      // BLE 탐색 노출 여부
-    pushEnabled: Boolean
-  }
-}
+**데이터베이스**: `yeope`  
+**스키마**: `yeope_schema`  
+**사용자**: `yeope_user`
+
+> **참고**: 초기 설계는 MongoDB였으나, Oracle Cloud Free Tier 최적화를 위해 PostgreSQL로 변경되었습니다.
+
+#### Users 테이블 ✅
+```sql
+CREATE TABLE yeope_schema.users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email VARCHAR(255) UNIQUE NOT NULL,
+  auth_provider VARCHAR(50) NOT NULL, -- 'email', 'google', 'apple'
+  provider_id VARCHAR(255),
+  nickname VARCHAR(100) NOT NULL,
+  nickname_mask VARCHAR(100) NOT NULL,
+  password_hash VARCHAR(255), -- 이메일 로그인 시에만 사용
+  created_at TIMESTAMP DEFAULT NOW(),
+  last_login_at TIMESTAMP,
+  is_active BOOLEAN DEFAULT true,
+  settings JSONB DEFAULT '{"bleVisible": true, "pushEnabled": true}'::jsonb,
+  CONSTRAINT unique_provider_id UNIQUE(auth_provider, provider_id)
+);
 ```
 
 **인덱스**:
-- `email`: unique
-- `providerId`: unique (authProvider와 복합)
-- `createdAt`: TTL 인덱스 (비활성 사용자 90일 후 삭제)
+- `idx_users_email`: email (UNIQUE)
+- `idx_users_created_at`: created_at
+- `idx_users_provider`: auth_provider, provider_id
 
-#### Rooms Collection
-```javascript
-{
-  _id: ObjectId,
-  roomId: String,             // 고유 방 ID (UUID)
-  name: String,               // 방 이름
-  creatorId: ObjectId,        // 생성자 User ID
-  createdAt: Date,
-  expiresAt: Date,            // 24시간 후 자동 삭제
-  memberCount: Number,        // 현재 멤버 수
-  isActive: Boolean,
-  metadata: {
-    location: String,         // 대략적 위치 (선택적, GPS 아님)
-    category: String          // "general" | "transport" | "event" | "venue"
-  }
-}
+#### Rooms 테이블 ✅
+```sql
+CREATE TABLE yeope_schema.rooms (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  room_id VARCHAR(36) UNIQUE NOT NULL, -- UUID 문자열
+  name VARCHAR(255) NOT NULL,
+  creator_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  expires_at TIMESTAMP NOT NULL,
+  member_count INTEGER DEFAULT 0,
+  is_active BOOLEAN DEFAULT true,
+  metadata JSONB DEFAULT '{"category": "general"}'::jsonb
+);
 ```
 
 **인덱스**:
-- `roomId`: unique
-- `expiresAt`: TTL 인덱스 (24시간)
-- `createdAt`: 일반 인덱스
-- `creatorId`: 일반 인덱스
+- `idx_rooms_room_id`: room_id (UNIQUE)
+- `idx_rooms_expires_at`: expires_at
+- `idx_rooms_created_at`: created_at
+- `idx_rooms_creator_id`: creator_id
+- `idx_rooms_active`: is_active, expires_at (부분 인덱스)
 
-#### Messages Collection
-```javascript
-{
-  _id: ObjectId,
-  roomId: ObjectId,           // Room 참조
-  userId: ObjectId,           // User 참조
-  type: String,               // "text" | "image" | "emoji"
-  content: String,            // 암호화된 메시지 내용
-  encryptedContent: String,   // AES-256 암호화된 원본
-  imageUrl: String,          // S3 이미지 URL (type이 image일 때)
-  createdAt: Date,
-  expiresAt: Date,            // Room과 동일하게 24시간
-  isDeleted: Boolean
-}
+#### Messages 테이블 ✅
+```sql
+CREATE TABLE yeope_schema.messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  room_id UUID REFERENCES rooms(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  type VARCHAR(50) NOT NULL, -- 'text', 'image', 'emoji'
+  content TEXT, -- 암호화된 메시지
+  encrypted_content TEXT, -- AES-256 암호화된 원본
+  image_url TEXT, -- Object Storage 이미지 URL
+  created_at TIMESTAMP DEFAULT NOW(),
+  expires_at TIMESTAMP NOT NULL,
+  is_deleted BOOLEAN DEFAULT false
+);
 ```
 
 **인덱스**:
-- `roomId`: 복합 인덱스 (roomId, createdAt)
-- `expiresAt`: TTL 인덱스 (24시간)
-- `userId`: 일반 인덱스
+- `idx_messages_room_created`: room_id, created_at DESC
+- `idx_messages_expires_at`: expires_at
+- `idx_messages_user_id`: user_id
+- `idx_messages_room_active`: room_id, created_at DESC (부분 인덱스, is_deleted = false)
 
-#### RoomMembers Collection (참여자 관리)
-```javascript
-{
-  _id: ObjectId,
-  roomId: ObjectId,
-  userId: ObjectId,
-  joinedAt: Date,
-  leftAt: Date,               // null이면 현재 참여 중
-  role: String,               // "member" | "creator"
-  lastSeenAt: Date
-}
+#### RoomMembers 테이블 (참여자 관리) ✅
+```sql
+CREATE TABLE yeope_schema.room_members (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  room_id UUID REFERENCES rooms(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  joined_at TIMESTAMP DEFAULT NOW(),
+  left_at TIMESTAMP,
+  role VARCHAR(50) DEFAULT 'member', -- 'member', 'creator'
+  last_seen_at TIMESTAMP DEFAULT NOW(),
+  CONSTRAINT unique_room_user_active UNIQUE(room_id, user_id, left_at)
+);
 ```
 
 **인덱스**:
-- `roomId, userId`: 복합 인덱스
-- `userId, leftAt`: 복합 인덱스 (활성 참여 방 조회)
+- `idx_room_members_room_user`: room_id, user_id
+- `idx_room_members_user_active`: user_id, left_at (부분 인덱스, left_at IS NULL)
+- `idx_room_members_room_active`: room_id, left_at (부분 인덱스, left_at IS NULL)
 
-### 4.2 Redis 구조
+### 4.2 TTL 자동 정리 ✅
+
+PostgreSQL 함수를 사용하여 만료된 데이터를 자동으로 정리합니다:
+
+```sql
+CREATE OR REPLACE FUNCTION yeope_schema.cleanup_expired_data()
+RETURNS void AS $$
+BEGIN
+    -- 만료된 방 삭제 (CASCADE로 메시지, 멤버도 삭제)
+    DELETE FROM yeope_schema.rooms
+    WHERE expires_at < NOW();
+
+    -- 만료된 메시지 삭제
+    DELETE FROM yeope_schema.messages
+    WHERE expires_at < NOW();
+END;
+$$ LANGUAGE plpgsql;
+```
+
+Node.js cron 작업으로 1시간마다 실행됩니다 (`src/services/ttlService.js`).
+
+### 4.3 Redis 구조
 
 #### 세션 관리
 ```
@@ -578,7 +626,7 @@ TTL: 방 만료 시 자동 삭제
 ```json
 {
   "type": "image",
-  "imageUrl": "https://s3.amazonaws.com/..."
+  "imageUrl": "https://objectstorage.{region}.oraclecloud.com/..."
 }
 ```
 
@@ -608,8 +656,8 @@ TTL: 방 만료 시 자동 삭제
 **응답**:
 ```json
 {
-  "imageUrl": "https://s3.amazonaws.com/bucket/image.jpg",
-  "thumbnailUrl": "https://s3.amazonaws.com/bucket/thumb.jpg"
+  "imageUrl": "https://objectstorage.{region}.oraclecloud.com/n/{namespace}/b/{bucket}/o/images/{roomId}/{messageId}.jpg",
+  "thumbnailUrl": "https://objectstorage.{region}.oraclecloud.com/n/{namespace}/b/{bucket}/o/images/{roomId}/{messageId}_thumb.jpg"
 }
 ```
 
@@ -959,7 +1007,7 @@ socket.to(`room:${roomId}`).emit('new-message', data);
 #### 메시지 암호화 (AES-256)
 - **알고리즘**: AES-256-GCM
 - **키 관리**: 방별로 고유 키 생성 (Room 생성 시)
-- **키 저장**: 서버에서 암호화하여 저장 (MongoDB)
+- **키 저장**: 서버에서 암호화하여 저장 (PostgreSQL)
 - **전송**: 클라이언트는 암호화된 메시지만 수신
 
 #### 전송 암호화
@@ -1070,7 +1118,7 @@ function maskNickname(nickname) {
     └───┬────┘
         │
    ┌────▼────┐
-   │ MongoDB │
+   │PostgreSQL│
    │  + Redis│
    │ (VM 설치)│
    └─────────┘
@@ -1105,8 +1153,8 @@ function maskNickname(nickname) {
    └────┬────┘
         │
    ┌────▼────┐
-   │ MongoDB │
-   │ (VM 또는 Atlas)│
+   │PostgreSQL│
+   │ (VM 설치)│
    └─────────┘
 ```
 
@@ -1136,29 +1184,27 @@ yeope-media/
 
 ### 9.4 데이터베이스 설정
 
-#### 옵션 1: VM에 직접 설치 (권장 - 무료 티어)
-**Compute VM에 MongoDB 및 Redis 설치**
-- **MongoDB**: Community Edition (무료)
-- **Redis**: 오픈소스 버전 (무료)
-- **설치 방법**: Docker Compose 또는 직접 설치
-- **백업**: Cron 작업으로 자동 백업 (Object Storage에 저장)
+#### 옵션 1: VM에 직접 설치 (현재 사용 중) ✅
+**Compute VM에 PostgreSQL 및 Redis 설치**
+- **PostgreSQL**: 13+ (무료, 오픈소스)
+- **Redis**: 6+ (무료, 오픈소스)
+- **설치 방법**: 직접 설치 (yum/dnf)
+- **백업**: Cron 작업으로 자동 백업 (Object Storage에 저장 예정)
 - **리소스**: VM 리소스 공유 사용
 
-**장점**: 완전 무료, 유연한 설정  
+**장점**: 완전 무료, 유연한 설정, Oracle Cloud Free Tier 최적화  
 **단점**: 관리 필요, 백업 직접 구성
 
-#### 옵션 2: MongoDB Atlas (무료 티어)
-- **클러스터**: M0 (무료 티어, 512MB)
+#### 옵션 2: Oracle Autonomous Database (무료 티어)
+- **타입**: Always Free (20GB)
 - **리전**: ap-seoul-1 (서울 리전)
 - **백업**: 자동 백업 (무료 티어)
-- **제한**: 512MB 스토리지, 연결 제한
+- **제한**: 20GB 스토리지, OCPU 제한
 
-**장점**: 관리형 서비스, 자동 백업  
-**단점**: 용량 제한, 성능 제한
+**장점**: 관리형 서비스, 자동 백업, 확장성  
+**단점**: 초기 설정 복잡, 무료 티어 제한
 
-#### 옵션 3: 하이브리드 (초기)
-- **MongoDB**: Atlas M0 (무료) 사용
-- **Redis**: VM에 직접 설치 (메모리 효율적)
+**현재 상태**: VM에 직접 설치된 PostgreSQL 사용 중 ✅
 
 #### Redis 설정 (VM 설치)
 - **모드**: Standalone (초기) → Sentinel (고가용성)
@@ -1191,7 +1237,7 @@ yeope-media/
 ### 10.1 개발 환경
 
 #### 로컬 개발
-- **Docker Compose**: MongoDB, Redis 로컬 실행
+- **Docker Compose**: PostgreSQL, Redis 로컬 실행 (선택적)
 - **환경 변수**: `.env` 파일 관리
 - **Hot Reload**: nodemon 사용
 
@@ -1255,7 +1301,11 @@ jobs:
 
 ```
 /opt/yeope/.env
-MONGODB_URI=mongodb://localhost:27017/yeope
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=yeope
+POSTGRES_USER=yeope_user
+POSTGRES_PASSWORD=your_password
 REDIS_URI=redis://localhost:6379
 JWT_SECRET=your_secret_key
 OCI_OBJECT_STORAGE_NAMESPACE=your_namespace
@@ -1275,7 +1325,7 @@ OCI_BUCKET_NAME=yeope-media
 - **Auto Scaling**: OCI Auto Scaling (유료 전환 시)
 
 #### 데이터베이스 확장
-- **MongoDB**: Sharding (사용자 수 증가 시) 또는 Replica Set
+- **PostgreSQL**: Read Replica (읽기 분산), 또는 Oracle Autonomous Database로 마이그레이션
 - **Redis**: Sentinel (고가용성) 또는 Cluster Mode (메모리 확장)
 
 ### 11.2 성능 최적화
@@ -1287,14 +1337,14 @@ OCI_BUCKET_NAME=yeope-media
 - **Object Storage**: 이미지 직접 제공 (퍼블릭 URL)
 
 #### 데이터베이스 최적화
-- **인덱스**: 자주 조회되는 필드에 인덱스
-- **TTL 인덱스**: 자동 삭제로 데이터 축적 방지
-- **쿼리 최적화**: Aggregation Pipeline 활용
+- **인덱스**: 자주 조회되는 필드에 인덱스 ✅
+- **TTL 정리**: PostgreSQL 함수 및 cron 작업으로 자동 삭제 ✅
+- **쿼리 최적화**: EXPLAIN ANALYZE 활용, 인덱스 튜닝
 
 ### 11.3 비용 최적화 (Oracle Cloud)
 
 #### 무료 티어 최적화
-- **VM 리소스 효율화**: MongoDB와 Redis를 동일 VM에 설치 (초기)
+- **VM 리소스 효율화**: PostgreSQL과 Redis를 동일 VM에 설치 (현재 상태) ✅
 - **Object Storage**: 10GB 무료 한도 내에서 사용
 - **이미지 압축**: 업로드 시 자동 리사이징 (용량 절약)
 - **TTL 정책**: Object Storage Lifecycle로 24시간 후 자동 삭제
@@ -1312,25 +1362,75 @@ OCI_BUCKET_NAME=yeope-media
 
 ---
 
-## 12. 개발 우선순위 (MVP 기준)
+## 12. 개발 우선순위 및 진행 상황
 
-### Phase 1: 핵심 기능
-1. ✅ 사용자 인증 (이메일, Google, Apple)
-2. ✅ BLE 탐색 기능
-3. ✅ 방 생성 및 참여
-4. ✅ 실시간 채팅 (텍스트)
-5. ✅ 휘발성 방 정책 (24시간 TTL)
+### ✅ Phase 1: 핵심 기능 (완료)
+1. ✅ 프로젝트 기본 구조 설정
+2. ✅ PostgreSQL 데이터베이스 설정 및 스키마 생성
+3. ✅ Node.js 서버 기본 설정 (Express.js, Socket.io)
+4. ✅ 사용자 인증 (이메일 회원가입/로그인, JWT)
+5. ✅ 방 생성 및 참여 API
+6. ✅ 실시간 채팅 (WebSocket, Socket.io)
+7. ✅ 휘발성 방 정책 (24시간 TTL 자동 정리)
+8. ✅ 닉네임 마스킹 기능
+9. ✅ 서버 배포 (Oracle Cloud Infrastructure)
+10. ✅ 도메인 설정 (yeop3.com, Nginx 리버스 프록시)
 
-### Phase 2: 부가 기능
-1. 이미지 업로드
-2. 푸시 알림
-3. 닉네임 마스킹
-4. 비회원 모드
+### 🚧 Phase 2: 부가 기능 (진행 중)
+1. 🚧 이미지 업로드 (OCI Object Storage 연동 예정)
+2. 🚧 푸시 알림 (Firebase Cloud Messaging 연동 예정)
+3. ✅ 닉네임 마스킹 (완료)
+4. 📋 비회원 모드 (예정)
+5. 📋 Google/Apple 소셜 로그인 (예정)
+6. 📋 BLE 탐색 기능 (모바일 앱 개발 시 구현)
 
-### Phase 3: 최적화
-1. 성능 최적화
-2. 보안 강화
-3. 모니터링 구축
+### 📋 Phase 3: 최적화 (예정)
+1. 📋 성능 최적화 (Redis 캐싱 강화, 쿼리 최적화)
+2. 📋 보안 강화 (메시지 암호화, Rate Limiting 강화)
+3. 📋 모니터링 구축 (로깅 시스템, 에러 추적)
+4. 📋 PM2 프로세스 관리 설정
+5. 📋 Let's Encrypt SSL 인증서 발급 (Full 모드 전환)
+
+---
+
+## 14. 배포 정보 ✅
+
+### 프로덕션 환경
+
+- **서버**: Oracle Cloud Infrastructure (Free Tier)
+  - **인스턴스 IP**: 152.67.208.177
+  - **OS**: Oracle Linux 9
+  - **Node.js**: 18.x
+  - **PostgreSQL**: 13+ (VM에 직접 설치)
+  - **Redis**: 6+ (VM에 직접 설치)
+
+- **웹 서버**: Nginx
+  - **포트**: 80 (HTTP), 443 (HTTPS)
+  - **리버스 프록시**: localhost:3000 (Node.js 서버)
+  - **설정 파일**: `/etc/nginx/conf.d/yeop3.com.conf`
+
+- **도메인**: yeop3.com
+  - **DNS**: Cloudflare
+  - **SSL/TLS**: Flexible 모드 (임시 자체 서명 인증서)
+  - **프록시**: Cloudflare 프록시 활성화
+
+- **서버 디렉토리**: `/opt/yeope/server`
+- **데이터베이스**: PostgreSQL `yeope` 데이터베이스, `yeope_schema` 스키마
+
+### 접속 정보
+
+- **API 엔드포인트**: https://yeop3.com/api
+- **Health Check**: https://yeop3.com/health
+- **WebSocket**: wss://yeop3.com/socket.io
+
+### 테스트 결과 ✅
+
+- ✅ REST API 테스트 완료 (회원가입, 로그인, 방 생성, 메시지 전송/조회)
+- ✅ WebSocket 테스트 완료 (연결, 방 참여, 메시지 전송/수신)
+- ✅ TTL 자동 정리 시스템 정상 동작
+- ✅ 외부 접속 테스트 완료
+
+---
 
 ---
 
@@ -1338,7 +1438,8 @@ OCI_BUCKET_NAME=yeope-media
 
 - **BLE 스펙**: Bluetooth SIG Core Specification
 - **Socket.io**: https://socket.io/docs/
-- **MongoDB TTL**: https://docs.mongodb.com/manual/core/index-ttl/
+- **PostgreSQL**: https://www.postgresql.org/docs/
+- **PostgreSQL JSONB**: https://www.postgresql.org/docs/current/datatype-json.html
 - **OCI Object Storage**: https://docs.oracle.com/en-us/iaas/Content/Object/Concepts/objectstorageoverview.htm
 - **OCI 무료 티어**: https://www.oracle.com/cloud/free/
 - **Let's Encrypt**: https://letsencrypt.org/
@@ -1346,5 +1447,5 @@ OCI_BUCKET_NAME=yeope-media
 ---
 
 **작성 완료일**: 2024  
-**다음 업데이트**: 프로토타입 개발 완료 후
+**최종 업데이트**: 2024년 11월 21일 (MVP Phase 1-6 완료, 프로덕션 배포 완료)
 

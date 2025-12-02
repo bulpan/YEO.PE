@@ -1,0 +1,47 @@
+/* 
+  Localizable.strings
+  YEO.PE
+*/
+
+// Common
+"cancel" = "Cancel";
+"confirm" = "Confirm";
+"close" = "Close";
+"error" = "Error";
+"success" = "Success";
+
+// MainView
+"signal_active" = "SIGNAL ACTIVE";
+"chat" = "CHAT";
+"profile" = "PROFILE";
+"login" = "LOGIN";
+"signal_matched" = "SIGNAL MATCHED";
+"signal_matched_message" = "A new signal has been detected nearby.";
+"connect" = "CONNECT";
+"start_chat_title" = "START CHAT?";
+"start_chat_message" = "Would you like to start a conversation with this signal?";
+"start" = "START";
+
+// LoginView
+"email" = "Email";
+"password" = "Password";
+"keep_me_logged_in" = "Keep me logged in";
+"create_account" = "Create Account";
+"login_button" = "LOGIN";
+
+// ProfileView
+"logout" = "LOGOUT";
+"user" = "User";
+
+// SettingsView
+"settings" = "Settings";
+"push_notifications" = "Push Notifications";
+"language" = "Language";
+"general" = "General";
+
+// ChatView
+"type_message" = "Type a message...";
+"send" = "Send";
+"waiting_for_user" = "WAITING FOR USER...";
+"active" = "ACTIVE";
+"connecting" = "CONNECTING";

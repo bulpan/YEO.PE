@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YEO.PE WebSocket 테스트</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        input, textarea, button {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            box-sizing: border-box;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        #log {
+            background: #f5f5f5;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 YEO.PE WebSocket 테스트</h1>
+    
+    <div class="section">
+        <h2>연결 설정</h2>
+        <input type="text" id="serverUrl" placeholder="서버 URL" value="http://localhost:3000">
+        <input type="text" id="token" placeholder="JWT Token">
+        <button onclick="connect()">연결</button>
+        <button onclick="disconnect()">연결 해제</button>
+        <div id="status" class="status disconnected">연결 안됨</div>
+    </div>
+    
+    <div class="section">
+        <h2>방 참여</h2>
+        <input type="text" id="roomId" placeholder="Room ID">
+        <button onclick="joinRoom()">방 참여</button>
+        <button onclick="leaveRoom()">방 나가기</button>
+    </div>
+    
+    <div class="section">
+        <h2>메시지 전송</h2>
+        <input type="text" id="messageRoomId" placeholder="Room ID">
+        <textarea id="messageContent" placeholder="메시지 내용"></textarea>
+        <button onclick="sendMessage()">메시지 전송</button>
+    </div>
+    
+    <div class="section">
+        <h2>타이핑 인디케이터</h2>
+        <input type="text" id="typingRoomId" placeholder="Room ID">
+        <button onclick="startTyping()">타이핑 시작</button>
+        <button onclick="stopTyping()">타이핑 중지</button>
+    </div>
+    
+    <div class="section">
+        <h2>로그</h2>
+        <div id="log"></div>
+        <button onclick="clearLog()">로그 지우기</button>
+    </div>
+    
+    <script>
+        let socket = null;
+        
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            const color = type === 'error' ? 'red' : type === 'success' ? 'green' : 'black';
+            logDiv.innerHTML += `<div style="color: ${color}">[${time}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function updateStatus(connected) {
+            const statusDiv = document.getElementById('status');
+            if (connected) {
+                statusDiv.className = 'status connected';
+                statusDiv.textContent = '✅ 연결됨';
+            } else {
+                statusDiv.className = 'status disconnected';
+                statusDiv.textContent = '❌ 연결 안됨';
+            }
+        }
+        
+        function connect() {
+            const serverUrl = document.getElementById('serverUrl').value;
+            const token = document.getElementById('token').value;
+            
+            if (!token) {
+                alert('토큰을 입력해주세요');
+                return;
+            }
+            
+            if (socket) {
+                socket.disconnect();
+            }
+            
+            socket = io(serverUrl, {
+                auth: {
+                    token: token
+                },
+                transports: ['websocket']
+            });
+            
+            socket.on('connect', () => {
+                log('✅ WebSocket 연결 성공: ' + socket.id, 'success');
+                updateStatus(true);
+            });
+            
+            socket.on('disconnect', (reason) => {
+                log('❌ 연결 해제: ' + reason, 'error');
+                updateStatus(false);
+            });
+            
+            socket.on('connect_error', (error) => {
+                log('❌ 연결 오류: ' + error.message, 'error');
+                updateStatus(false);
+            });
+            
+            socket.on('error', (error) => {
+                log('❌ 에러: ' + JSON.stringify(error), 'error');
+            });
+            
+            // 방 관련 이벤트
+            socket.on('room-joined', (data) => {
+                log('✅ 방 참여: ' + JSON.stringify(data), 'success');
+            });
+            
+            socket.on('room-left', (data) => {
+                log('👋 방 나감: ' + JSON.stringify(data), 'info');
+            });
+            
+            socket.on('user-joined', (data) => {
+                log('👤 사용자 참여: ' + data.nicknameMask, 'info');
+            });
+            
+            socket.on('user-left', (data) => {
+                log('👋 사용자 나감: ' + JSON.stringify(data), 'info');
+            });
+            
+            // 메시지 이벤트
+            socket.on('new-message', (data) => {
+                log('💬 새 메시지: ' + data.nicknameMask + ': ' + data.content, 'success');
+            });
+            
+            // 타이핑 이벤트
+            socket.on('typing-indicator', (data) => {
+                if (data.isTyping) {
+                    log('⌨️ ' + data.nicknameMask + ' 타이핑 중...', 'info');
+                }
+            });
+        }
+        
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+                updateStatus(false);
+                log('연결 해제됨', 'info');
+            }
+        }
+        
+        function joinRoom() {
+            const roomId = document.getElementById('roomId').value;
+            if (!socket || !socket.connected) {
+                alert('먼저 연결해주세요');
+                return;
+            }
+            if (!roomId) {
+                alert('Room ID를 입력해주세요');
+                return;
+            }
+            socket.emit('join-room', { roomId });
+            log('방 참여 요청: ' + roomId, 'info');
+        }
+        
+        function leaveRoom() {
+            const roomId = document.getElementById('roomId').value;
+            if (!socket || !socket.connected) {
+                alert('먼저 연결해주세요');
+                return;
+            }
+            if (!roomId) {
+                alert('Room ID를 입력해주세요');
+                return;
+            }
+            socket.emit('leave-room', { roomId });
+            log('방 나가기 요청: ' + roomId, 'info');
+        }
+        
+        function sendMessage() {
+            const roomId = document.getElementById('messageRoomId').value;
+            const content = document.getElementById('messageContent').value;
+            if (!socket || !socket.connected) {
+                alert('먼저 연결해주세요');
+                return;
+            }
+            if (!roomId || !content) {
+                alert('Room ID와 메시지 내용을 입력해주세요');
+                return;
+            }
+            socket.emit('send-message', {
+                roomId,
+                type: 'text',
+                content
+            });
+            log('메시지 전송: ' + content, 'info');
+            document.getElementById('messageContent').value = '';
+        }
+        
+        function startTyping() {
+            const roomId = document.getElementById('typingRoomId').value;
+            if (!socket || !socket.connected) {
+                alert('먼저 연결해주세요');
+                return;
+            }
+            if (!roomId) {
+                alert('Room ID를 입력해주세요');
+                return;
+            }
+            socket.emit('typing', { roomId, isTyping: true });
+        }
+        
+        function stopTyping() {
+            const roomId = document.getElementById('typingRoomId').value;
+            if (!socket || !socket.connected) {
+                return;
+            }
+            if (!roomId) {
+                return;
+            }
+            socket.emit('typing', { roomId, isTyping: false });
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+    </script>
+</body>
+</html>
+
+
+
+
+

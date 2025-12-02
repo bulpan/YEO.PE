@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YEO.PE - 지금, 여기, 우리</title>
+    <style>
+        /* YEO.PE의 아이덴티티: 다크 & 네온 라임 (BLE 신호 느낌) */
+        :root {
+            --bg-color: #050505; /* 더 깊은 어둠 */
+            --text-color: #f0f0f0;
+            --accent-color: #39ff14; /* 강렬한 네온 라임 (블루투스 신호) */
+            --sub-accent: #7000ff; /* 신비로운 보라 (익명성) */
+            --gray: #2a2a2a;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+            line-height: 1.4;
+            overflow-x: hidden;
+        }
+
+        /* 유틸리티 */
+        .container { max-width: 1100px; margin: 0 auto; padding: 0 20px; }
+        .highlight { color: var(--accent-color); }
+        .stroke { -webkit-text-stroke: 1px #fff; color: transparent; }
+        .gradient-text {
+            background: linear-gradient(90deg, var(--accent-color), #fff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* 헤더 */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 25px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .logo { 
+            font-size: 1.8rem; 
+            font-weight: 900; 
+            letter-spacing: -1px; 
+            font-style: italic;
+        }
+        .btn-cta {
+            background: #fff;
+            color: #000;
+            padding: 12px 28px;
+            border-radius: 4px; /* 둥근 것보다 각진 게 더 힙함 */
+            font-weight: 800;
+            text-decoration: none;
+            transition: 0.3s;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+        }
+        .btn-cta:hover { 
+            background: var(--accent-color); 
+            box-shadow: 0 0 20px var(--accent-color);
+        }
+
+        /* 히어로 섹션 */
+        .hero {
+            padding: 140px 0 100px;
+            text-align: left; /* 왼쪽 정렬로 시크하게 */
+            position: relative;
+        }
+        .hero h1 {
+            font-size: 5.5rem;
+            line-height: 0.85;
+            font-weight: 900;
+            margin-bottom: 30px;
+            letter-spacing: -3px;
+            text-transform: uppercase;
+        }
+        .hero p {
+            font-size: 1.4rem;
+            color: #888;
+            margin-bottom: 60px;
+            font-weight: 400;
+            max-width: 500px;
+        }
+        
+        /* 레이더 애니메이션 효과 (배경 장식) */
+        .radar {
+            position: absolute;
+            top: 50%; left: 70%;
+            width: 400px; height: 400px;
+            border: 2px solid var(--accent-color);
+            border-radius: 50%;
+            opacity: 0.2;
+            transform: translate(-50%, -50%);
+            animation: pulse 2s infinite;
+            z-index: -1;
+        }
+        .radar::before {
+            content:''; position: absolute; top:50%; left:50%;
+            width: 70%; height: 70%;
+            border: 2px solid var(--accent-color);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+        @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.5; }
+            100% { transform: translate(-50%, -50%) scale(1.2); opacity: 0; }
+        }
+
+        /* 흐르는 텍스트 (Marquee) */
+        .marquee-wrap {
+            background: #fff;
+            color: #000;
+            padding: 15px 0;
+            overflow: hidden;
+            white-space: nowrap;
+            transform: rotate(2deg); /* 살짝 삐딱하게 */
+            margin: 60px 0;
+            border-top: 2px solid var(--accent-color);
+            border-bottom: 2px solid var(--accent-color);
+        }
+        .marquee-text {
+            font-size: 1.8rem;
+            font-weight: 900;
+            display: inline-block;
+            animation: marquee 15s linear infinite;
+        }
+        @keyframes marquee {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        /* 벤토 그리드 (기능 소개) */
+        .features { padding: 80px 0; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(2, 280px);
+            gap: 15px;
+        }
+        .card {
+            background: #111;
+            border: 1px solid #333;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        .card:hover { 
+            border-color: var(--accent-color); 
+            background: #161616;
+        }
+        .card h3 { 
+            font-size: 1.6rem; 
+            font-weight: 800; 
+            margin-bottom: 10px; 
+            color: #fff;
+        }
+        .card p { 
+            color: #999; 
+            font-size: 1rem; 
+            line-height: 1.5;
+        }
+        .tag {
+            display: inline-block;
+            background: var(--gray);
+            color: #fff;
+            padding: 5px 10px;
+            border-radius: 100px;
+            font-size: 0.8rem;
+            margin-bottom: 15px;
+        }
+
+        /* 그리드 배치 (비대칭) */
+        .card.col-2 { grid-column: span 2; }
+        .card.row-2 { grid-row: span 2; background: linear-gradient(180deg, #111, #1a052e); }
+        .card.accent { background: var(--accent-color); color: #000; border: none; }
+        .card.accent h3, .card.accent p { color: #000; }
+        .card.accent p { opacity: 0.8; }
+
+        /* 모바일 */
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 3.5rem; }
+            .hero p { font-size: 1.1rem; }
+            .grid { grid-template-columns: 1fr; grid-template-rows: auto; }
+            .card.col-2, .card.row-2 { grid-column: span 1; grid-row: span 1; min-height: 220px; }
+            .radar { left: 50%; width: 300px; height: 300px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <div class="logo">YEO.PE</div>
+            <a href="#" class="btn-cta">지금 탐색하기</a>
+        </header>
+
+        <section class="hero">
+            <div class="radar"></div>
+            <h1>
+                NO GPS.<br>
+                JUST <span class="highlight">VIBE.</span><br>
+                <span class="stroke">RIGHT HERE.</span>
+            </h1>
+            <p>
+                지도 위의 친구는 가짜야.<br>
+                지금 당신의 반경 30m, 진짜 사람들과 연결되세요.<br>
+            <strong style="color:#fff">블루투스 기반 근거리 소셜 네트워크, .. 여페? ~옆에^^</strong>
+            </p>
+            <div style="margin-top: 40px;">
+                <a href="#" class="btn-cta" style="padding: 16px 40px; font-size: 1rem;">주변 탐색 시작 📡</a>
+                <span style="margin-left: 20px; color: #666; font-size: 0.9rem;">*개인정보 수집 없음</span>
+            </div>
+        </section>
+    </div>
+
+    <div class="marquee-wrap">
+        <div class="marquee-text">
+             BLE ONLY • NO LOCATION DATA • GHOST CHAT • SUBWAY • FESTIVAL • CAFE • ANONYMOUS • 
+             BLE ONLY • NO LOCATION DATA • GHOST CHAT • SUBWAY • FESTIVAL • CAFE • ANONYMOUS • 
+        </div>
+    </div>
+
+    <div class="container features">
+        <div class="grid">
+            <div class="card col-2">
+                <span class="tag">Bluetooth Low Energy</span>
+                <div>
+                    <h3>GPS는 끄세요.</h3>
+                    <p>우리는 당신의 위치를 저장하지 않습니다.<br>오직 블루투스 신호 강도로만 '지금 옆에 있는 사람'을 찾습니다.</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <span class="tag">Everywhere</span>
+                <h3>지옥철이<br>파티룸으로</h3>
+                <p>지루한 출근길 2호선,<br>같은 칸 사람들과<br>뒷담화 한 판?</p>
+            </div>
+
+            <div class="card row-2 accent">
+                <div style="font-size: 3rem;">👻</div>
+                <div>
+                    <h3>24시간 뒤,<br>완벽 증발.</h3>
+                    <p>모든 대화와 방은<br>하루가 지나면 사라집니다.<br>기록? 남지 않아요.<br>그저 순간을 즐기세요.</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <span class="tag">Guest Mode</span>
+                <h3>눈팅은<br>무제한</h3>
+                <p>로그인 귀찮아?<br>비회원으로 접속해서<br>주변 분위기만<br>스윽 훑어보세요.</p>
+            </div>
+
+            <div class="card col-2">
+                <span class="tag">Privacy First</span>
+                <div>
+                    <h3>가면 쓰고, 솔직하게.</h3>
+                    <p>닉네임은 가려지고, 얼굴은 모릅니다.<br>푸시 알림을 승인한 사람끼리만 매칭되는 안전한 연결.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer style="text-align: center; padding: 60px 0; color: #444; border-top: 1px solid #222;">
+        <div class="logo" style="font-size: 1.2rem; margin-bottom: 10px; opacity: 0.5;">YEO.PE</div>
+        <p style="font-size: 0.9rem;">The real connection is offline based.</p>
+        <p style="margin-top: 20px; font-size: 0.85rem;">
+            <a href="mailto:yeope2025@gmail.com" style="color: #666; text-decoration: none; transition: 0.3s;" onmouseover="this.style.color='#39ff14'" onmouseout="this.style.color='#666'">yeope2025@gmail.com</a>
+        </p>
+        <p style="margin-top: 15px; font-size: 0.8rem;">© 2025 YEO.PE Team.</p>
+    </footer>
+
+</body>
+</html>

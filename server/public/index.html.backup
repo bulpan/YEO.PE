@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="옆에 있는 사람들과 가볍게 연결되는 휘발성 근거리 채팅 서비스">
+    <title>YEO.PE - 옆에 있는 사람들과 연결되다</title>
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <div class="logo-container">
+                <h1 class="logo">YEO.PE</h1>
+                <p class="tagline">옆에 있는 사람들과 연결되다</p>
+            </div>
+            <div class="hero-description">
+                <p class="main-text">GPS 없이, 블루투스로</p>
+                <p class="sub-text">실제 가까이 있는 사람들과<br>가볍게 대화하는 휘발성 채팅</p>
+            </div>
+            <div class="cta-buttons">
+                <button class="btn-primary" onclick="scrollToFeatures()">서비스 알아보기</button>
+                <button class="btn-secondary" onclick="scrollToDownload()">앱 다운로드</button>
+            </div>
+        </div>
+        <div class="hero-visual">
+            <div class="phone-mockup">
+                <div class="phone-screen">
+                    <div class="chat-bubble left">안녕하세요!</div>
+                    <div class="chat-bubble right">반가워요 👋</div>
+                    <div class="chat-bubble left">지하철에서 만났네요</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="container">
+            <h2 class="section-title">왜 YEO.PE인가?</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">📍</div>
+                    <h3>실제 근접성 기반</h3>
+                    <p>GPS 오차 없이 블루투스로<br>정확히 가까이 있는 사람만 연결</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">💬</div>
+                    <h3>휘발성 채팅</h3>
+                    <p>24시간 후 자동 삭제<br>부담 없이 가볍게 대화</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔒</div>
+                    <h3>익명성 보장</h3>
+                    <p>닉네임 마스킹으로<br>프라이버시 보호</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🚇</div>
+                    <h3>일상 속 연결</h3>
+                    <p>지하철, 카페, 행사장<br>어디서나 즉흥적 대화</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Use Cases Section -->
+    <section class="use-cases">
+        <div class="container">
+            <h2 class="section-title">이런 곳에서 사용해요</h2>
+            <div class="cases-grid">
+                <div class="case-item">
+                    <div class="case-emoji">🚇</div>
+                    <h3>지하철/버스</h3>
+                    <p>출퇴근길 같은 공간에서<br>가볍게 대화</p>
+                </div>
+                <div class="case-item">
+                    <div class="case-emoji">🎪</div>
+                    <h3>행사장/페스티벌</h3>
+                    <p>같은 관심사 사람들과<br>즉시 연결</p>
+                </div>
+                <div class="case-item">
+                    <div class="case-emoji">☕</div>
+                    <h3>카페/공간</h3>
+                    <p>일상 공간에서<br>즉흥적 소통</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="how-it-works">
+        <div class="container">
+            <h2 class="section-title">사용 방법</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h3>앱 실행</h3>
+                    <p>블루투스 권한 허용</p>
+                </div>
+                <div class="step-arrow">→</div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h3>주변 탐색</h3>
+                    <p>가까이 있는 사람 발견</p>
+                </div>
+                <div class="step-arrow">→</div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h3>방 참여</h3>
+                    <p>채팅방에 입장</p>
+                </div>
+                <div class="step-arrow">→</div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <h3>대화 시작</h3>
+                    <p>가볍게 채팅하기</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Download Section -->
+    <section class="download" id="download">
+        <div class="container">
+            <h2 class="section-title">지금 시작하세요</h2>
+            <p class="download-subtitle">곧 출시 예정입니다</p>
+            <div class="download-buttons">
+                <button class="download-btn ios" disabled>
+                    <span class="download-icon">🍎</span>
+                    <div>
+                        <span class="download-label">App Store</span>
+                        <span class="download-status">준비 중</span>
+                    </div>
+                </button>
+                <button class="download-btn android" disabled>
+                    <span class="download-icon">🤖</span>
+                    <div>
+                        <span class="download-label">Google Play</span>
+                        <span class="download-status">준비 중</span>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <h3>YEO.PE</h3>
+                    <p class="footer-tagline">옆에 있는 사람들과 연결되다</p>
+                </div>
+                <div class="footer-info">
+                    <p class="domain-story">
+                        <small>
+                            "옆에"라는 한글에서 영감을 받아 YEOPE라는 이름을 만들었습니다.<br>
+                            이미 사용 중인 도메인으로 인해 마지막 E를 뒤집어 3으로 표현한 것이<br>
+                            지금의 yeop3.com이 되었습니다.
+                        </small>
+                    </p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 YEO.PE. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/script.js"></script>
+</body>
+</html>
+
