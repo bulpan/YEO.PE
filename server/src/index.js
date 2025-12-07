@@ -29,11 +29,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Socket.io instance sharing
+app.set('io', io);
+
 // Request logging middleware
-app.use((req, res, next) => {
-  logger.info(`Incoming Request: ${req.method} ${req.url}`);
-  next();
-});
+// Request logging middleware
+app.use(require('./middleware/requestLogger'));
 
 // 정적 파일 서빙 (랜딩 페이지)
 app.use(express.static('public'));

@@ -5,6 +5,7 @@
 const { verifyToken } = require('../config/auth');
 const { AuthenticationError } = require('../utils/errors');
 const logger = require('../utils/logger');
+const sanitize = require('../utils/sanitizer');
 const roomHandler = require('./roomHandler');
 const messageHandler = require('./messageHandler');
 
@@ -16,18 +17,21 @@ const handleConnection = (io) => {
     try {
       // 토큰 추출: auth 객체 또는 query 파라미터에서
       const token = socket.handshake.auth?.token || socket.handshake.query?.token;
-      
+
       if (!token) {
         return next(new AuthenticationError('인증 토큰이 필요합니다'));
       }
-      
+
       // 토큰 검증
       const decoded = verifyToken(token);
-      
+
       // 소켓에 사용자 정보 저장
       socket.userId = decoded.userId;
       socket.userEmail = decoded.email;
-      
+
+      // 사용자 개인 룸 조인 (개별 알림용)
+      socket.join(`user:${decoded.userId}`);
+
       logger.info(`WebSocket 연결: user ${decoded.userId}`);
       next();
     } catch (error) {
@@ -35,21 +39,42 @@ const handleConnection = (io) => {
       next(new AuthenticationError('유효하지 않은 토큰입니다'));
     }
   });
-  
+
   io.on('connection', (socket) => {
     logger.info(`사용자 연결: ${socket.userId} (socket: ${socket.id})`);
-    
+
+    // [Socket] 로깅: 들어오는 이벤트
+    socket.onAny((event, ...args) => {
+      // 핑퐁 등 빈번한 이벤트는 제외 가능 (현재는 모두 기록)
+      logger.info(`[Socket In] ${event}`, {
+        user: socket.userId,
+        socketId: socket.id,
+        args: sanitize(args)
+      });
+    });
+
+    // [Socket] 로깅: 나가는 이벤트 (Socket.io v3+)
+    if (socket.onAnyOutgoing) {
+      socket.onAnyOutgoing((event, ...args) => {
+        logger.info(`[Socket Out] ${event}`, {
+          user: socket.userId,
+          socketId: socket.id,
+          args: sanitize(args)
+        });
+      });
+    }
+
     // 방 관련 이벤트 핸들러
     roomHandler(socket, io);
-    
+
     // 메시지 관련 이벤트 핸들러
     messageHandler(socket, io);
-    
+
     // 연결 해제 처리
     socket.on('disconnect', (reason) => {
       logger.info(`사용자 연결 해제: ${socket.userId} (reason: ${reason})`);
     });
-    
+
     // 에러 처리
     socket.on('error', (error) => {
       logger.error(`Socket 에러 (user: ${socket.userId}):`, error);

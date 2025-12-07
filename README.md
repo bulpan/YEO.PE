@@ -112,14 +112,57 @@ npm test
 curl http://localhost:3000/health
 ```
 
-### 프로덕션 배포
+### 프로덕션 배포 (OCI Docker)
 
-현재 프로덕션 서버는 Oracle Cloud Infrastructure에 배포되어 있습니다.
+현재 프로덕션 서버는 Oracle Cloud Infrastructure(OCI)에서 **Docker 기반**으로 운영되고 있습니다.
 
 - **서버 위치**: `/opt/yeope/server`
-- **프로세스 관리**: Node.js 직접 실행 (PM2 설정 예정)
-- **리버스 프록시**: Nginx (포트 80, 443)
+- **아키텍처**:
+  - `yeope-nginx`: 리버스 프록시 및 SSL 처리 (Port 80, 443)
+  - `yeope-app`: Node.js API 서버 (Port 3000)
+  - `yeope-postgres`: PostgreSQL 데이터베이스 (Port 5432)
+  - `yeope-redis`: Redis 캐시 (Port 6379)
 - **도메인**: yeop3.com (Cloudflare DNS)
+
+#### 서버 접속 및 관리
+
+**1. 서버 접속**
+```bash
+ssh -i yeope-ssh-key.key -o StrictHostKeyChecking=no opc@152.67.208.177
+cd /opt/yeope/server
+```
+
+**2. 상태 확인**
+```bash
+docker compose ps
+```
+
+**3. 로그 확인**
+```bash
+# 앱 로그
+docker compose logs -f app
+
+# Nginx 로그
+docker compose logs -f nginx
+```
+
+**4. 재시작**
+```bash
+docker compose restart
+```
+
+**5. 배포 (업데이트)**
+로컬의 `server/` 디렉토리를 압축하여 서버로 전송 후, Docker를 다시 빌드합니다.
+
+```bash
+# 서버에서
+sudo unzip -o yeope-server.zip -d /opt/yeope/
+cd /opt/yeope/server
+docker compose up -d --build
+```
+
+> **⚠️ 주의사항**: OCI 내부 DNS 이슈로 인해 Nginx 설정(`nginx/docker.conf`)에서 앱 서버 주소를 IP로 직접 지정(`proxy_pass http://172.18.0.4:3000`)하고 있습니다. 연결 오류 시 IP를 확인하세요.
+
 
 ### API 문서
 

@@ -5,6 +5,7 @@
 
 // Common
 "cancel" = "Cancel";
+"waiting_for_response" = "Waiting for response...";
 "confirm" = "Confirm";
 "close" = "Close";
 "error" = "Error";
@@ -45,3 +46,17 @@
 "waiting_for_user" = "WAITING FOR USER...";
 "active" = "ACTIVE";
 "connecting" = "CONNECTING";
+"chat_menu" = "Chat Menu";
+"leave_room" = "Leave Room";
+"leave_room_confirm" = "Are you sure you want to leave this room?";
+"leave" = "Leave";
+"my_rooms" = "MY ROOMS";
+"nearby_rooms" = "NEARBY ROOMS";
+"no_active_rooms" = "No active rooms";
+"no_rooms_nearby" = "No rooms nearby";
+"create_room" = "Create Room";
+"room_name" = "Room Name";
+"create" = "Create";
+"room_created_success" = "Room created successfully!";
+"members_count" = "Members: %d";
+"rooms_title" = "Rooms";

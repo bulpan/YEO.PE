@@ -8,6 +8,7 @@ struct RadarPulseView: View {
     
     var nearbyUsers: [User] = []
     var nearbyRooms: [Room] = []
+    var activeChatUserIds: Set<String> = [] // Add this parameter
     var onUserTap: ((User) -> Void)?
     var onRoomTap: ((Room) -> Void)?
     
@@ -63,7 +64,7 @@ struct RadarPulseView: View {
                 
                 // Users
                 ForEach(nearbyUsers) { user in
-                    RadarUserNode(user: user, zoomLevel: zoomLevel, center: center)
+                    RadarUserNode(user: user, zoomLevel: zoomLevel, center: center, isChatting: activeChatUserIds.contains(user.id))
                         .onTapGesture {
                             onUserTap?(user)
                         }
@@ -98,6 +99,7 @@ struct RadarUserNode: View {
     let user: User
     var zoomLevel: CGFloat
     var center: CGPoint
+    var isChatting: Bool // Add property
     
     @State private var baseAngle: Double = 0.0
     @State private var baseDistance: CGFloat = 0.0
@@ -106,7 +108,7 @@ struct RadarUserNode: View {
         VStack(spacing: 4) {
             // Avatar
             Circle()
-                .fill(Color.mysteryViolet)
+                .fill(isChatting ? Color.lightBlue : Color.mysteryViolet)
                 .frame(width: 40, height: 40)
                 .overlay(
                     Text(String((user.nickname ?? user.nicknameMask ?? "?").prefix(1)))

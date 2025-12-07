@@ -64,7 +64,7 @@ const messageLimiter = rateLimit({
  */
 const roomCreationLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1시간
-  max: 10, // 시간당 10개
+  max: 100, // 시간당 100개 (테스트 위해 상향)
   message: '방 생성이 너무 많습니다. 잠시 후 다시 시도해주세요.',
   standardHeaders: true,
   legacyHeaders: false

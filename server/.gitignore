@@ -38,3 +38,6 @@ temp/
 
 
 
+
+# Secrets
+config/firebase-service-account.json

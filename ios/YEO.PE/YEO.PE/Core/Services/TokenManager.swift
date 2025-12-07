@@ -5,10 +5,24 @@ class TokenManager {
     
     private let accessTokenKey = "accessToken"
     private let refreshTokenKey = "refreshToken"
+    private let fcmTokenKey = "fcmToken"
     
     // In-memory storage for non-persistent sessions
     private var memoryAccessToken: String?
     private var memoryRefreshToken: String?
+    
+    var fcmToken: String? {
+        get {
+            return UserDefaults.standard.string(forKey: fcmTokenKey)
+        }
+        set {
+            if let value = newValue {
+                UserDefaults.standard.set(value, forKey: fcmTokenKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: fcmTokenKey)
+            }
+        }
+    }
     
     // In a real app, use Keychain. For MVP, UserDefaults is acceptable but not secure.
     // TODO: Migrate to Keychain

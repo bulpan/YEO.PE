@@ -135,7 +135,13 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         let userInfo = response.notification.request.content.userInfo
         print("👆 Notification Tapped: \(userInfo)")
         
-        // Handle deep linking or navigation here
+        // Handle deep linking
+        if let action = userInfo["action"] as? String,
+           let targetScreen = userInfo["targetScreen"] as? String {
+            
+            let targetId = userInfo["targetId"] as? String
+            NavigationManager.shared.handleDeepLink(action: action, targetScreen: targetScreen, targetId: targetId)
+        }
         
         completionHandler()
     }
@@ -148,41 +154,11 @@ extension AppDelegate: MessagingDelegate {
         guard let fcmToken = fcmToken else { return }
         print("🔥 Firebase Registration Token: \(fcmToken)")
         
-        // Send token to server
-        sendTokenToServer(token: fcmToken)
-    }
-    
-    private struct PushRegisterResponse: Decodable {
-        let success: Bool
-        let message: String
-    }
-    
-    private func sendTokenToServer(token: String) {
-        guard let _ = TokenManager.shared.accessToken else {
-            print("⚠️ No access token available. Skipping FCM token registration.")
-            // TODO: Cache token and retry after login
-            return
-        }
+        // Save token for later use
+        TokenManager.shared.fcmToken = fcmToken
         
-        let body: [String: Any] = [
-            "deviceToken": token,
-            "platform": "ios",
-            "deviceId": UIDevice.current.identifierForVendor?.uuidString ?? "",
-            "deviceInfo": [
-                "systemName": UIDevice.current.systemName,
-                "systemVersion": UIDevice.current.systemVersion,
-                "model": UIDevice.current.model
-            ]
-        ]
-        
-        APIService.shared.request("/push/register", method: "POST", body: body) { (result: Result<PushRegisterResponse, Error>) in
-            switch result {
-            case .success:
-                print("✅ FCM Token registered with server")
-            case .failure(let error):
-                print("❌ Failed to register FCM token with server: \(error)")
-            }
-        }
+        // Try to register if logged in
+        APIService.shared.registerFCMToken(token: fcmToken)
     }
 }
 #endif

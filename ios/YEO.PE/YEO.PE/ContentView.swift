@@ -54,17 +54,32 @@ struct ContentView: View {
         .onChange(of: scenePhase) { newPhase in
             switch newPhase {
             case .active:
-                print("📱 App became active - Connecting Socket")
+                print("📱 App became active")
                 if authViewModel.isLoggedIn {
                     SocketManager.shared.connect()
                 }
             case .background:
-                print("📱 App went to background - Disconnecting Socket")
-                SocketManager.shared.disconnect()
+                print("📱 App went to background")
+                // Keep socket connected for BLE/App liveness
             case .inactive:
                 break
             @unknown default:
                 break
+            }
+        }
+        .onChange(of: authViewModel.isLoggedIn) { isLoggedIn in
+            if isLoggedIn {
+                print("✅ User logged in - Connecting Socket")
+                SocketManager.shared.connect()
+            } else {
+                print("👋 User logged out - Disconnecting Socket")
+                SocketManager.shared.disconnect()
+            }
+        }
+        .onAppear {
+            if authViewModel.isLoggedIn {
+                print("🚀 App Launched - Connecting Socket")
+                SocketManager.shared.connect()
             }
         }
     }

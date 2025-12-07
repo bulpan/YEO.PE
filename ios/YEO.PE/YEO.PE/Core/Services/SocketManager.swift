@@ -1,6 +1,8 @@
 import Foundation
 import Combine
 import SocketIO
+import UIKit
+import UserNotifications
 
 class SocketManager: ObservableObject {
     static let shared = SocketManager()
@@ -52,7 +54,41 @@ class SocketManager: ObservableObject {
             }
         }
         
+        // Listen for new messages globally for Local Notifications
+        socket?.on("new-message") { [weak self] data, ack in
+            guard let self = self else { return }
+            
+            // Check if app is in background
+            if UIApplication.shared.applicationState == .background || UIApplication.shared.applicationState == .inactive {
+                if let messageData = data.first as? [String: Any],
+                   let content = messageData["content"] as? String,
+                   let nicknameMask = messageData["nicknameMask"] as? String,
+                   let roomId = messageData["roomId"] as? String {
+                    
+                    self.scheduleLocalNotification(title: nicknameMask, body: content, roomId: roomId)
+                }
+            }
+        }
+        
         socket?.connect()
+    }
+    
+    private func scheduleLocalNotification(title: String, body: String, roomId: String) {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        content.userInfo = ["action": "DEEP_LINK", "targetScreen": "CHAT_ROOM", "targetId": roomId]
+        
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil) // Deliver immediately
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("❌ Failed to schedule local notification: \(error)")
+            } else {
+                print("✅ Scheduled local notification for background message")
+            }
+        }
     }
     
     func disconnect() {
@@ -61,11 +97,18 @@ class SocketManager: ObservableObject {
     }
     
     func joinRoom(roomId: String) {
+        print("🔌 SocketManager: Emitting join-room with ID: \(roomId)")
         socket?.emit("join-room", ["roomId": roomId])
     }
     
     func leaveRoom(roomId: String) {
+        print("🔌 SocketManager: Emitting leave-room with ID: \(roomId)")
         socket?.emit("leave-room", ["roomId": roomId])
+    }
+    
+    func exitRoom(roomId: String) {
+         print("🔌 SocketManager: Emitting exit-room with ID: \(roomId)")
+        socket?.emit("exit-room", ["roomId": roomId])
     }
     
     func sendMessage(roomId: String, content: String) {
@@ -74,15 +117,21 @@ class SocketManager: ObservableObject {
             "type": "text",
             "content": content
         ]
+        print("🔌 SocketManager: Emitting send-message to \(roomId)")
         socket?.emit("send-message", data)
     }
     
     // Helper to listen for events
-    func on(_ event: String, callback: @escaping ([Any], SocketAckEmitter) -> Void) {
-        socket?.on(event, callback: callback)
+    @discardableResult
+    func on(_ event: String, callback: @escaping ([Any], SocketAckEmitter) -> Void) -> UUID? {
+        return socket?.on(event, callback: callback)
     }
     
     func off(_ event: String) {
         socket?.off(event)
+    }
+    
+    func off(id: UUID) {
+        socket?.off(id: id)
     }
 }

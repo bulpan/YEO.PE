@@ -30,7 +30,7 @@ const roomHandler = (socket, io) => {
       socket.join(roomName);
 
       // 방 정보 조회
-      const room = await roomService.findRoomByRoomId(roomId);
+      const room = await roomService.findRoomByRoomId(roomId, true);
 
       // 사용자 정보 조회
       const user = await userService.findUserById(userId);

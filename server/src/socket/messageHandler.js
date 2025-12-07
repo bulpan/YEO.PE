@@ -17,11 +17,11 @@ const messageHandler = (socket, io) => {
     try {
       const { roomId, type, content, imageUrl } = data;
       const userId = socket.userId;
-      
+
       if (!roomId) {
         return socket.emit('error', { message: 'roomId가 필요합니다' });
       }
-      
+
       // 메시지 생성
       const message = await messageService.createMessage(
         userId,
@@ -30,7 +30,7 @@ const messageHandler = (socket, io) => {
         content,
         imageUrl
       );
-      
+
       // 같은 방의 모든 사용자에게 메시지 전송
       const roomName = `room:${roomId}`;
       io.to(roomName).emit('new-message', {
@@ -43,9 +43,10 @@ const messageHandler = (socket, io) => {
         imageUrl: message.imageUrl,
         createdAt: message.createdAt
       });
-      
+
       // 푸시 알림 전송 (백그라운드에서 비동기 처리)
       // WebSocket에 연결되지 않은 사용자에게만 전송
+      logger.info(`[PushDebug] Calling sendMessageNotification for room ${roomId}`);
       pushService.sendMessageNotification(
         roomId,
         userId,
@@ -53,15 +54,17 @@ const messageHandler = (socket, io) => {
         message.content,
         message.type,
         io // Socket.io 인스턴스 전달 (연결 상태 확인용)
-      ).catch(err => {
-        logger.error('푸시 알림 전송 실패:', err);
+      ).then(result => {
+        logger.info(`[PushDebug] sendMessageNotification completed: ${JSON.stringify(result)}`);
+      }).catch(err => {
+        logger.error('[PushDebug] 푸시 알림 전송 실패:', err);
       });
-      
+
       logger.info(`메시지 전송 (WebSocket): ${message.messageId} in room ${roomId}`);
     } catch (error) {
       logger.error('send-message 에러:', error);
-      socket.emit('error', { 
-        message: error.message || '메시지 전송 중 오류가 발생했습니다' 
+      socket.emit('error', {
+        message: error.message || '메시지 전송 중 오류가 발생했습니다'
       });
     }
   });

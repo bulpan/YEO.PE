@@ -14,6 +14,9 @@ extension Color {
     /// Error/Expire: Red for warnings and expiration
     static let signalRed = Color(hex: "FF3B30")
     
+    /// Chatting: Light Blue for existing connection
+    static let lightBlue = Color(hex: "5AC8FA")
+    
     /// Glassmorphism Background (Dark)
     static let glassBlack = Color.black.opacity(0.6)
     

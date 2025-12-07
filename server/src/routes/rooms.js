@@ -18,7 +18,7 @@ const logger = require('../utils/logger');
  */
 router.post('/', authenticate, roomCreationLimiter, async (req, res, next) => {
   try {
-    const { name, category = 'general', nearbyUserIds } = req.body;
+    const { name, category = 'general', nearbyUserIds, inviteeId } = req.body;
     const userId = req.user.userId;
 
     // 입력 검증
@@ -35,23 +35,57 @@ router.post('/', authenticate, roomCreationLimiter, async (req, res, next) => {
       throw new ValidationError('유효하지 않은 카테고리입니다');
     }
 
-    // 중복 방지 로직: 나 또는 근처 사용자가 만든 활성 방 중 같은 이름이 있는지 확인
-    const checkUserIds = [userId, ...(nearbyUserIds || [])];
-    if (checkUserIds.length > 0) {
-      const duplicateRoom = await roomService.checkDuplicateRoom(name.trim(), checkUserIds);
-      if (duplicateRoom) {
-        throw new ValidationError('근처에 이미 같은 이름의 방이 있습니다. 해당 방에 참여해보세요!');
+    // 중복 방지 로직
+    if (!inviteeId) {
+      // 일반 방: 이름 중복 확인
+      const checkUserIds = [userId, ...(nearbyUserIds || [])];
+      if (checkUserIds.length > 0) {
+        const duplicateRoom = await roomService.checkDuplicateRoom(name.trim(), checkUserIds);
+        if (duplicateRoom) {
+          throw new ValidationError('근처에 이미 같은 이름의 방이 있습니다. 해당 방에 참여해보세요!');
+        }
+      }
+    } else {
+      // 1:1 방: 이미 존재하는 방인지 확인
+      // check if I already have a room with this invitee
+      const myRooms = await roomService.getUserRooms(userId);
+      const existingRoom = myRooms.find(r => {
+        // Check metadata inviteeId and if it matches
+        // Also check if I am the creator or the invitee
+        // Logic: Return existing active room if found
+        if (!r.metadata || !r.metadata.inviteeId) return false;
+
+        // Case 1: I created the room for this invitee
+        if (r.creatorId === userId && r.metadata.inviteeId === inviteeId) return true;
+
+        // Case 2: I was invited to this room by the invitee (Bidirectional check)
+        if (r.creatorId === inviteeId && r.metadata.inviteeId === userId) return true;
+
+        return false;
+      });
+
+      if (existingRoom) {
+        // 이미 존재하는 방이면 그 방 정보를 반환 (200 OK)
+        return res.status(200).json({
+          roomId: existingRoom.roomId,
+          name: existingRoom.name,
+          createdAt: existingRoom.createdAt,
+          expiresAt: existingRoom.expiresAt,
+          memberCount: existingRoom.memberCount,
+          metadata: existingRoom.metadata,
+          alreadyExists: true
+        });
       }
     }
 
     // 방 생성
-    const room = await roomService.createRoom(userId, name.trim(), category);
+    const room = await roomService.createRoom(userId, name.trim(), category, inviteeId);
 
     logger.info(`방 생성: ${room.roomId} by user ${userId}`);
 
     // 주변 사용자에게 방 생성 알림 전송
     if (nearbyUserIds && Array.isArray(nearbyUserIds) && nearbyUserIds.length > 0) {
-      // 비동기로 처리하여 응답 지연 방지
+      // 1. Push Notification
       pushService.sendRoomCreatedNotification(
         room.roomId,
         room.name,
@@ -60,6 +94,22 @@ router.post('/', authenticate, roomCreationLimiter, async (req, res, next) => {
       ).catch(err => {
         logger.error('방 생성 알림 전송 실패:', err);
       });
+
+      // 2. Socket Event (Real-time update) - Global Broadcast (Receiver Filtered)
+      // We emit to EVERYONE, and the client decides whether to show it based on their BLE radar.
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('room-created', {
+          roomId: room.roomId,
+          name: room.name,
+          creatorId: userId,
+          category: category,
+          isActive: true,
+          memberCount: 1,
+          createdAt: room.createdAt,
+          allowsMultiple: true
+        });
+      }
     }
 
     res.status(201).json({
@@ -151,6 +201,22 @@ router.post('/:roomId/join', authenticate, async (req, res, next) => {
 
     logger.info(`사용자 ${userId}가 방 ${roomId}에 참여`);
 
+    // Socket Event Emission
+    const io = req.app.get('io');
+    if (io) {
+      if (result.systemMessage) {
+        io.to(`room:${roomId}`).emit('new-message', result.systemMessage);
+      }
+
+      // Emit member-joined to trigger client member refresh
+      io.to(`room:${roomId}`).emit('member-joined', {
+        roomId,
+        userId,
+        nickname: result.systemMessage.nickname || 'Unknown', // Helper to avoid another DB query if possible
+        joinedAt: new Date()
+      });
+    }
+
     res.json({
       roomId,
       message: '방에 참여했습니다'
@@ -169,9 +235,33 @@ router.post('/:roomId/leave', authenticate, async (req, res, next) => {
     const { roomId } = req.params;
     const userId = req.user.userId;
 
-    await roomService.leaveRoom(userId, roomId);
+    const result = await roomService.leaveRoom(userId, roomId);
 
     logger.info(`사용자 ${userId}가 방 ${roomId}에서 나감`);
+
+    // Socket Event Emission
+    const io = req.app.get('io');
+    if (io) {
+      // 1. Broadcast system message (User left/evaporated)
+      if (result.systemMessage) {
+        io.to(`room:${roomId}`).emit('new-message', result.systemMessage);
+      }
+
+      // 2. Broadcast evaporation event (Clients should remove messages from this user)
+      if (result.leftUserId) {
+        io.to(`room:${roomId}`).emit('evaporate_messages', {
+          roomId: roomId,
+          userId: result.leftUserId
+        });
+
+        // 3. Broadcast member-left event (Clients should update member list)
+        io.to(`room:${roomId}`).emit('member-left', {
+          roomId,
+          userId: result.leftUserId,
+          memberCount: result.systemMessage ? result.systemMessage.memberCount : 0 // memberCount pass if available, logic might need check
+        });
+      }
+    }
 
     res.json({
       roomId,

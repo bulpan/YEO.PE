@@ -1,6 +1,44 @@
 version: '3.8'
 
 services:
+  app:
+    build: .
+    container_name: yeope-app
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DB_USER=yeope_user
+      - DB_NAME=yeope
+      - DB_PASSWORD=yeope_password_2024
+      # Add other necessary env vars or load from .env file
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - yeope-network
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: yeope-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/docker.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - app
+    networks:
+      - yeope-network
+
   postgres:
     image: postgres:13
     container_name: yeope-postgres
@@ -9,14 +47,16 @@ services:
       POSTGRES_USER: yeope_user
       POSTGRES_PASSWORD: yeope_password_2024
     ports:
-      - "5433:5432"
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U yeope_user -d yeope"]
+      test: [ "CMD-SHELL", "pg_isready -U yeope_user -d yeope" ]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - yeope-network
 
   redis:
     image: redis:7-alpine
@@ -26,16 +66,18 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - yeope-network
 
 volumes:
   postgres_data:
   redis_data:
 
 
-
-
-
+networks:
+  yeope-network:
+    driver: bridge

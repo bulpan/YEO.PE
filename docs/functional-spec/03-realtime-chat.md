@@ -113,7 +113,7 @@ socket.on('connect_error', (error) => {
 
 #### 기능 설명
 
-WebSocket을 통해 방에 참여합니다. Socket.io Room에 자동으로 추가됩니다.
+WebSocket을 통해 방에 참여합니다. Socket.io Room에 자동으로 추가되며, 데이터베이스 상의 방 참여(`POST /api/rooms/:roomId/join`)도 함께 처리합니다.
 
 #### 이벤트 명세
 

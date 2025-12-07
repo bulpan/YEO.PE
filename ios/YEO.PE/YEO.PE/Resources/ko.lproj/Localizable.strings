@@ -9,6 +9,8 @@
 "close" = "닫기";
 "error" = "오류";
 "success" = "성공";
+"send" = "전송";
+"waiting_for_response" = "응답 대기 중...";
 
 // MainView
 "signal_active" = "신호 활성화";
@@ -45,3 +47,17 @@
 "waiting_for_user" = "사용자 기다리는 중...";
 "active" = "활동 중";
 "connecting" = "연결 중";
+"chat_menu" = "채팅 메뉴";
+"leave_room" = "방 나가기";
+"leave_room_confirm" = "정말로 이 방을 나가시겠습니까?";
+"leave" = "나가기";
+"my_rooms" = "내 채팅방";
+"nearby_rooms" = "주변 채팅방";
+"no_active_rooms" = "참여 중인 방이 없습니다";
+"no_rooms_nearby" = "주변에 방이 없습니다";
+"create_room" = "방 만들기";
+"room_name" = "방 이름";
+"create" = "만들기";
+"room_created_success" = "방이 생성되었습니다!";
+"members_count" = "참여자: %d명";
+"rooms_title" = "채팅방";

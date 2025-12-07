@@ -18,6 +18,8 @@ router.post('/register', authenticate, async (req, res, next) => {
     const { deviceToken, platform, deviceId, deviceInfo } = req.body;
     const userId = req.user.userId;
 
+    logger.info(`[PushDebug] Registering token for user ${userId}: ${deviceToken?.substring(0, 20)}...`);
+
     // 입력 검증
     if (!deviceToken) {
       throw new ValidationError('디바이스 토큰이 필요합니다');
@@ -132,8 +134,8 @@ router.get('/tokens', authenticate, async (req, res, next) => {
       id: row.id,
       platform: row.platform,
       deviceId: row.device_id,
-      deviceInfo: typeof row.device_info === 'string' 
-        ? JSON.parse(row.device_info) 
+      deviceInfo: typeof row.device_info === 'string'
+        ? JSON.parse(row.device_info)
         : row.device_info,
       isActive: row.is_active,
       lastUsedAt: row.last_used_at,

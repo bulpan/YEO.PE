@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import UIKit
 
 enum APIError: Error {
     case invalidURL
@@ -90,4 +91,81 @@ class APIService {
             }
         }.resume()
     }
+    
+    func registerFCMToken(token: String?) {
+        // If token is nil, try to get from UserDefaults or just return
+        // Use TokenManager if available, otherwise fallback to direct UserDefaults
+        let savedToken = TokenManager.shared.fcmToken ?? UserDefaults.standard.string(forKey: "fcmToken")
+        
+        print("🔍 registerFCMToken called. Input token: \(token ?? "nil"), Saved token: \(savedToken ?? "nil")")
+        
+        guard let token = token ?? savedToken else {
+            print("⚠️ No FCM token to register (Both input and saved tokens are nil)")
+            return
+        }
+        
+        print("📲 Registering FCM Token: \(token)")
+        
+        let body: [String: Any] = [
+            "deviceToken": token,
+            "platform": "ios",
+            "deviceId": UIDevice.current.identifierForVendor?.uuidString ?? "",
+            "deviceInfo": [
+                "systemName": UIDevice.current.systemName,
+                "systemVersion": UIDevice.current.systemVersion,
+                "model": UIDevice.current.model
+            ]
+        ]
+        
+        request("/push/register", method: "POST", body: body) { (result: Result<StandardResponse, Error>) in
+            switch result {
+            case .success:
+                print("✅ FCM Token registered successfully")
+            case .failure(let error):
+                print("❌ Failed to register FCM token: \(error)")
+            }
+        }
+    }
+    
+    func boostSignal(uids: [String], completion: @escaping (Result<BoostResponse, Error>) -> Void) {
+        let body: [String: Any] = ["uids": uids]
+        request("/users/boost", method: "POST", body: body, completion: completion)
+    }
+    
+    func sendQuickQuestion(uids: [String], content: String, completion: @escaping (Result<QuickQuestionResponse, Error>) -> Void) {
+        let body: [String: Any] = ["uids": uids, "content": content]
+        request("/users/quick_question", method: "POST", body: body, completion: completion)
+    }
+    
+    func updateSettings(settings: UserSettings, completion: @escaping (Result<UserResponse, Error>) -> Void) {
+        do {
+            let data = try JSONEncoder().encode(settings)
+            let dict = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any]
+            let body: [String: Any] = ["settings": dict ?? [:]]
+            request("/users/me", method: "PATCH", body: body, completion: completion)
+        } catch {
+            completion(.failure(error))
+        }
+    }
+}
+
+struct UserResponse: Decodable {
+    let user: User
+}
+
+struct StandardResponse: Decodable {
+    let success: Bool?
+    let message: String?
+}
+
+struct BoostResponse: Decodable {
+    let success: Bool?
+    let boostedCount: Int?
+    let message: String?
+}
+
+struct QuickQuestionResponse: Decodable {
+    let success: Bool?
+    let sentCount: Int?
+    let message: String?
 }

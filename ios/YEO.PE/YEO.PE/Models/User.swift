@@ -14,11 +14,15 @@ struct User: Codable, Identifiable {
     var hasActiveRoom: Bool?
     var roomId: String?
     var roomName: String?
+    var uid: String? // BLE Short UID
 }
 
 struct UserSettings: Codable {
     var bleVisible: Bool
     var pushEnabled: Bool
+    var messageRetention: Int? // 6, 12, 24 (hours)
+    var roomExitCondition: String? // "24h", "off", "activity"
+    var maskId: Bool? // Mask ID on/off
 }
 
 struct AuthResponse: Codable {
