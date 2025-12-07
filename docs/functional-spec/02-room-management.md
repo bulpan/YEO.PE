@@ -89,6 +89,10 @@ Authorization: Bearer {access_token}
    - 방 이름 필수 확인
    - 방 이름 길이 검증 (1-255자)
    - 카테고리 검증 (유효한 값: "general", "transport", "event", "venue")
+   - **[중요] `nearbyUserIds` 검증**:
+     - 클라이언트는 주변 사용자의 **UUID** (데이터베이스 ID, 예: `550e84...`)를 보내야 합니다.
+     - **블루투스 단축 ID (Short UID, 예: `F19D5E`)를 보내면 안 됩니다.**
+     - 서버는 UUID 형식이 아닌 ID가 들어오면 `500 Internal Server Error` (invalid input syntax for type uuid)를 반환합니다.
 
 3. **방 생성**
    - 고유한 `roomId` 생성 (UUID)
@@ -285,6 +289,7 @@ Authorization: Bearer {access_token}
 
 2. **참여 중인 방 조회**
    - `room_members` 테이블에서 `left_at IS NULL`인 방 조회
+   - **중복 제거**: 사용자가 다중 기기/오류로 인해 한 방에 여러 Active Session(`left_at IS NULL` 행이 여러 개)을 가질 수 있습니다. 이 경우 **가장 최근에 참여한 세션(하나)**만 조회하여 목록에 중복 방이 뜨지 않도록 `DISTINCT ON` 처리해야 합니다.
    - 활성 상태인 방만 (`is_active = true`, `expires_at > NOW()`)
    - `last_seen_at` 기준 내림차순 정렬
 

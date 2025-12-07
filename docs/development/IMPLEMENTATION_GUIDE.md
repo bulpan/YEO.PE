@@ -447,3 +447,38 @@ curl -X POST https://yeop3.com/api/users/ble/scan \
 - [BLE 탐색 기능 명세](../functional-spec/04-ble-discovery.md)
 - [푸시 알림 설정 가이드](./PUSH_NOTIFICATION_SETUP.md)
 
+---
+
+## 8. 운영 서버 배포 및 DB 마이그레이션 (Production Deployment)
+
+OCI(오라클 클라우드) 운영 서버에 배포할 때 주의해야 할 사항들입니다.
+
+### 8.1. DB 스키마 변경 시 마이그레이션 필수
+
+Docker Compose로 서버를 배포하더라도, **PostgreSQL 볼륨(`postgres_data`)이 지속(persist)**되므로 `docker-compose.yml`의 `init.sql`이나 초기 스크립트는 **최초 실행 시에만** 작동합니다.
+따라서 테이블 추가나 컬럼 변경이 있을 경우, 반드시 **운영 DB에 접속해서 수동으로 SQL을 실행**해야 합니다.
+
+**마이그레이션 절차:**
+
+1.  로컬에서 `migration_*.sql` 파일 작성 (예: `server/database/migration_advanced_features.sql`)
+2.  `deploy_server.sh`로 서버 배포 (파일 업로드)
+3.  서버 접속 및 DB 컨테이너에서 SQL 실행:
+
+```bash
+# 1. 서버 SSH 접속
+ssh -i key.key opc@IP_ADDRESS
+
+# 2. DB 컨테이너 내부에서 psql 실행 (pipe 사용)
+cat /opt/yeope/server/database/migration_advanced_features.sql | docker compose -f /opt/yeope/server/docker-compose.yml exec -T postgres psql -U yeope_admin -d yeope
+```
+
+> **⚠️ 주의**: 마이그레이션을 누락하면 `relation does not exist` 또는 `column does not exist` 에러로 **500 Internal Server Error**가 발생합니다.
+
+### 8.2. 서버 도메인 및 소켓 설정
+
+**Cloudflare**와 같은 보안 프록시를 사용하는 경우, 소켓 연결 시 **HTTP Redirect** 문제가 발생할 수 있습니다.
+
+*   **API URL**: `https://yeop3.com`
+*   **Socket URL**: `https://yeop3.com` (반드시 `https://` 사용. `ws://`나 `wss://` 직접 사용 시 Cloudflare의 SSL 핸드셰이크 과정에서 문제 발생 가능)
+*   **iOS 설정**: `SocketIOClient` 설정 시 `.path("/socket.io/")`와 `.secure(true)` 옵션을 확인해야 합니다.
+

@@ -107,3 +107,43 @@ npm run dev  # 개발 모드 실행 (코드 수정 시 자동 재시작)
 **운영(Production) 환경과의 차이점**
 *   운영 환경은 Oracle Cloud(OCI)에 배포되어 있으며, 도메인(`https://yeop3.com`)을 사용합니다.
 *   앱 배포 시에는 Base URL을 운영 서버 주소로 변경해야 합니다.
+
+---
+
+## 6. 환경 전환 시 주의사항 (Environment Switching)
+
+개발 중 **로컬 서버(Localhost/IP)**와 **운영 서버(Production Domain)**를 오가며 테스트할 때 다음 사항을 주의해야 합니다.
+
+### 6.1. 데이터 초기화 필수
+서버가 바뀌면 사용자의 `UUID`와 `Token`이 유효하지 않게 됩니다.
+(예: 로컬 DB의 User ID `abc`는 운영 DB에 존재하지 않음 -> `Foreign Key Violation` 발생)
+
+*   **앱 로직**: `ServerConfig`에서 환경을 변경하면, 앱은 자동으로 **로그아웃** 및 **데이터 초기화**(`BLEManager` 중단, `TokenManager` 클리어)를 수행해야 합니다.
+*   **수동 조치**: 만약 에러가 계속 발생하면 앱을 삭제 후 재설치하는 것이 가장 확실합니다.
+
+### 6.2. 500 에러 발생 시 체크리스트
+환경 전환 후 500 에러가 발생한다면 다음을 확인하세요:
+1.  **Authorization Header**: 이전 서버의 토큰을 계속 보내고 있지 않은가?
+2.  **Request Body**: 이전 서버에서 받은 ID(PK)를 새 서버로 보내고 있지 않은가?
+3.  **DB Migration**: 운영 서버 DB에 최신 컬럼(`ble_uids`, `push_tokens` 등)이 존재하는가?
+
+
+---
+
+## 6. 환경 전환 시 주의사항 (Environment Switching)
+
+개발 중 **로컬 서버(Localhost/IP)**와 **운영 서버(Production Domain)**를 오가며 테스트할 때 다음 사항을 주의해야 합니다.
+
+### 6.1. 데이터 초기화 필수
+서버가 바뀌면 사용자의 `UUID`와 `Token`이 유효하지 않게 됩니다.
+(예: 로컬 DB의 User ID `abc`는 운영 DB에 존재하지 않음 -> `Foreign Key Violation` 발생)
+
+*   **앱 로직**: `ServerConfig`에서 환경을 변경하면, 앱은 자동으로 **로그아웃** 및 **데이터 초기화**(`BLEManager` 중단, `TokenManager` 클리어)를 수행해야 합니다.
+*   **수동 조치**: 만약 에러가 계속 발생하면 앱을 삭제 후 재설치하는 것이 가장 확실합니다.
+
+### 6.2. 500 에러 발생 시 체크리스트
+환경 전환 후 500 에러가 발생한다면 다음을 확인하세요:
+1.  **Authorization Header**: 이전 서버의 토큰을 계속 보내고 있지 않은가?
+2.  **Request Body**: 이전 서버에서 받은 ID(PK)를 새 서버로 보내고 있지 않은가?
+3.  **DB Migration**: 운영 서버 DB에 최신 컬럼(`ble_uids`, `push_tokens` 등)이 존재하는가?
+
