@@ -1,6 +1,6 @@
 {
   "name": "yeope-server",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "YEO.PE - 블루투스 기반 휘발성 근거리 채팅 서비스 백엔드",
   "main": "src/index.js",
   "scripts": {
