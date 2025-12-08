@@ -30,6 +30,7 @@ class BLEManager: NSObject, ObservableObject {
     private var cleanupTimer: Timer?
     private var activePeripherals: [UUID: CBPeripheral] = [:] // Keep reference to connected peripherals
     private var tempUIDs: [UUID: String] = [:] // Temporary storage for UIDs read from characteristics
+    private var peripheralMap: [UUID: String] = [:] // Cache: PeripheralID -> UID (Persist user identity across modes)
     private var isInBackground = false
     
     override init() {
@@ -52,9 +53,21 @@ class BLEManager: NSObject, ObservableObject {
     }
     
     @objc private func handleAppBackgrounding() {
-        print("🌙 App entered background. Stopping BLE scanning & reporting...")
+        print("🌙 App entered background. Switching to passive background scan for Wake-up...")
         isInBackground = true
-        stopScanning()
+        
+        // Stop the foreground duty cycle timer (save CPU)
+        scanTimer?.invalidate()
+        scanTimer = nil
+        
+        // Start Passive Scan for Wake-up
+        // We MUST scan for our specific Service UUID to get wake-up privileges.
+        if centralManager.state == .poweredOn {
+            let services: [CBUUID]? = isRawScanMode ? nil : [serviceUUID]
+            // options: nil (or specific background options if needed, but nil allows background)
+            centralManager.scanForPeripherals(withServices: services, options: nil)
+            isScanning = true
+        }
     }
     
     @objc private func handleAppForegrounding() {
@@ -155,7 +168,15 @@ class BLEManager: NSObject, ObservableObject {
     // MARK: - Scanning Logic
     
     private func startScanningLoop() {
-        guard !isInBackground else { return }
+        if isInBackground {
+            // If called in background (e.g. after restore), ensure passive scan is running
+             if centralManager.state == .poweredOn {
+                 let services: [CBUUID]? = isRawScanMode ? nil : [serviceUUID]
+                 centralManager.scanForPeripherals(withServices: services, options: nil)
+                 isScanning = true
+            }
+            return 
+        }
         
         #if targetEnvironment(simulator)
         // Simulator Mock Mode
@@ -279,7 +300,7 @@ class BLEManager: NSObject, ObservableObject {
         // 1. Cleanup Raw Peripherals
         if isRawScanMode {
             for (id, peripheral) in rawPeripherals {
-                if now.timeIntervalSince(peripheral.lastSeen) > 15.0 { // Faster cleanup for raw mode
+                if now.timeIntervalSince(peripheral.lastSeen) > timeout { // Faster cleanup for raw mode
                     rawPeripherals.removeValue(forKey: id)
                 }
             }
@@ -294,7 +315,7 @@ class BLEManager: NSObject, ObservableObject {
         
         for (uid, lastSeen) in lastSeenMap {
             // Increased from 5.0 to 15.0 to allow for background latency (3 missed scans of 5s each)
-            if now.timeIntervalSince(lastSeen) > 15.0 {
+            if now.timeIntervalSince(lastSeen) > timeout {
                 // User not seen recently
                 let currentStrikes = strikesMap[uid] ?? 0
                 strikesMap[uid] = currentStrikes + 1
@@ -339,7 +360,8 @@ class BLEManager: NSObject, ObservableObject {
     }
 
     private func reportDiscoveredUIDs() {
-        guard !isInBackground else { return }
+        // Allow reporting in background
+        // guard !isInBackground else { return }
         guard TokenManager.shared.isLoggedIn else { 
             print("🚫 Not logged in. Skipping report.")
             return 
@@ -363,10 +385,16 @@ class BLEManager: NSObject, ObservableObject {
         }
     }
     
-    private func handleDiscoveredUID(_ uid: String, rssi: Int) {
+    private func handleDiscoveredUID(_ uid: String, rssi: Int, peripheralId: UUID? = nil) {
         if uid.count == 6 {
             discoveredUIDs[uid] = rssi
             lastSeenMap[uid] = Date() // Update last seen
+            
+            // Update Cache if peripheralId provided
+            if let pid = peripheralId {
+                peripheralMap[pid] = uid
+            }
+            
             print("🔍 Discovered UID: \(uid), RSSI: \(rssi)")
         } else {
              print("⚠️ Discovered device with invalid UID length: \(uid)")
@@ -452,14 +480,31 @@ extension BLEManager: CBCentralManagerDelegate {
             
             // 1. Foreground Discovery (Fast)
             if let localName = localName, localName.count == 6 { // Simple check for our UID format
-                handleDiscoveredUID(localName, rssi: RSSI.intValue)
+                handleDiscoveredUID(localName, rssi: RSSI.intValue, peripheralId: peripheral.identifier)
             }
-            // 2. Background Discovery (Connect & Read) - Only if it has our service UUID
-            else if let serviceUUIDs = advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID], serviceUUIDs.contains(serviceUUID) {
-                print("🕵️‍♀️ Background device detected (No Name). Connecting to read UID...")
-                activePeripherals[peripheral.identifier] = peripheral // Retain peripheral
-                peripheral.delegate = self
-                centralManager.connect(peripheral, options: nil)
+            // 2. Background Discovery (Service UUID only / Hidden Name)
+            // Note: iOS places Service UUIDs in "Overflow Area" in background, so they might NOT appear in advertisementData.
+            // However, if we are NOT in Raw Mode, didDiscover only triggers for our filtered Service UUID.
+            // So we can trust the discovery if !isRawScanMode.
+            else {
+                let hasServiceUUID = (advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID])?.contains(serviceUUID) ?? false
+                let isTargetDevice = (!isRawScanMode) || hasServiceUUID
+                
+                if isTargetDevice {
+                    // CHECK CACHE FIRST: Do we already know who this is?
+                    if let cachedUID = peripheralMap[peripheral.identifier] {
+                        // Log less frequently to avoid spam
+                        // print("🧠 Cache Hit! Identified \(cachedUID) from signal without connecting.")
+                        handleDiscoveredUID(cachedUID, rssi: RSSI.intValue, peripheralId: peripheral.identifier)
+                    } 
+                    else {
+                        // Cache Miss: Must connect to identify
+                        print("🕵️‍♀️ Background device detected (Unknown). Connecting to read UID...")
+                        activePeripherals[peripheral.identifier] = peripheral // Retain peripheral
+                        peripheral.delegate = self
+                        centralManager.connect(peripheral, options: nil)
+                    }
+                }
             }
         }
         
@@ -482,8 +527,30 @@ extension BLEManager: CBCentralManagerDelegate {
     }
     
     func centralManager(_ central: CBCentralManager, willRestoreState dict: [String : Any]) {
-        // Handle state restoration
-        print("Central Manager restored state")
+        print("🕯️ Central Manager restoring state...")
+        
+        // 1. Restore Peripherals (Devices we were connected to or connecting to)
+        if let peripherals = dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral] {
+            print("   - Restored \(peripherals.count) active peripherals")
+            for peripheral in peripherals {
+                activePeripherals[peripheral.identifier] = peripheral
+                peripheral.delegate = self
+                
+                // If we were connected, we might need to re-discover/check status?
+                // For now, just keeping the reference allows delegate callbacks to fire.
+                if peripheral.state == .connected {
+                     print("     - \(peripheral.identifier) is connected")
+                }
+            }
+        }
+        
+        // 2. Restore Scan Services
+        if let services = dict[CBCentralManagerRestoredStateScanServicesKey] as? [CBUUID] {
+            print("   - Restored scanning for services: \(services)")
+            isScanning = true
+            // Note: We don't need to call scanForPeripherals again here, 
+            // the system keeps it running if we don't stop it.
+        }
     }
 }
 
@@ -530,7 +597,7 @@ extension BLEManager: CBPeripheralDelegate {
     
     func peripheral(_ peripheral: CBPeripheral, didReadRSSI RSSI: NSNumber, error: Error?) {
         if let uid = tempUIDs[peripheral.identifier] {
-            handleDiscoveredUID(uid, rssi: RSSI.intValue)
+            handleDiscoveredUID(uid, rssi: RSSI.intValue, peripheralId: peripheral.identifier)
             
             // Disconnect to save battery
             centralManager.cancelPeripheralConnection(peripheral)

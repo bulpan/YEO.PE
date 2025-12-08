@@ -26,6 +26,10 @@ import FirebaseMessaging
 class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         
+        // Initialize BLE Manager immediately to handle background state restoration
+        // This ensures CBCentralManager is instantiated to catch wake-up events
+        _ = BLEManager.shared
+        
         // Initialize Firebase
         #if canImport(FirebaseCore)
         FirebaseApp.configure()

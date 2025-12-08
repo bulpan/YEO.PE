@@ -332,7 +332,7 @@ const sendNearbyUserFoundNotification = async (userIds, userCount) => {
       let shouldSend = true;
       if (lastNotificationTime) {
         const timeDiff = Date.now() - parseInt(lastNotificationTime);
-        if (timeDiff < 5 * 60 * 1000) { // 5분
+        if (timeDiff < 1 * 60 * 1000) { // 1분 (Testing)
           shouldSend = false;
         }
       }
@@ -375,7 +375,7 @@ const sendNearbyUserFoundNotification = async (userIds, userCount) => {
       const now = String(Date.now());
       for (const uid of finalTargets) {
         const lastNotificationKey = `push:nearby_user:${uid}`;
-        await redis.setex(lastNotificationKey, 5 * 60, now);
+        await redis.setex(lastNotificationKey, 1 * 60, now); // 1분 TTL (Testing)
       }
     }
 

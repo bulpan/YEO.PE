@@ -302,6 +302,9 @@
 				INFOPLIST_FILE = "YEO-PE-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = " YEO.PE";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "YEO.PE uses Bluetooth to find nearby chat rooms and users.";
+				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "YEO.PE uses Bluetooth to advertise your presence to nearby users.";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -350,6 +353,9 @@
 				INFOPLIST_FILE = "YEO-PE-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = " YEO.PE";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "YEO.PE uses Bluetooth to find nearby chat rooms and users.";
+				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "YEO.PE uses Bluetooth to advertise your presence to nearby users.";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;

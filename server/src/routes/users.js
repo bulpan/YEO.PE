@@ -111,8 +111,8 @@ router.post('/ble/scan', authenticate, async (req, res, next) => {
             });
         }
 
-        // 현재 스캔 결과 캐시 (5분 TTL)
-        await redis.setex(lastScanKey, 5 * 60, JSON.stringify(currentUids));
+        // 현재 스캔 결과 캐시 (1분 TTL - Testing)
+        await redis.setex(lastScanKey, 1 * 60, JSON.stringify(currentUids));
 
         res.json({
             users: nearbyUsers

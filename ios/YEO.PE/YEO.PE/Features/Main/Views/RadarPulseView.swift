@@ -102,9 +102,21 @@ struct RadarUserNode: View {
     var isChatting: Bool // Add property
     
     @State private var baseAngle: Double = 0.0
-    @State private var baseDistance: CGFloat = 0.0
+    // baseDistance will now be computed from user.distance
     
     var body: some View {
+        let distanceInMeters = user.distance ?? 15.0 // Default to middle if unknown
+        // Map 0m -> 40pt (center safe zone), 30m -> 160pt (edge)
+        let maxRadius: CGFloat = 160.0
+        let minRadius: CGFloat = 40.0
+        let maxDistance: Double = 30.0
+        
+        // Calculate normalized distance (0.0 - 1.0)
+        let normalized = CGFloat(min(max(distanceInMeters, 0), maxDistance) / maxDistance)
+        
+        // Final radius logic
+        let radius = minRadius + (normalized * (maxRadius - minRadius))
+        
         VStack(spacing: 4) {
             // Avatar
             Circle()
@@ -124,16 +136,18 @@ struct RadarUserNode: View {
                 .padding(4)
                 .background(Color.black.opacity(0.5))
                 .cornerRadius(4)
+            
+            // Debug Distance (Optional)
+            // Text(String(format: "%.1fm", distanceInMeters)).font(.caption2).foregroundColor(.white)
         }
         .position(
-            x: cos(baseAngle) * baseDistance * zoomLevel + center.x,
-            y: sin(baseAngle) * baseDistance * zoomLevel + center.y
+            x: cos(baseAngle) * radius * zoomLevel + center.x,
+            y: sin(baseAngle) * radius * zoomLevel + center.y
         )
+        .animation(.spring(response: 0.6, dampingFraction: 0.7), value: user.distance) // Animate position change
         .onAppear {
-            if baseDistance == 0 { // Initialize only once
-                baseAngle = Double.random(in: 0...(2 * .pi))
-                baseDistance = CGFloat.random(in: 50...150)
-            }
+             // Random angle only on first appear
+             baseAngle = Double.random(in: 0...(2 * .pi))
         }
     }
 }

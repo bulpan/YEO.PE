@@ -26,10 +26,8 @@
 	<array>
 		<string>bluetooth-central</string>
 		<string>bluetooth-peripheral</string>
+		<string>processing</string>
+		<string>nearby-interaction</string>
 	</array>
-	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>YEO.PE uses Bluetooth to find nearby chat rooms and users.</string>
-	<key>NSBluetoothPeripheralUsageDescription</key>
-	<string>YEO.PE uses Bluetooth to advertise your presence to nearby users.</string>
 </dict>
 </plist>
