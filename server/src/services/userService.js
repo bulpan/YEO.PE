@@ -259,6 +259,101 @@ const loginSocialUser = async (provider, providerId, email, nickname) => {
   };
 };
 
+/**
+ * 사용자 삭제
+ */
+const deleteUser = async (userId) => {
+  // Related data (messages, rooms) should be handled by ON DELETE CASCADE or explicit cleanup
+  // For MVP, just deleting user is enough if DB allows or we soft delete.
+  // Assuming hard delete for "Trace Erasure"
+
+  // Clean up Redis keys optionally
+
+  await query('DELETE FROM yeope_schema.users WHERE id = $1', [userId]);
+  return true;
+};
+
+/**
+ * 닉네임 마스크 재생성 (랜덤)
+ */
+const regenerateMask = async (userId) => {
+  // Generate random 4-char hex suffix
+  const randomSuffix = Math.floor(Math.random() * 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+  const newMask = `Anon#${randomSuffix}`;
+
+  await query(
+    'UPDATE yeope_schema.users SET nickname_mask = $1 WHERE id = $2',
+    [newMask, userId]
+  );
+
+  return await getUserProfile(userId);
+};
+
+/**
+ * 사용자 차단
+ */
+const blockUser = async (blockerId, blockedId) => {
+  if (blockerId === blockedId) {
+    throw new ValidationError('자신을 차단할 수 없습니다');
+  }
+
+  // Check existence
+  const blockedUser = await findUserById(blockedId);
+  if (!blockedUser) {
+    throw new NotFoundError('차단할 사용자를 찾을 수 없습니다');
+  }
+
+  // Insert ignore duplicates
+  await query(
+    `INSERT INTO yeope_schema.blocked_users (blocker_id, blocked_id) 
+     VALUES ($1, $2) 
+     ON CONFLICT (blocker_id, blocked_id) DO NOTHING`,
+    [blockerId, blockedId]
+  );
+  return true;
+};
+
+/**
+ * 사용자 차단 해제
+ */
+const unblockUser = async (blockerId, blockedId) => {
+  await query(
+    'DELETE FROM yeope_schema.blocked_users WHERE blocker_id = $1 AND blocked_id = $2',
+    [blockerId, blockedId]
+  );
+  return true;
+};
+
+/**
+ * 차단 목록 조회
+ */
+const getBlockedUsers = async (userId) => {
+  const result = await query(
+    `SELECT u.id, u.nickname, u.nickname_mask 
+     FROM yeope_schema.blocked_users b
+     JOIN yeope_schema.users u ON b.blocked_id = u.id
+     WHERE b.blocker_id = $1`,
+    [userId]
+  );
+  return result.rows;
+};
+
+/**
+ * 사용자 신고
+ */
+const reportUser = async (reporterId, reportedId, reason, details) => {
+  if (reporterId === reportedId) {
+    throw new ValidationError('자신을 신고할 수 없습니다');
+  }
+
+  await query(
+    `INSERT INTO yeope_schema.reports (reporter_id, reported_id, reason, details)
+     VALUES ($1, $2, $3, $4)`,
+    [reporterId, reportedId, reason, details]
+  );
+  return true;
+};
+
 module.exports = {
   findUserByEmail,
   findUserById,
@@ -267,5 +362,12 @@ module.exports = {
   getUserProfile,
   verifyPassword,
   updateUser,
-  loginSocialUser
+  loginSocialUser,
+  deleteUser,
+  regenerateMask,
+  blockUser,
+  unblockUser,
+  getBlockedUsers,
+  reportUser
 };
+

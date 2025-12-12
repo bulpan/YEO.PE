@@ -231,7 +231,30 @@ const sendMessageNotification = async (roomId, senderUserId, senderNicknameMask,
     }
 
     const userIds = members.rows.map(row => row.user_id);
-    const tokensByUser = await tokenService.getActivePushTokensForUsers(userIds);
+
+    // Filter users who have disabled push notifications
+    const targetUsers = await query(
+      `SELECT id, settings FROM yeope_schema.users WHERE id = ANY($1)`,
+      [userIds]
+    );
+
+    const validUserIds = [];
+    targetUsers.rows.forEach(row => {
+      let settings = row.settings;
+      if (typeof settings === 'string') {
+        try { settings = JSON.parse(settings); } catch (e) { }
+      }
+      if (!settings || settings.pushEnabled !== false) {
+        validUserIds.push(row.id);
+      }
+    });
+
+    if (validUserIds.length === 0) {
+      logger.info('[PushDebug] All targets have disabled push notifications');
+      return { success: true, sent: 0 };
+    }
+
+    const tokensByUser = await tokenService.getActivePushTokensForUsers(validUserIds);
     logger.info(`[PushDebug] Found tokens for users: ${Object.keys(tokensByUser).join(', ')}`);
 
     // WebSocket 연결 상태 확인 (연결되어 있으면 푸시 발송 안 함)
@@ -395,8 +418,30 @@ const sendRoomCreatedNotification = async (roomId, roomName, creatorUserId, near
       return { success: true, sent: 0 };
     }
 
+    // usage of tokenService directly implies no settings check previously.
+    // Add settings check for room created
+    const targetUsers = await query(
+      `SELECT id, settings FROM yeope_schema.users WHERE id = ANY($1)`,
+      [nearbyUserIds]
+    );
+
+    const validUserIds = [];
+    targetUsers.rows.forEach(row => {
+      let settings = row.settings;
+      if (typeof settings === 'string') {
+        try { settings = JSON.parse(settings); } catch (e) { }
+      }
+      if (!settings || settings.pushEnabled !== false) {
+        validUserIds.push(row.id);
+      }
+    });
+
+    if (validUserIds.length === 0) {
+      return { success: true, sent: 0 };
+    }
+
     // 주변 사용자들의 푸시 토큰 조회
-    const tokensByUser = await tokenService.getActivePushTokensForUsers(nearbyUserIds);
+    const tokensByUser = await tokenService.getActivePushTokensForUsers(validUserIds);
 
     // 모든 토큰 수집
     const allTokens = [];
@@ -429,6 +474,23 @@ const sendRoomCreatedNotification = async (roomId, roomName, creatorUserId, near
  */
 const sendRoomInviteNotification = async (invitedUserId, roomId, roomName, inviterId, inviterNicknameMask) => {
   try {
+    // Check Settings for Invitee
+    const userResult = await query(
+      `SELECT settings FROM yeope_schema.users WHERE id = $1`,
+      [invitedUserId]
+    );
+
+    if (userResult.rows.length > 0) {
+      let settings = userResult.rows[0].settings;
+      if (typeof settings === 'string') {
+        try { settings = JSON.parse(settings); } catch (e) { }
+      }
+      if (settings && settings.pushEnabled === false) {
+        logger.info(`[PushDebug] User ${invitedUserId} has disabled push`);
+        return { success: true, sent: 0, reason: 'User disabled push' };
+      }
+    }
+
     // 초대받은 사용자의 푸시 토큰 조회
     const tokens = await tokenService.getActivePushTokens(invitedUserId);
 
@@ -457,7 +519,7 @@ const sendRoomInviteNotification = async (invitedUserId, roomId, roomName, invit
 /**
  * 급질문 알림 전송
  */
-const sendQuickQuestionNotification = async (targetUserIds, content) => {
+const sendQuickQuestionNotification = async (targetUserIds, content, roomId) => {
   try {
     if (!targetUserIds || targetUserIds.length === 0) {
       return { success: true, sent: 0 };
@@ -500,7 +562,8 @@ const sendQuickQuestionNotification = async (targetUserIds, content) => {
 
     // 3. 알림 전송
     const { notification, data } = createPushPayload(PushType.QUICK_QUESTION, {
-      content
+      content,
+      roomId
     });
 
     const result = await sendBatchPushNotifications(allTokens, 'android', notification, data);

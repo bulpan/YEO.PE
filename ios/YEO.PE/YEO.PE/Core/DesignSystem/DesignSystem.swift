@@ -1,28 +1,78 @@
 import SwiftUI
 
-// MARK: - Color Palette
+// MARK: - Theme Accessor
 extension Color {
-    /// The Void: Deep Charcoal/Black background
-    static let deepBlack = Color(hex: "050505")
+    static let theme = YeoPeColors()
+}
+
+// MARK: - Semantic Color Definitions
+struct YeoPeColors {
+    // MARK: Backgrounds
+    var bgMain: Color {
+        ThemeManager.shared.isDarkMode ? Color(radarHex: "050505") : Color(radarHex: "F2F2F7")
+    }
     
-    /// Primary Signal: Neon Green for active signals and connections
-    static let neonGreen = Color(hex: "00FF94")
+    var bgLayer1: Color {
+        ThemeManager.shared.isDarkMode ? Color.black.opacity(0.6) : Color.white.opacity(0.7)
+    }
     
-    /// Secondary Mystery: Violet for anonymous/unknown elements
-    static let mysteryViolet = Color(hex: "7000FF")
+    var bgLayer2: Color {
+        ThemeManager.shared.isDarkMode ? Color(radarHex: "1C1C1E") : Color.white
+    }
     
-    /// Error/Expire: Red for warnings and expiration
-    static let signalRed = Color(hex: "FF3B30")
+    // MARK: Text
+    var textPrimary: Color {
+        ThemeManager.shared.isDarkMode ? .white : .black
+    }
     
-    /// Chatting: Light Blue for existing connection
-    static let lightBlue = Color(hex: "5AC8FA")
+    var textSecondary: Color {
+        ThemeManager.shared.isDarkMode ? Color(radarHex: "8E8E93") : Color(radarHex: "636366")
+    }
     
-    /// Glassmorphism Background (Dark)
-    static let glassBlack = Color.black.opacity(0.6)
+    // MARK: Accents
+    var accentPrimary: Color {
+        // Dark: Neon Green, Light: Dark Charcoal
+        ThemeManager.shared.isDarkMode ? Color(radarHex: "00FF94") : Color(radarHex: "1C1C1E")
+    }
     
-    /// Text Colors
-    static let textPrimary = Color.white
-    static let textSecondary = Color(hex: "8E8E93")
+    var accentSecondary: Color {
+        // Dark: Violet, Light: Deep Purple
+        ThemeManager.shared.isDarkMode ? Color(radarHex: "7000FF") : Color(radarHex: "5856D6")
+    }
+    
+    var signalRed: Color {
+        Color(radarHex: "FF3B30")
+    }
+    
+    var signalBlue: Color {
+        ThemeManager.shared.isDarkMode ? Color(radarHex: "5AC8FA") : Color(radarHex: "007AFF")
+    }
+    
+    // MARK: Borders/Dividers
+    var borderPrimary: Color {
+        ThemeManager.shared.isDarkMode ? Color(radarHex: "00FF94").opacity(0.3) : Color(radarHex: "1C1C1E").opacity(0.2)
+    }
+    
+    var borderSubtle: Color {
+        ThemeManager.shared.isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1)
+    }
+    
+    // MARK: Raw Colors (Legacy/Specific)
+    var neonGreenRaw: Color { Color(radarHex: "00FF94") }
+    var deepBlackRaw: Color { Color(radarHex: "050505") }
+}
+
+// MARK: - Legacy Compatibility (Deprecating slowly)
+extension Color {
+    static var deepBlack: Color { Color.theme.bgMain }
+    static var neonGreen: Color { Color.theme.accentPrimary }
+    static var mysteryViolet: Color { Color.theme.accentSecondary }
+    static var glassBlack: Color { Color.theme.bgLayer1 }
+    static var signalRed: Color { Color.theme.signalRed }
+    static var lightBlue: Color { Color.theme.signalBlue }
+    static var textPrimary: Color { Color.theme.textPrimary }
+    static var textSecondary: Color { Color.theme.textSecondary }
+    static var structuralGray: Color { Color.theme.borderPrimary }
 }
 
 // MARK: - Typography
@@ -35,7 +85,7 @@ extension Font {
 
 // MARK: - Hex Color Helper
 extension Color {
-    init(hex: String) {
+    init(radarHex hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
         var int: UInt64 = 0
         Scanner(string: hex).scanHexInt64(&int)

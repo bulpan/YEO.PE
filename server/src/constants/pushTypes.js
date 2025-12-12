@@ -90,16 +90,18 @@ const createPushPayload = (type, context) => {
             break;
 
         case PushType.QUICK_QUESTION:
-            // context: { content }
+            // context: { content, roomId }
             notification = {
-                title: '급질문',
+                title: '⚡️ 급질문이 도착했습니다',
                 body: context.content
             };
             data = {
                 ...data,
                 content: context.content,
+                roomId: context.roomId,
                 action: 'DEEP_LINK',
-                targetScreen: 'MAIN_MAP'
+                targetScreen: 'CHAT_ROOM', // Now this acts as an invite/link to the room
+                targetId: context.roomId
             };
             break;
 

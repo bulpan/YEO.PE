@@ -61,6 +61,7 @@ app.use('/api', require('./routes/messages'));
 app.use('/api/push', require('./routes/push'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/upload', require('./routes/upload'));
+app.use('/api/reports', require('./routes/reports'));
 
 // Firebase 초기화 (푸시 알림)
 const pushService = require('./services/pushService');

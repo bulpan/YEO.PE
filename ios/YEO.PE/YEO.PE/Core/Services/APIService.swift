@@ -147,6 +147,41 @@ class APIService {
             completion(.failure(error))
         }
     }
+    func regenerateMask(completion: @escaping (Result<UserResponse, Error>) -> Void) {
+        request("/users/me/mask", method: "POST", completion: completion)
+    }
+    
+    func deleteAccount(completion: @escaping (Result<StandardResponse, Error>) -> Void) {
+        request("/users/me", method: "DELETE", completion: completion)
+    }
+    
+    // MARK: - Block & Report
+    func blockUser(targetUserId: String, completion: @escaping (Result<StandardResponse, Error>) -> Void) {
+        let body = ["targetUserId": targetUserId]
+        request("/users/block", method: "POST", body: body, completion: completion)
+    }
+    
+    func unblockUser(targetUserId: String, completion: @escaping (Result<StandardResponse, Error>) -> Void) {
+        let body = ["targetUserId": targetUserId]
+        request("/users/unblock", method: "POST", body: body, completion: completion)
+    }
+    
+    func getBlockedUsers(completion: @escaping (Result<BlockedUsersResponse, Error>) -> Void) {
+        request("/users/blocked", method: "GET", completion: completion)
+    }
+    
+    func updateProfile(nickname: String, completion: @escaping (Result<UserResponse, Error>) -> Void) {
+        let body = ["nickname": nickname]
+        request("/users/me", method: "PATCH", body: body, completion: completion)
+    }
+    
+    func reportUser(targetUserId: String, reason: String, details: String?, completion: @escaping (Result<StandardResponse, Error>) -> Void) {
+        var body = ["targetUserId": targetUserId, "reason": reason]
+        if let details = details {
+            body["details"] = details
+        }
+        request("/reports", method: "POST", body: body, completion: completion)
+    }
 }
 
 struct UserResponse: Decodable {
@@ -168,4 +203,9 @@ struct QuickQuestionResponse: Decodable {
     let success: Bool?
     let sentCount: Int?
     let message: String?
+    let room: Room?
+}
+
+struct BlockedUsersResponse: Decodable {
+    let blockedUsers: [User]
 }

@@ -1,21 +1,32 @@
-require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
-const { query, pool } = require('../src/config/database');
+const { Pool } = require('pg');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
-const runMigration = async () => {
+// Use the config from your database.js or env directly
+const pool = new Pool({
+    user: 'postgres',
+    host: process.env.DB_HOST || 'localhost',
+    database: process.env.DB_NAME || 'yeope',
+    password: process.env.DB_PASSWORD || 'yeope_password_2024',
+    port: 5432, // Force correct port matching Docker
+});
+
+async function runMigration() {
+    const client = await pool.connect();
     try {
-        const sqlPath = path.join(__dirname, '../database/migration_advanced_features.sql');
+        const sqlPath = path.join(__dirname, '../database/migration_block_report.sql');
         const sql = fs.readFileSync(sqlPath, 'utf8');
 
         console.log('Running migration...');
-        await query(sql);
+        await client.query(sql);
         console.log('Migration completed successfully.');
-    } catch (error) {
-        console.error('Migration failed:', error);
+    } catch (err) {
+        console.error('Migration failed:', err);
     } finally {
-        await pool.end();
+        client.release();
+        pool.end();
     }
-};
+}
 
 runMigration();

@@ -55,4 +55,14 @@ class ServerConfig: ObservableObject {
             return "ws://\(localIP):3000"
         }
     }
+    
+    // MARK: - Setters
+    
+    func setEnvironment(_ environment: ServerEnvironment) {
+        self.environment = environment
+    }
+    
+    func setLocalIP(_ ip: String) {
+        self.localIP = ip
+    }
 }

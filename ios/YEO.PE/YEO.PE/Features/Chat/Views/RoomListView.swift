@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RoomListView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
+    @ObservedObject private var themeManager = ThemeManager.shared
     @StateObject private var viewModel = RoomListViewModel()
     @State private var isShowingCreateRoom = false
     @State private var showLoginSheet = false
@@ -27,12 +28,26 @@ struct RoomListView: View {
                     }) {
                         RoomRow(room: room, currentUserId: authViewModel.userId)
                     }
+                    .listRowBackground(Color.theme.bgLayer1) // Cell background
                     .disabled(authViewModel.userId == room.creatorId && room.isActive == false)
                 }
             }
         }
-        .listStyle(InsetGroupedListStyle())
-        .navigationTitle("rooms_title".localized)
+        .listStyle(PlainListStyle()) // Better control over background
+        .navigationBarTitleDisplayMode(.inline) // Make large title inline (smaller) or hide it to use custom
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text("rooms_title".localized)
+                    .font(.headline) // Standard size, not large
+                    .foregroundColor(Color.theme.textPrimary)
+            }
+        }
+        .onAppear {
+             // Force transparent list background so global background shows
+             UITableView.appearance().backgroundColor = .clear
+             UITableViewCell.appearance().backgroundColor = .clear
+        }
+        .background(Color.theme.bgMain.edgesIgnoringSafeArea(.all))
         .navigationBarItems(trailing: Button(action: {
             if authViewModel.isLoggedIn {
                 isShowingCreateRoom = true
@@ -58,32 +73,38 @@ struct RoomListView: View {
             viewModel.fetchMyRooms()
         }
         .sheet(isPresented: $isShowingCreateRoom) {
-            VStack {
-                Text("create_room".localized)
-                    .font(.headline)
-                    .padding()
+            ZStack {
+                Color.theme.bgMain.edgesIgnoringSafeArea(.all)
                 
-                TextField("room_name".localized, text: $newRoomName)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .padding()
-                
-                Button("create".localized) {
-                    // Get nearby users from BLEManager singleton
-                    let nearbyUserIds = BLEManager.shared.discoveredUsers.compactMap { $0.id }
+                VStack {
+                    Text("create_room".localized)
+                        .font(.headline)
+                        .foregroundColor(Color.theme.textPrimary)
+                        .padding()
                     
-                    viewModel.createRoom(name: newRoomName, nearbyUserIds: nearbyUserIds) { success in
-                        if success {
-                            isShowingCreateRoom = false
-                            newRoomName = ""
-                            // Refresh list immediately
-                            viewModel.fetchMyRooms()
+                    TextField("room_name".localized, text: $newRoomName)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .padding()
+                        .colorScheme(ThemeManager.shared.isDarkMode ? .dark : .light)
+                    
+                    Button("create".localized) {
+                        // Get nearby users from BLEManager singleton
+                        let nearbyUserIds = BLEManager.shared.discoveredUsers.compactMap { $0.id }
+                        
+                        viewModel.createRoom(name: newRoomName, nearbyUserIds: nearbyUserIds) { success in
+                            if success {
+                                isShowingCreateRoom = false
+                                newRoomName = ""
+                                // Refresh list immediately
+                                viewModel.fetchMyRooms()
+                            }
                         }
                     }
+                    .padding()
+                    .disabled(newRoomName.isEmpty)
                 }
                 .padding()
-                .disabled(newRoomName.isEmpty)
             }
-            .padding()
         }
     }
 }
@@ -99,7 +120,7 @@ struct RoomRow: View {
                 HStack {
                     Text(room.displayName)
                         .font(.headline)
-                        .foregroundColor(shouldDimRoom ? .gray : .primary)
+                        .foregroundColor(shouldDimRoom ? Color.theme.textSecondary : Color.theme.textPrimary)
                     
                     if room.isActive == false {
                         if currentUserId == room.creatorId {
@@ -110,7 +131,7 @@ struct RoomRow: View {
                     } else {
                         Text("(\(room.memberCount ?? 0))")
                             .font(.caption)
-                            .foregroundColor(.gray)
+                            .foregroundColor(Color.theme.textSecondary)
                     }
                 }
                 
@@ -118,15 +139,23 @@ struct RoomRow: View {
                 if let lastMessage = room.lastMessage {
                     Text(lastMessage)
                         .font(.subheadline)
-                        .foregroundColor(.gray)
+                        .foregroundColor(Color.theme.textSecondary)
                         .lineLimit(2)
                 } else {
                     Text("no_messages".localized)
                         .font(.caption)
-                        .foregroundColor(.gray)
+                        .foregroundColor(Color.theme.textSecondary)
                 }
             }
+            
             Spacer()
+            
+            // Quick Question Icon
+            if room.metadata?.category == "quick_question" {
+                 Image(systemName: "bolt.fill")
+                    .foregroundColor(.yellow)
+                    .padding(.trailing, 4)
+            }
             
             // Unread Badge
             if let unreadCount = room.unreadCount, unreadCount > 0 {

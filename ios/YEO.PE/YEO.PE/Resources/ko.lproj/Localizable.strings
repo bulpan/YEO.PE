@@ -11,6 +11,8 @@
 "success" = "성공";
 "send" = "전송";
 "waiting_for_response" = "응답 대기 중...";
+"quick_question" = "급질문";
+"quick_question_desc" = "주변 사람들에게 빠르게 질문해보세요.";
 
 // MainView
 "signal_active" = "신호 활성화";
@@ -61,3 +63,37 @@
 "room_created_success" = "방이 생성되었습니다!";
 "members_count" = "참여자: %d명";
 "rooms_title" = "채팅방";
+
+// ProfileView New
+"ghost_mode" = "고스트 모드";
+"visible" = "노출 중";
+"invisible" = "숨김 상태";
+"on_air" = "ON AIR";
+"radar_alert" = "레이더 알림";
+"on" = "켜짐";
+"off" = "꺼짐";
+"new_mask" = "새 가면";
+"randomize_identity" = "익명 ID 변경";
+"retention" = "흔적 유지";
+"hours" = "시간";
+"delete_account" = "계정 삭제";
+"app_subtitle" = "익명 & 휘발성 소셜";
+"logout_confirm_title" = "로그아웃";
+"logout_confirm_message" = "연결을 끊으시겠습니까? 로컬 데이터가 초기화됩니다.";
+"delete_confirm_title" = "계정 삭제";
+"delete_confirm_message" = "이 작업은 되돌릴 수 없습니다. 모든 데이터가 영구적으로 삭제됩니다.";
+"delete" = "삭제";
+
+// SettingsView
+"message_settings" = "메시지 설정";
+"message_retention" = "메시지 보관 기간";
+"room_exit_condition" = "방 나가기 조건";
+"privacy_settings" = "프라이버시 설정";
+"mask_id" = "마스크 ID (공개)";
+"save" = "저장";
+"appearance" = "다크 모드";
+"ghost_mode_tooltip" = "내 신호를 켜서 주변 사람들이 나를 발견할 수 있게 합니다.";
+"radar_alert_tooltip" = "주변에 새로운 사람이나 대화방이 감지되면 알림을 받습니다.";
+"new_mask_tooltip" = "새로운 익명 ID와 아바타를 무작위로 생성합니다.";
+"retention_tooltip" = "대화 내용이 자동으로 삭제되기 전까지 유지되는 시간입니다.";
+

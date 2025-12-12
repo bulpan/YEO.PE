@@ -121,6 +121,16 @@ class SocketManager: ObservableObject {
         socket?.emit("send-message", data)
     }
     
+    func sendTypingStart(roomId: String) {
+        // print("⌨️ Start Typing: \(roomId)")
+        socket?.emit("typing_start", ["roomId": roomId])
+    }
+    
+    func sendTypingEnd(roomId: String) {
+        // print("⌨️ End Typing: \(roomId)")
+        socket?.emit("typing_end", ["roomId": roomId])
+    }
+    
     // Helper to listen for events
     @discardableResult
     func on(_ event: String, callback: @escaping ([Any], SocketAckEmitter) -> Void) -> UUID? {

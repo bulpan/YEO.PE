@@ -5,6 +5,12 @@ struct User: Codable, Identifiable {
     let email: String?
     let nickname: String?
     let nicknameMask: String?
+    let nickname_mask: String? // Support for snake_case response
+    
+    var resolvedMask: String? {
+        return nicknameMask ?? nickname_mask
+    }
+
     let settings: UserSettings?
     let createdAt: String?
     let lastLoginAt: String?

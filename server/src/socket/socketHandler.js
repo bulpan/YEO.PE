@@ -8,6 +8,7 @@ const logger = require('../utils/logger');
 const sanitize = require('../utils/sanitizer');
 const roomHandler = require('./roomHandler');
 const messageHandler = require('./messageHandler');
+const roomService = require('../services/roomService');
 
 /**
  * Socket.io 연결 처리
@@ -31,6 +32,21 @@ const handleConnection = (io) => {
 
       // 사용자 개인 룸 조인 (개별 알림용)
       socket.join(`user:${decoded.userId}`);
+
+      // [Auto-Join] 사용자가 참여 중인 모든 방에 자동으로 소켓 연결
+      // 이를 통해 MainView에서도 'new-message' 이벤트를 수신할 수 있음
+      try {
+        const userRooms = await roomService.getUserRooms(decoded.userId);
+        userRooms.forEach(room => {
+          if (room.roomId) {
+            socket.join(`room:${room.roomId}`);
+          }
+        });
+        logger.info(`WebSocket Auto-Join: user ${decoded.userId} joined ${userRooms.length} rooms`);
+      } catch (err) {
+        logger.error(`WebSocket Auto-Join Failed for ${decoded.userId}:`, err);
+        // 치명적이지 않으므로 연결은 허용
+      }
 
       logger.info(`WebSocket 연결: user ${decoded.userId}`);
       next();
@@ -69,6 +85,25 @@ const handleConnection = (io) => {
 
     // 메시지 관련 이벤트 핸들러
     messageHandler(socket, io);
+
+    // Typing Handler logic (simple enough to keep here or move)
+    socket.on('typing_start', ({ roomId }) => {
+      if (!roomId) return;
+      socket.to(`room:${roomId}`).emit('typing_update', {
+        roomId: roomId,
+        userId: socket.userId,
+        isTyping: true
+      });
+    });
+
+    socket.on('typing_end', ({ roomId }) => {
+      if (!roomId) return;
+      socket.to(`room:${roomId}`).emit('typing_update', {
+        roomId: roomId,
+        userId: socket.userId,
+        isTyping: false
+      });
+    });
 
     // 연결 해제 처리
     socket.on('disconnect', (reason) => {

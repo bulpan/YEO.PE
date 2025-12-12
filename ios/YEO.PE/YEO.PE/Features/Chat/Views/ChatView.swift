@@ -3,6 +3,7 @@ import SwiftUI
 struct ChatView: View {
     @Environment(\.presentationMode) var presentationMode
     @StateObject private var viewModel: ChatViewModel
+    @ObservedObject private var themeManager = ThemeManager.shared
     
     init(room: Room, targetUser: User? = nil, currentUser: User? = nil) {
         _viewModel = StateObject(wrappedValue: ChatViewModel(room: room, targetUser: targetUser, currentUser: currentUser))
@@ -31,12 +32,12 @@ struct ChatView: View {
                     VStack(alignment: .leading) {
                         Text(viewModel.room.displayName)
                             .font(.radarHeadline)
-                            .foregroundColor(.white)
+                            .foregroundColor(.textPrimary)
                         
                         HStack(spacing: 4) {
                             Text("TTL 23:59:42") // Placeholder for real timer
                                 .font(.radarData)
-                                .foregroundColor(.signalRed)
+                                .foregroundColor(Color.signalRed)
                             
                             if let targetUser = viewModel.targetUser {
                                 Text("•")
@@ -61,7 +62,7 @@ struct ChatView: View {
                         }
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color.white.opacity(0.1))
+                        .background(Color.textPrimary.opacity(0.1))
                         .cornerRadius(4)
                     }
                     
@@ -71,7 +72,7 @@ struct ChatView: View {
                     }) {
                         Image(systemName: "line.3.horizontal")
                             .font(.system(size: 24))
-                            .foregroundColor(.white)
+                            .foregroundColor(.textPrimary)
                     }
                     .actionSheet(isPresented: $showMenu) {
                         ActionSheet(
@@ -127,9 +128,9 @@ struct ChatView: View {
                 HStack(spacing: 12) {
                     TextField("type_message".localized, text: $viewModel.newMessageText)
                         .padding(12)
-                        .background(Color.white.opacity(0.1))
+                        .background(Color.textPrimary.opacity(0.1))
                         .cornerRadius(20)
-                        .foregroundColor(.white)
+                        .foregroundColor(.textPrimary)
                         .accentColor(.neonGreen)
                     
                     Button(action: {
@@ -137,9 +138,9 @@ struct ChatView: View {
                     }) {
                         Image(systemName: "paperplane.fill")
                             .font(.system(size: 20))
-                            .foregroundColor(.black)
+                            .foregroundColor(ThemeManager.shared.isDarkMode ? .black : .white) // Black on Green, White on DarkGray
                             .padding(10)
-                            .background(Color.neonGreen)
+                            .background(Color.neonGreen) // LightMode: DarkGray, DarkMode: NeonGreen
                             .clipShape(Circle())
                     }
                 }
@@ -176,13 +177,18 @@ struct MessageRow: View {
     
     var body: some View {
         if message.type == "system" {
-            HStack {
-                Spacer()
-                Text(message.content ?? "")
-                    .font(.radarCaption)
-                    .foregroundColor(.textSecondary)
-                    .padding(.vertical, 8)
-                Spacer()
+            if isMe {
+                // Hide "I joined" or "I left" system messages for the user themselves
+                EmptyView()
+            } else {
+                HStack {
+                    Spacer()
+                    Text(message.content ?? "")
+                        .font(.radarCaption)
+                        .foregroundColor(.textSecondary)
+                        .padding(.vertical, 8)
+                    Spacer()
+                }
             }
         } else {
             HStack(alignment: .bottom, spacing: 8) {
@@ -215,13 +221,21 @@ struct MessageRow: View {
                         Text(message.content ?? "")
                             .font(.radarBody)
                             .padding(12)
-                            .background(isMe ? Color.neonGreen : Color.white.opacity(0.1))
-                            .foregroundColor(isMe ? .black : .white)
+                            .background(
+                                isMe ? 
+                                    (ThemeManager.shared.isDarkMode ? Color.neonGreen : Color.textPrimary.opacity(0.1)) 
+                                    : Color.textPrimary.opacity(0.1)
+                            )
+                            .foregroundColor(
+                                isMe ? 
+                                    (ThemeManager.shared.isDarkMode ? .black : .textPrimary) 
+                                    : (ThemeManager.shared.isDarkMode ? .white : .black) // Force black in Light Mode for other
+                            )
                             .cornerRadius(16)
                             .opacity(message.localStatus == .sending ? 0.7 : 1.0)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 16)
-                                    .stroke(Color.white.opacity(0.1), lineWidth: isMe ? 0 : 1)
+                                    .stroke(Color.textPrimary.opacity(0.1), lineWidth: isMe ? 0 : 1)
                             )
                     }
                 }

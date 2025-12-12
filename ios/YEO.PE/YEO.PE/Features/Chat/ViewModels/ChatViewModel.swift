@@ -8,9 +8,24 @@ class ChatViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var members: [User] = []
     
+    // Typing Indicator
+    @Published var typingUserIds: Set<String> = []
+    
+    var typingLabelText: String? {
+        guard !typingUserIds.isEmpty else { return nil }
+        let count = typingUserIds.count
+        return "\(count)명이 입력 중..."
+    }
+    
+    // Legacy support if UI used 'isOtherUserTyping'
+    var isOtherUserTyping: Bool { !typingUserIds.isEmpty }
+    
+    private var typingTimer: Timer?
+    private var isTyping = false
+    
     let room: Room
     let targetUser: User?
-    let currentUser: User? // Add currentUser
+    let currentUser: User?
     
     var isTargetUserActive: Bool {
         guard let targetUser = targetUser else { return true } 
@@ -78,16 +93,19 @@ class ChatViewModel: ObservableObject {
         leaveRoom()
         
         // Register Listeners
-        if let uuid = socketManager.on("room-joined") { [weak self] data, ack in
-            print("✅ CSocket: Successfully joined room channel")
-            self?.fetchMembers()
-        } { listenerUUIDs["room-joined"] = uuid }
+
         
-        if let uuid = socketManager.on("member-joined") { [weak self] data, ack in
+        let joinUUID = socketManager.on("room-joined") { [weak self] data, ack in
+             print("✅ Room joined event received")
+        }
+        if let uuid = joinUUID { listenerUUIDs["room-joined"] = uuid }
+
+        let memberJoinUUID = socketManager.on("member-joined") { [weak self] data, ack in
              self?.fetchMembers()
-        } { listenerUUIDs["member-joined"] = uuid }
+        }
+        if let uuid = memberJoinUUID { listenerUUIDs["member-joined"] = uuid }
         
-        if let uuid = socketManager.on("new-message") { [weak self] data, ack in
+        let msgUUID = socketManager.on("new-message") { [weak self] data, ack in
             guard let self = self else { return }
             guard let messageData = data.first as? [String: Any] else { return }
             
@@ -95,67 +113,66 @@ class ChatViewModel: ObservableObject {
                 let jsonData = try JSONSerialization.data(withJSONObject: messageData, options: [])
                 let message = try JSONDecoder().decode(Message.self, from: jsonData)
                 
-                print("📩 Received message: \(message.type ?? "unknown") - \(message.content ?? "")")
-                
                 DispatchQueue.main.async {
                     if let index = self.messages.firstIndex(where: { $0.id == message.id }) { return }
                     
-                    // Deduplicate & Sync: Check if message is from me
-                    // Use TokenManager as fallback source of truth
                     let currentUserId = self.currentUser?.id ?? TokenManager.shared.userId ?? ""
                     let isFromMe = (message.userId.caseInsensitiveCompare(currentUserId) == .orderedSame)
                     
-                    // FILTER: Ignore system messages about myself (e.g. "XXX joined")
-                    if message.type == "system" && isFromMe {
-                        print("🚫 Ignoring system message about myself: \(message.content ?? "")")
-                        return
-                    }
-                    
-                    print("🔎 Message Dedup: ID=\(message.id) | Me=\(currentUserId) vs Sender=\(message.userId) | isMe=\(isFromMe)")
+                    if message.type == "system" && isFromMe { return }
                     
                     if isFromMe {
                         if let optimisticIndex = self.messages.firstIndex(where: { 
-                            // Check userId match AND localStatus is sending
                             let optUserMatch = ($0.userId.caseInsensitiveCompare(currentUserId) == .orderedSame)
                             return optUserMatch && $0.localStatus == .sending 
                         }) {
                             var realMessage = message
                             realMessage.localStatus = .sent
                             self.messages[optimisticIndex] = realMessage
-                            print("✅ Synced optimistic message")
                             return
-                        } else {
-                            // If no optimistic message found (maybe distinct device?), strictly ensure it's treated as Mine
-                            // But usually we append.
-                            // If we append here, MessageRow needs to know it's me.
                         }
                     }
-                    
                     self.messages.append(message)
                 }
             } catch {
                 print("Failed to decode new message: \(error)")
             }
-        } { listenerUUIDs["new-message"] = uuid }
+        }
+        if let uuid = msgUUID { listenerUUIDs["new-message"] = uuid }
         
-        if let uuid = socketManager.on("member-left") { [weak self] data, ack in
-             print("👋 Member left event received")
+        let leftUUID = socketManager.on("member-left") { [weak self] data, ack in
+             print("👋 Member left received")
              self?.fetchMembers()
-        } { listenerUUIDs["member-left"] = uuid }
+        }
+        if let uuid = leftUUID { listenerUUIDs["member-left"] = uuid }
         
-        if let uuid = socketManager.on("evaporate_messages") { [weak self] data, ack in
+        let evapUUID = socketManager.on("evaporate_messages") { [weak self] data, ack in
             guard let self = self else { return }
             guard let payload = data.first as? [String: Any],
                   let userId = payload["userId"] as? String else { return }
-            
-            print("💨 Evaporating messages for user: \(userId)")
-            
             DispatchQueue.main.async {
                 withAnimation {
                     self.messages.removeAll { $0.userId == userId && $0.type != "system" }
                 }
             }
-        } { listenerUUIDs["evaporate_messages"] = uuid }
+        }
+        if let uuid = evapUUID { listenerUUIDs["evaporate_messages"] = uuid }
+        
+        let typingUUID = socketManager.on("typing_update") { [weak self] data, ack in
+            guard let self = self else { return }
+            guard let payload = data.first as? [String: Any],
+                  let userId = payload["userId"] as? String,
+                  let isTyping = payload["isTyping"] as? Bool else { return }
+            
+            let currentUserId = self.currentUser?.id ?? TokenManager.shared.userId ?? ""
+            if userId != currentUserId {
+                DispatchQueue.main.async {
+                     if isTyping { self.typingUserIds.insert(userId) }
+                     else { self.typingUserIds.remove(userId) }
+                }
+            }
+        }
+        if let uuid = typingUUID { listenerUUIDs["typing_update"] = uuid }
     }
     
     func leaveRoom() {
@@ -196,6 +213,7 @@ class ChatViewModel: ObservableObject {
             }
         }
     }
+
     func sendMessage() {
         guard !newMessageText.isEmpty else { return }
         
@@ -221,14 +239,48 @@ class ChatViewModel: ObservableObject {
             nicknameMask: currentUser?.nicknameMask,
             type: "text",
             content: content,
-            imageUrl: nil, // Add missing argument
-            createdAt: ISO8601DateFormatter().string(from: Date()), // Convert Date to String
+            imageUrl: nil,
+            createdAt: ISO8601DateFormatter().string(from: Date()),
             localStatus: .sending
         )
-        // Message struct does not have expiresAt property in the initializer shown in Room.swift
         
         withAnimation {
             self.messages.append(optimisticMessage)
+        }
+        
+        // Stop typing immediately when sending
+        if isTyping {
+            isTyping = false
+            typingTimer?.invalidate()
+            socketManager.sendTypingEnd(roomId: room.uniqueId)
+        }
+    }
+    
+    func handleTextInput(_ text: String) {
+        newMessageText = text
+        
+        guard !text.isEmpty else {
+            // Text cleared -> Stop typing immediately
+            if isTyping {
+                isTyping = false
+                typingTimer?.invalidate()
+                socketManager.sendTypingEnd(roomId: room.uniqueId)
+            }
+            return
+        }
+        
+        // If not already typing, start
+        if !isTyping {
+            isTyping = true
+            socketManager.sendTypingStart(roomId: room.uniqueId)
+        }
+        
+        // Debounce: Reset timer on every keystroke
+        typingTimer?.invalidate()
+        typingTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [weak self] _ in
+            guard let self = self else { return }
+            self.isTyping = false
+            self.socketManager.sendTypingEnd(roomId: self.room.uniqueId)
         }
     }
     

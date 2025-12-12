@@ -165,6 +165,43 @@ router.patch('/me', authenticate, async (req, res, next) => {
 });
 
 /**
+ * POST /api/users/me/mask
+ * 닉네임 마스크(익명 ID) 랜덤 변경
+ */
+router.post('/me/mask', authenticate, async (req, res, next) => {
+    try {
+        const userId = req.user.userId;
+        const userService = require('../services/userService');
+        const updatedUser = await userService.regenerateMask(userId);
+
+        logger.info(`익명 ID 변경: ${userId} -> ${updatedUser.nicknameMask}`);
+
+        res.json({ user: updatedUser });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * DELETE /api/users/me
+ * 회원 탈퇴
+ */
+router.delete('/me', authenticate, async (req, res, next) => {
+    try {
+        const userId = req.user.userId;
+        const userService = require('../services/userService');
+
+        await userService.deleteUser(userId);
+
+        logger.info(`회원 탈퇴: ${userId}`);
+
+        res.json({ success: true, message: '계정이 삭제되었습니다.' });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
  * POST /api/users/quick_question
  * 급질문 (주변 사용자에게 질문 전송)
  */
@@ -190,24 +227,56 @@ router.post('/quick_question', authenticate, async (req, res, next) => {
             return res.status(429).json({ message: '잠시 후 다시 시도해주세요.' });
         }
 
+        // Create a new room for the quick question
+        const roomService = require('../services/roomService');
+        const messageService = require('../services/messageService');
+
+        // 1. Create Room (Category: 'quick_question')
+        // Name it based on content summary or standard
+        const roomName = content.length > 20 ? content.substring(0, 20) + '...' : content;
+        const newRoom = await roomService.createRoom(userId, roomName, 'quick_question');
+        const roomId = newRoom.id;
+        const roomUuid = newRoom.roomId;
+
+        logger.info(`급질문 방 생성: ${roomUuid} (Creator: ${userId})`);
+
+        // 2. Insert Message
+        const message = await messageService.createMessage(
+            userId,
+            roomUuid, // Pass UUID string as expected by messageService/roomService
+            'text',
+            content
+        );
+
+        // 3. Send Notifications & Invite (Push logic needs update to support inviting to existing room)
         const bleService = require('../services/bleService');
         const pushService = require('../services/pushService');
 
-        // UID로 사용자 식별
+        // Target Users
         const targetUsers = await bleService.getUsersByUIDs(uids.map(u => ({ uid: u })));
         const targetUserIds = targetUsers.map(u => u.id);
 
         logger.info(`[Debug] QuickQuestion Targets - UIDs: ${uids.join(', ')}, Found UserIds: ${targetUserIds.join(', ')}`);
 
+        let successCount = 0;
         if (targetUserIds.length > 0) {
-            // 알림 전송
+            // Send Push with Action: CHAT_ROOM
+            // We need a new method or update sendQuickQuestionNotification to include room info
+            // Actually, we can just send "Room Invite" style push but with "Quick Question" context.
+            // But requirements say "Like sending a question... but acts like room invite".
+            // Let's make a specific `sendQuickQuestionInvite` in pushService.
+
+            // For now, let's use a specialized batch send here or update pushService.
+            // Let's invoke pushService.sendQuickQuestionNotification but with roomId param (we need to update that function).
+
             const result = await pushService.sendQuickQuestionNotification(
                 targetUserIds,
-                content
+                content,
+                roomUuid // Pass roomId
             );
             successCount = result.successCount || 0;
 
-            logger.info(`급질문 전송: User ${userId} -> ${targetUserIds.length} users (Success: ${successCount})`);
+            logger.info(`급질문 전송 (방 초대): User ${userId} -> ${targetUserIds.length} users (Success: ${successCount})`);
 
             // 쿨다운 설정 (1분)
             await redis.setex(cooldownKey, 60, String(Date.now()));
@@ -215,7 +284,8 @@ router.post('/quick_question', authenticate, async (req, res, next) => {
 
         res.json({
             success: true,
-            sentCount: successCount
+            sentCount: successCount,
+            room: newRoom // Return room info so client can join immediately
         });
     } catch (error) {
         next(error);
@@ -253,6 +323,94 @@ router.post('/boost', authenticate, async (req, res, next) => {
             success: true,
             boostedCount: targetUserIds.length
         });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * POST /api/users/block
+ * 사용자 차단
+ */
+router.post('/block', authenticate, async (req, res, next) => {
+    try {
+        const userId = req.user.userId;
+        const { targetUserId } = req.body;
+
+        if (!targetUserId) {
+            throw new ValidationError('차단할 사용자 ID가 필요합니다');
+        }
+
+        const userService = require('../services/userService');
+        await userService.blockUser(userId, targetUserId);
+
+        logger.info(`사용자 차단: ${userId} -> ${targetUserId}`);
+
+        res.json({ success: true, message: '사용자를 차단했습니다.' });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * POST /api/users/unblock
+ * 사용자 차단 해제
+ */
+router.post('/unblock', authenticate, async (req, res, next) => {
+    try {
+        const userId = req.user.userId;
+        const { targetUserId } = req.body;
+
+        if (!targetUserId) {
+            throw new ValidationError('차단 해제할 사용자 ID가 필요합니다');
+        }
+
+        const userService = require('../services/userService');
+        await userService.unblockUser(userId, targetUserId);
+
+        logger.info(`사용자 차단 해제: ${userId} -> ${targetUserId}`);
+
+        res.json({ success: true, message: '사용자 차단을 해제했습니다.' });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * GET /api/users/blocked
+ * 차단한 사용자 목록 조회
+ */
+router.get('/blocked', authenticate, async (req, res, next) => {
+    try {
+        const userId = req.user.userId;
+        const userService = require('../services/userService');
+        const blockedUsers = await userService.getBlockedUsers(userId);
+
+        res.json({ blockedUsers });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * POST /api/users/report
+ * 사용자 신고
+ */
+router.post('/report', authenticate, async (req, res, next) => {
+    try {
+        const userId = req.user.userId;
+        const { targetUserId, reason, details } = req.body;
+
+        if (!targetUserId || !reason) {
+            throw new ValidationError('신고 대상과 사유가 필요합니다');
+        }
+
+        const userService = require('../services/userService');
+        await userService.reportUser(userId, targetUserId, reason, details);
+
+        logger.info(`사용자 신고: ${userId} -> ${targetUserId} (${reason})`);
+
+        res.json({ success: true, message: '신고가 접수되었습니다.' });
     } catch (error) {
         next(error);
     }

@@ -24,11 +24,27 @@ class BLEService {
     
     private init() {}
     
-    func getUID(completion: @escaping (Result<String, Error>) -> Void) {
+    func getUID(completion: @escaping (Result<(String, Date), Error>) -> Void) {
         APIService.shared.request("/users/ble/uid", method: "POST") { (result: Result<BLEUIDResponse, Error>) in
             switch result {
             case .success(let response):
-                completion(.success(response.uid))
+                // Parse ISO8601 Date
+                let formatter = ISO8601DateFormatter()
+                formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                
+                if let date = formatter.date(from: response.expiresAt) {
+                    completion(.success((response.uid, date)))
+                } else {
+                    // Fallback for standard ISO without fractional seconds if needed
+                    formatter.formatOptions = [.withInternetDateTime]
+                    if let date = formatter.date(from: response.expiresAt) {
+                        completion(.success((response.uid, date)))
+                    } else {
+                        print("⚠️ Failed to parse UID expiry date: \(response.expiresAt)")
+                        // Fallback: 24h from now
+                        completion(.success((response.uid, Date().addingTimeInterval(24 * 3600))))
+                    }
+                }
             case .failure(let error):
                 completion(.failure(error))
             }
