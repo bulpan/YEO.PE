@@ -12,6 +12,7 @@ class AuthViewModel: ObservableObject {
     @Published var keepLoggedIn = true // Default to true for better background experience
     @Published var currentUser: User?
     @Published var blockedUserIds: Set<String> = []
+    @Published var showIdentityRegeneratedAlert = false
     
     var userId: String? {
         return currentUser?.id
@@ -22,6 +23,17 @@ class AuthViewModel: ObservableObject {
         if self.isLoggedIn {
             fetchProfile()
             fetchBlockedUsers()
+        }
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(handleIdentityUpdate), name: .identityUpdated, object: nil)
+    }
+    
+    @objc private func handleIdentityUpdate(_ notification: Notification) {
+        DispatchQueue.main.async {
+            if self.isLoggedIn {
+                self.fetchProfile()
+                self.showIdentityRegeneratedAlert = true
+            }
         }
     }
     
@@ -137,9 +149,9 @@ class AuthViewModel: ObservableObject {
     // Dedicated property for random nickname toast
     @Published var showRandomNicknameToast = false
     
-    func updateProfile(nickname: String, completion: @escaping (Bool) -> Void) {
+    func updateProfile(nickname: String? = nil, nicknameMask: String? = nil, completion: @escaping (Bool) -> Void) {
         isLoading = true
-        APIService.shared.updateProfile(nickname: nickname) { [weak self] result in
+        APIService.shared.updateProfile(nickname: nickname, nicknameMask: nicknameMask) { [weak self] result in
             DispatchQueue.main.async {
                 self?.isLoading = false
                 switch result {

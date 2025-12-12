@@ -3,6 +3,7 @@ import SwiftUI
 struct LoginView: View {
     @ObservedObject var viewModel: AuthViewModel
     @Environment(\.presentationMode) var presentationMode
+    @ObservedObject var languageManager = LanguageManager.shared
     @State private var isShowingRegister = false
     
     @StateObject private var appleAuth = AppleAuthManager()
@@ -88,27 +89,62 @@ struct LoginView: View {
                     }
                 }
                 
-                HStack(spacing: 15) {
-                    SocialLoginButton(provider: "Google", color: .red) {
+                VStack(spacing: 12) {
+                    // Google
+                    SocialLoginButton(
+                        provider: "Google",
+                        imageName: "globe", // Placeholder for G logo (system icon)
+                        textColor: .black,
+                        backgroundColor: .white,
+                        borderColor: Color.gray.opacity(0.3)
+                    ) {
                         googleAuth.signIn { result in
                             handleSocialLoginResult(provider: "google", result: result)
                         }
                     }
-                    SocialLoginButton(provider: "Apple", color: .white) {
+                    
+                    // Apple
+                    SocialLoginButton(
+                        provider: "Apple",
+                        imageName: "applelogo",
+                        textColor: .white,
+                        backgroundColor: .black,
+                        borderColor: .clear
+                    ) {
                         appleAuth.startSignIn { result in
                             handleSocialLoginResult(provider: "apple", result: result)
                         }
                     }
-                    SocialLoginButton(provider: "Kakao", color: .yellow) {
-                        kakaoAuth.signIn { result in
-                            handleSocialLoginResult(provider: "kakao", result: result)
+                    
+                    // Kakao
+                    if languageManager.currentLanguage == .korean {
+                        SocialLoginButton(
+                            provider: "Kakao",
+                            imageName: "message.fill", // Placeholder for Kakao Talk bubble
+                            textColor: .black.opacity(0.85),
+                            backgroundColor: Color(hex: "FEE500"), // Kakao Yellow
+                            borderColor: .clear
+                        ) {
+                            kakaoAuth.signIn { result in
+                                handleSocialLoginResult(provider: "kakao", result: result)
+                            }
                         }
                     }
-                    SocialLoginButton(provider: "Naver", color: .green) {
+                    
+                    // Naver (Hidden for now)
+                    /*
+                    SocialLoginButton(
+                        provider: "Naver",
+                        imageName: "n.circle.fill",
+                        textColor: .white,
+                        backgroundColor: Color(hex: "03C75A"),
+                        borderColor: .clear
+                    ) {
                         naverAuth.signIn { result in
                             handleSocialLoginResult(provider: "naver", result: result)
                         }
                     }
+                    */
                 }
                 .padding(.top, 10)
                 
@@ -145,17 +181,33 @@ struct LoginView: View {
 
 struct SocialLoginButton: View {
     let provider: String
-    let color: Color
+    let imageName: String
+    let textColor: Color
+    let backgroundColor: Color
+    let borderColor: Color
     let action: () -> Void
     
     var body: some View {
         Button(action: action) {
-            Text(String(provider.prefix(1)))
-                .font(.headline)
-                .foregroundColor(color == .white ? .black : .white)
-                .frame(width: 44, height: 44)
-                .background(color)
-                .clipShape(Circle())
+            HStack {
+                Image(systemName: imageName)
+                    .font(.system(size: 20))
+                    .frame(width: 24, height: 24)
+                
+                Text(String(format: "login_with".localized, provider)) // "Login with Google", etc.
+                    .fontWeight(.semibold)
+                
+                Spacer()
+            }
+            .foregroundColor(textColor)
+            .padding()
+            .frame(maxWidth: .infinity)
+            .background(backgroundColor)
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(borderColor, lineWidth: 1)
+            )
         }
     }
 }

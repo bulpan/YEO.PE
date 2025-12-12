@@ -170,8 +170,10 @@ class APIService {
         request("/users/blocked", method: "GET", completion: completion)
     }
     
-    func updateProfile(nickname: String, completion: @escaping (Result<UserResponse, Error>) -> Void) {
-        let body = ["nickname": nickname]
+    func updateProfile(nickname: String? = nil, nicknameMask: String? = nil, completion: @escaping (Result<UserResponse, Error>) -> Void) {
+        var body: [String: Any] = [:]
+        if let nickname = nickname { body["nickname"] = nickname }
+        if let nicknameMask = nicknameMask { body["nicknameMask"] = nicknameMask }
         request("/users/me", method: "PATCH", body: body, completion: completion)
     }
     

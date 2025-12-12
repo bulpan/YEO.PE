@@ -23,8 +23,10 @@ YEO.PE/
 │   │   ├── 05-file-upload.md
 │   │   ├── 06-push-notification.md
 │   │   ├── 07-user-profile.md
-│   │   └── 08-ttl-management.md
+│   │   ├── 08-ttl-management.md
+│   │   └── 09-user-safety.md  # ✅ 신고/차단
 │   │
+│   ├── design_system.md       # 🎨 디자인 시스템
 │   └── development/            # 🛠️ 개발 가이드
 │       ├── IMPLEMENTATION_GUIDE.md  # 구현 가이드
 │       └── DOCUMENT_REVIEW.md       # 문서 검토 결과

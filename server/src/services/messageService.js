@@ -78,7 +78,7 @@ const createMessage = async (userId, roomId, type, content, imageUrl = null) => 
     messageId: message.id,
     roomId: room.room_id,
     userId: message.user_id,
-    nickname: user.nickname,
+    nickname: user.nickname_mask || user.nickname,
     nicknameMask: user.nickname_mask || require('../utils/nickname').maskNickname(user.nickname),
     type: message.type,
     content: message.content,
@@ -125,7 +125,7 @@ const getMessages = async (roomId, options = {}) => {
   const messages = result.rows.reverse().map(msg => ({
     messageId: msg.id,
     userId: msg.user_id,
-    nickname: msg.nickname,
+    nickname: msg.nickname_mask || msg.nickname,
     nicknameMask: msg.nickname_mask,
     type: msg.type,
     content: msg.content,

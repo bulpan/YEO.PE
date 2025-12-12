@@ -89,11 +89,59 @@
 "message_retention" = "메시지 보관 기간";
 "room_exit_condition" = "방 나가기 조건";
 "privacy_settings" = "프라이버시 설정";
-"mask_id" = "마스크 ID (공개)";
+"mask_id" = "아이디 마스킹";
+"blocked_users" = "차단된 사용자";
 "save" = "저장";
 "appearance" = "다크 모드";
+"terms_of_service" = "이용약관";
+"privacy_policy" = "개인정보 처리방침";
+"legal" = "법률 및 라이선스";
 "ghost_mode_tooltip" = "내 신호를 켜서 주변 사람들이 나를 발견할 수 있게 합니다.";
 "radar_alert_tooltip" = "주변에 새로운 사람이나 대화방이 감지되면 알림을 받습니다.";
 "new_mask_tooltip" = "새로운 익명 ID와 아바타를 무작위로 생성합니다.";
 "retention_tooltip" = "대화 내용이 자동으로 삭제되기 전까지 유지되는 시간입니다.";
+"login_with" = "%@로 시작하기";
+"developer_settings" = "개발자 설정";
+"environment" = "환경";
+"local_ip" = "로컬 IP 주소";
+"open_source_licenses" = "오픈소스 라이선스";
 
+// Random Nickname Dialog
+"random_nickname_title" = "새로운 가면 발급 완료!";
+"random_nickname_desc" = "익명 여행을 위한 새로운 ID가 생성되었습니다.";
+"keep_it" = "그냥 쓰기";
+"change_nickname" = "변경하기";
+
+// Settings Options
+"6_hours" = "6시간";
+"12_hours" = "12시간";
+"24_hours" = "24시간";
+"off" = "끄기";
+"activity_based" = "활동 기반";
+
+// MainView Filters
+"all" = "전체";
+"ios" = "iOS";
+"android" = "Android";
+"raw_devices" = "원시 장치";
+
+// Registers/Login
+"join_field" = "회원가입";
+"register" = "가입하기";
+// cancel is already there? Checking...
+// "cancel" = "취소"; (Line 7) - duplicate check handled by replace? No, just adding valid ones.
+
+// System Messages (Client-side matching)
+"sys_joined_room" = "%@님이 입장하셨습니다";
+"sys_msg_evaporated" = "%@님의 메시지가 증발했습니다";
+"ignore" = "무시";
+
+
+// Identity / Nickname
+"public_nickname" = "공개 닉네임";
+"enter_nickname" = "새 닉네임 입력";
+"public_nickname_desc" = "이 이름은 다른 사용자에게 표시되며 실제 신원을 보호합니다.";
+"identity_regenerated" = "신원 갱신됨";
+"identity_regenerated_desc" = "UID 만료로 인해 공개 신원이 새로 생성되었습니다. 설정에서 변경할 수 있습니다.";
+"identity_info_tooltip" = "이것은 귀하의 공개 닉네임입니다. 익명성 보호를 위해 자동으로 변경됩니다.";
+"ok" = "확인";

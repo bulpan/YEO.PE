@@ -133,25 +133,41 @@ const getUserProfile = async (userId) => {
  * 사용자 정보 수정
  */
 const updateUser = async (userId, data) => {
-  const { nickname, settings } = data;
+  const { nickname, nicknameMask, settings } = data;
   const updates = [];
   const values = [];
   let paramIndex = 1;
 
-  // 1. 닉네임 업데이트
+  // 1. 실제 닉네임 업데이트 (Private)
   if (nickname) {
-    if (nickname.length < 2 || nickname.length > 20) {
-      throw new ValidationError('닉네임은 2자 이상 20자 이하여야 합니다');
+    if (nickname.length > 50) {
+      throw new ValidationError('닉네임이 너무 깁니다');
     }
-
-    const nicknameMask = maskNickname(nickname);
     updates.push(`nickname = $${paramIndex++}`);
     values.push(nickname);
+  }
+
+  // 2. 닉네임 마스크(공개 ID) 업데이트
+  if (nicknameMask) {
+    if (nicknameMask.length < 2 || nicknameMask.length > 20) {
+      throw new ValidationError('공개 닉네임은 2자 이상 20자 이하여야 합니다');
+    }
+
+    // 중복 체크
+    const existing = await query(
+      'SELECT id FROM yeope_schema.users WHERE nickname_mask = $1',
+      [nicknameMask]
+    );
+
+    if (existing.rows.length > 0 && existing.rows[0].id !== userId) {
+      throw new ValidationError('이미 사용 중인 닉네임입니다');
+    }
+
     updates.push(`nickname_mask = $${paramIndex++}`);
     values.push(nicknameMask);
   }
 
-  // 2. 설정 업데이트
+  // 3. 설정 업데이트
   if (settings) {
     // 기존 설정 조회
     const currentUser = await findUserById(userId);

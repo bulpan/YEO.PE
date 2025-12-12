@@ -2,9 +2,9 @@ import SwiftUI
 
 struct ConnectionAlertView: View {
     let matchedUser: String
-    var title: String = "SIGNAL MATCHED"
-    var message: String = "A new signal has been detected nearby."
-    var confirmText: String = "CONNECT"
+    var title: String = "signal_matched".localized
+    var message: String = "signal_matched_message".localized
+    var confirmText: String = "connect".localized
     let onAccept: () -> Void
     let onIgnore: () -> Void
     
@@ -55,7 +55,7 @@ struct ConnectionAlertView: View {
                 // Actions
                 HStack(spacing: 15) {
                     Button(action: onIgnore) {
-                        Text("IGNORE")
+                        Text("ignore".localized)
                             .font(.radarBody)
                             .fontWeight(.bold)
                             .foregroundColor(.textSecondary)

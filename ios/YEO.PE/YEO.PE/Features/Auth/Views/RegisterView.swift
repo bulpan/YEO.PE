@@ -9,12 +9,12 @@ struct RegisterView: View {
             Color.black.edgesIgnoringSafeArea(.all)
             
             VStack(spacing: 20) {
-                Text("JOIN FIELD")
+                Text("join_field".localized)
                     .font(.system(size: 30, weight: .bold, design: .monospaced))
                     .foregroundColor(.white)
                     .padding(.bottom, 20)
                 
-                TextField("Email", text: $viewModel.email)
+                TextField("email_placeholder".localized, text: $viewModel.email)
                     .textFieldStyle(PlainTextFieldStyle())
                     .padding()
                     .background(Color.gray.opacity(0.2))
@@ -22,14 +22,14 @@ struct RegisterView: View {
                     .cornerRadius(8)
                     .autocapitalization(.none)
                 
-                TextField("Nickname", text: $viewModel.nickname)
+                TextField("enter_nickname".localized, text: $viewModel.nickname)
                     .textFieldStyle(PlainTextFieldStyle())
                     .padding()
                     .background(Color.gray.opacity(0.2))
                     .foregroundColor(.white)
                     .cornerRadius(8)
                 
-                SecureField("Password", text: $viewModel.password)
+                SecureField("password_placeholder".localized, text: $viewModel.password)
                     .textFieldStyle(PlainTextFieldStyle())
                     .padding()
                     .background(Color.gray.opacity(0.2))
@@ -49,7 +49,7 @@ struct RegisterView: View {
                     if viewModel.isLoading {
                         ProgressView()
                     } else {
-                        Text("REGISTER")
+                        Text("register".localized)
                             .font(.headline)
                             .foregroundColor(.black)
                             .frame(maxWidth: .infinity)
@@ -63,7 +63,7 @@ struct RegisterView: View {
                 Button(action: {
                     presentationMode.wrappedValue.dismiss()
                 }) {
-                    Text("Cancel")
+                    Text("cancel".localized)
                         .foregroundColor(.gray)
                 }
             }

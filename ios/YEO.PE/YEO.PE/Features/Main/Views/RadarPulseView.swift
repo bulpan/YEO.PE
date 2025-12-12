@@ -118,19 +118,22 @@ struct RadarUserNode: View {
         let radius = minRadius + (normalized * (maxRadius - minRadius))
         
         VStack(spacing: 4) {
+            // Logic for Display Name
+            let displayName = user.displayName
+            
             // Avatar
             Circle()
                 .fill(isChatting ? Color.lightBlue : Color.mysteryViolet)
                 .frame(width: 40, height: 40)
                 .overlay(
-                    Text(String((user.nickname ?? user.resolvedMask ?? "?").prefix(1)))
+                    Text(String(displayName.prefix(1)))
                         .font(.radarBody)
                         .foregroundColor(.white)
                 )
                 .shadow(color: .mysteryViolet.opacity(0.5), radius: 5)
             
             // Name Label
-            Text(user.resolvedMask ?? user.nickname ?? "Unknown")
+            Text(displayName)
                 .font(.radarCaption)
                 .foregroundColor(.white)
                 .padding(4)

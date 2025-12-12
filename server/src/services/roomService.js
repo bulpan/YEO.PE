@@ -192,9 +192,10 @@ const getRoomDetails = async (roomId) => {
     roomId: room.room_id,
     name: room.name,
     creatorId: room.creator_id,
-    creatorNickname: room.creator_nickname,
+    creatorId: room.creator_id,
+    creatorNickname: room.creator_nickname_mask || room.creator_nickname,
     creatorNicknameMask: room.creator_nickname_mask,
-    inviteeNickname: room.invitee_nickname,
+    inviteeNickname: room.invitee_nickname_mask || room.invitee_nickname,
     inviteeNicknameMask: room.invitee_nickname_mask,
     createdAt: room.created_at,
     expiresAt: room.expires_at,
@@ -276,8 +277,8 @@ const joinRoom = async (userId, roomId) => {
 
     await client.query(updateQuery, params);
     // 시스템 메시지 추가 (참여 알림)
-    const userRes = await client.query('SELECT nickname FROM yeope_schema.users WHERE id = $1', [userId]);
-    const nickname = userRes.rows[0]?.nickname || 'Unknown User';
+    const userRes = await client.query('SELECT nickname_mask FROM yeope_schema.users WHERE id = $1', [userId]);
+    const nickname = userRes.rows[0]?.nickname_mask || 'Anonymous';
     const systemContent = `${nickname} joined the room.`;
 
     const msgResult = await client.query(
@@ -334,8 +335,8 @@ const leaveRoom = async (userId, roomId) => {
   // 트랜잭션으로 방 나가기 처리
   const transactionResult = await transaction(async (client) => {
     // 1. 사용자 닉네임 조회 (시스템 메시지용)
-    const userRes = await client.query('SELECT nickname FROM yeope_schema.users WHERE id = $1', [userId]);
-    const nickname = userRes.rows[0]?.nickname || 'Unknown User';
+    const userRes = await client.query('SELECT nickname_mask FROM yeope_schema.users WHERE id = $1', [userId]);
+    const nickname = userRes.rows[0]?.nickname_mask || 'Anonymous';
 
     // 2. 사용자의 모든 메시지 삭제 (Evaporation)
     await client.query(
@@ -454,7 +455,7 @@ const getRoomMembers = async (roomId) => {
 
   return result.rows.map(member => ({
     userId: member.user_id,
-    nickname: member.nickname,
+    nickname: member.nickname_mask || member.nickname,
     nicknameMask: member.nickname_mask,
     role: member.role,
     joinedAt: member.joined_at,
@@ -514,9 +515,9 @@ const getUserRooms = async (userId) => {
     unreadCount: room.unread_count,
     lastMessage: room.last_message,
     creatorId: room.creator_id,
-    creatorNickname: room.creator_nickname, // Add creator info
+    creatorNickname: room.creator_nickname_mask || room.creator_nickname, // Add creator info
     creatorNicknameMask: room.creator_nickname_mask,
-    inviteeNickname: room.invitee_nickname, // Add invitee info
+    inviteeNickname: room.invitee_nickname_mask || room.invitee_nickname, // Add invitee info
     inviteeNicknameMask: room.invitee_nickname_mask,
     metadata: typeof room.metadata === 'string'
       ? JSON.parse(room.metadata)

@@ -3,6 +3,10 @@ import CoreBluetooth
 import Combine
 import UIKit
 
+extension Notification.Name {
+    static let identityUpdated = Notification.Name("IdentityUpdated")
+}
+
 class BLEManager: NSObject, ObservableObject {
     static let shared = BLEManager()
     
@@ -103,7 +107,7 @@ class BLEManager: NSObject, ObservableObject {
              fetchUIDAndStartAdvertising()
         }
         
-        startScanningLoop()
+        refreshImmediate()
     }
     
     // MARK: - Public Methods
@@ -124,12 +128,23 @@ class BLEManager: NSObject, ObservableObject {
         BLEService.shared.getUID { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
-                case .success(let (uid, expiresAt)):
+                case .success(let (uid, expiresAt, nicknameMask)):
                     print("✅ New UID acquired: \(uid) (Expires: \(expiresAt))")
                     self?.currentUID = uid
                     self?.uidExpiresAt = expiresAt
                     self?.startAdvertising(uid: uid)
                     self?.scheduleUIDRefresh(expiresAt: expiresAt)
+                    
+                    // Notify Identity Update (Nickname Mask Regenerated)
+                    if let mask = nicknameMask {
+                        print("🎭 Identity regenerated: \(mask)")
+                        NotificationCenter.default.post(
+                            name: .identityUpdated,
+                            object: nil,
+                            userInfo: ["nicknameMask": mask]
+                        )
+                    }
+                    
                 case .failure(let error):
                     print("Failed to get UID: \(error)")
                 }
@@ -186,6 +201,13 @@ class BLEManager: NSObject, ObservableObject {
     
     // MARK: - Scanning Logic
     
+    func refreshImmediate() {
+        print("⚡️ Force Refreshing Radar (Quick Scan 1s)...")
+        scanTimer?.invalidate()
+        performScan(duration: 1.0)
+        startScanningLoop()
+    }
+
     private func startScanningLoop() {
         if isInBackground { return }
         
@@ -236,36 +258,40 @@ class BLEManager: NSObject, ObservableObject {
         }
         #else
         // Real Device Logic - Duty Cycle
+        // Scan every 10 seconds
         scanTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
-            self?.performScan()
-        }
-        performScan()
-        
-        reportTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
-            self?.reportDiscoveredUIDs()
+            self?.performScan(duration: 3.0)
         }
         
+        // Cleanup every 5 seconds
         cleanupTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
             self?.cleanupExpiredUsers()
         }
+        
+        // Initial immediately
+        performScan(duration: 3.0)
         #endif
     }
     
-    private func performScan() {
+    private func performScan(duration: TimeInterval = 3.0) {
         guard let cManager = centralManager, cManager.state == .poweredOn, !isInBackground else { return }
         
-        print("📱 Starting BLE Scan for 5s...")
+        print("📱 Starting BLE Scan for \(duration)s...")
         let services: [CBUUID]? = isRawScanMode ? nil : [serviceUUID]
         let options: [String: Any] = [CBCentralManagerScanOptionAllowDuplicatesKey: isRawScanMode]
         
         cManager.scanForPeripherals(withServices: services, options: options)
         isScanning = true
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { [weak self] in
+        // Stop after duration
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration) { [weak self] in
             // Only stop if still in foreground loop
             if self?.isInBackground == false {
                 self?.centralManager?.stopScan()
                 self?.isScanning = false
+                
+                // Report immediately after scan finishes
+                self?.reportDiscoveredUIDs()
             }
         }
     }

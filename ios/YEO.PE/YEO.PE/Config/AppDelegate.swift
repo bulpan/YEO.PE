@@ -38,7 +38,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         // Initialize Kakao SDK
         #if canImport(KakaoSDKCommon)
         // Replace with your native app key
-        KakaoSDK.initSDK(appKey: "YOUR_KAKAO_APP_KEY")
+        KakaoSDK.initSDK(appKey: "159b87acd87f2a049822bfdb62c3a18a")
         #endif
         
         // Initialize Naver SDK
@@ -130,6 +130,11 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         let userInfo = notification.request.content.userInfo
         print("🔔 Foreground Notification: \(userInfo)")
         
+        // If nearby user notification came while in foreground, refresh immediately
+        if let type = userInfo["type"] as? String, type == "NEARBY_USER" {
+            BLEManager.shared.refreshImmediate()
+        }
+        
         // Show banner and play sound even in foreground
         completionHandler([.banner, .sound, .badge])
     }
@@ -138,6 +143,11 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         let userInfo = response.notification.request.content.userInfo
         print("👆 Notification Tapped: \(userInfo)")
+        
+        // Refresh BLE immediately if coming from nearby user notification
+        if let type = userInfo["type"] as? String, type == "NEARBY_USER" {
+            BLEManager.shared.refreshImmediate()
+        }
         
         // Handle deep linking
         if let action = userInfo["action"] as? String,

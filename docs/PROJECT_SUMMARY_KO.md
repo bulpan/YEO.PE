@@ -43,6 +43,6 @@
 - **`src/middleware/`**: 인증(Auth), 유효성 검사, 에러 처리.
 
 ## 4. 현재 개발 상태
-- **✅ Server**: MVP 단계 완료 (회원가입, 방 생성/참여, 실시간 채팅, TTL 자동 삭제).
-- **🚧 Mobile**: iOS/Android 앱 개발 진행 중.
-- **🚀 Deployment**: `yeop3.com` 배포 완료 (API/Health Check 가동 중).
+- **✅ Server**: MVP 단계 완료 (회원가입, 방 생성/참여, 실시간 채팅, TTL 자동 삭제, 신고/차단).
+- **✅ Mobile**: iOS 앱 MVP 구현 완료 (SwiftUI).
+- **🚀 Deployment**: `yeo.pe` 도메인 연결 완료.

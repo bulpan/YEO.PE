@@ -18,53 +18,35 @@ struct ChatView: View {
             Color.deepBlack.edgesIgnoringSafeArea(.all)
             
             VStack(spacing: 0) {
-                // Custom Header with TTL
+                // Custom Header
                 HStack {
                     Button(action: {
                         presentationMode.wrappedValue.dismiss()
                     }) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(.neonGreen)
+                            .foregroundColor(Color.theme.accentPrimary)
                     }
                     .padding(.trailing, 8)
                     
-                    VStack(alignment: .leading) {
+                    VStack(alignment: .leading, spacing: 2) {
                         Text(viewModel.room.displayName)
                             .font(.radarHeadline)
-                            .foregroundColor(.textPrimary)
+                            .foregroundColor(Color.theme.textPrimary)
+                            .lineLimit(1)
                         
-                        HStack(spacing: 4) {
-                            Text("TTL 23:59:42") // Placeholder for real timer
-                                .font(.radarData)
-                                .foregroundColor(Color.signalRed)
-                            
-                            if let targetUser = viewModel.targetUser {
-                                Text("•")
-                                    .foregroundColor(.textSecondary)
+                        if let targetUser = viewModel.targetUser {
+                            HStack(spacing: 4) {
+                                Circle()
+                                    .fill(viewModel.isTargetUserActive ? Color.theme.accentPrimary : Color.textSecondary)
+                                    .frame(width: 6, height: 6)
                                 Text(viewModel.isTargetUserActive ? "active".localized : "waiting_for_user".localized)
-                                    .font(.radarData)
-                                    .foregroundColor(viewModel.isTargetUserActive ? .neonGreen : .textSecondary)
+                                    .font(.radarCaption)
+                                    .foregroundColor(Color.theme.textSecondary)
                             }
                         }
                     }
                     Spacer()
-                    
-                    // Inactive Indicator
-                    if let targetUser = viewModel.targetUser, !viewModel.isTargetUserActive {
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(Color.textSecondary)
-                                .frame(width: 8, height: 8)
-                            Text("connecting".localized)
-                                .font(.radarCaption)
-                                .foregroundColor(.textSecondary)
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.textPrimary.opacity(0.1))
-                        .cornerRadius(4)
-                    }
                     
                     // Menu Button
                     Button(action: {
@@ -72,7 +54,7 @@ struct ChatView: View {
                     }) {
                         Image(systemName: "line.3.horizontal")
                             .font(.system(size: 24))
-                            .foregroundColor(.textPrimary)
+                            .foregroundColor(Color.theme.textPrimary)
                     }
                     .actionSheet(isPresented: $showMenu) {
                         ActionSheet(
@@ -87,7 +69,7 @@ struct ChatView: View {
                     }
                 }
                 .padding()
-                .background(Color.glassBlack)
+                .background(Color.theme.bgLayer1)
                 .alert(isPresented: $showLeaveConfirmation) {
                     Alert(
                         title: Text("leave_room".localized),
@@ -107,7 +89,8 @@ struct ChatView: View {
                     ScrollView {
                         LazyVStack(spacing: 12) {
                             ForEach(viewModel.messages) { message in
-                                MessageRow(message: message)
+                                let sender = viewModel.members.first(where: { $0.id == message.userId })
+                                MessageRow(message: message, sender: sender)
                                     .id(message.id)
                             }
                         }
@@ -169,10 +152,18 @@ struct ChatView: View {
 
 struct MessageRow: View {
     let message: Message
+    let sender: User?
     
     var isMe: Bool {
         guard let currentUserId = TokenManager.shared.userId else { return false }
         return message.userId.caseInsensitiveCompare(currentUserId) == .orderedSame
+    }
+    
+    var shouldMask: Bool {
+        // If sender is known, respect their setting. Default to true (Masked) if generic preference?
+        // User said: "If I set it to mask... show masked. If unset... show real."
+        // App default is true.
+        return sender?.settings?.maskId ?? true
     }
     
     var body: some View {
@@ -183,7 +174,29 @@ struct MessageRow: View {
             } else {
                 HStack {
                     Spacer()
-                    Text(message.content ?? "")
+                    // Privacy Fix: Replace nickname with mask if preferred
+                    // Privacy Fix & Localization
+                    let displayContent: String = {
+                        let original = message.content ?? ""
+                        let displayName = shouldMask ? (message.nicknameMask ?? (message.nickname ?? "Unknown")) : (message.nickname ?? "Unknown")
+                        
+                        // Check for known server patterns
+                        if original.contains("joined the room") {
+                            // Try to extract name if variable, but since we have known nickname/mask, we can just reconstruct.
+                            // Assuming the message is just "{Name} joined the room"
+                            return String(format: "sys_joined_room".localized, displayName)
+                        } else if original.contains("messages have evaporated") {
+                            return String(format: "sys_msg_evaporated".localized, displayName)
+                        }
+                        
+                        // Fallback: If no pattern matches, at least try to mask the name in the original string
+                        if shouldMask, let nickname = message.nickname, let mask = message.nicknameMask {
+                            return original.replacingOccurrences(of: nickname, with: mask)
+                        }
+                        return original
+                    }()
+                        
+                    Text(displayContent)
                         .font(.radarCaption)
                         .foregroundColor(.textSecondary)
                         .padding(.vertical, 8)
@@ -199,12 +212,12 @@ struct MessageRow: View {
                     Circle()
                         .fill(Color.mysteryViolet)
                         .frame(width: 30, height: 30)
-                        .overlay(Text(String((message.nickname ?? message.nicknameMask ?? "?").prefix(1))).font(.caption).foregroundColor(.white))
+                        .overlay(Text(String((shouldMask ? (message.nicknameMask ?? "?") : (message.nickname ?? "?")).prefix(1))).font(.caption).foregroundColor(.white))
                 }
                 
                 VStack(alignment: isMe ? .trailing : .leading, spacing: 4) {
                     if !isMe {
-                        Text(message.nicknameMask ?? message.nickname ?? "Unknown")
+                        Text(shouldMask ? (message.nicknameMask ?? "Unknown") : (message.nickname ?? "Unknown"))
                             .font(.radarCaption)
                             .foregroundColor(.textSecondary)
                     }
@@ -218,7 +231,7 @@ struct MessageRow: View {
                             }
                         }
                         
-                        Text(message.content ?? "")
+                        Text(shouldMask ? (message.content ?? "") : (message.content ?? "")) // Content usually doesn't need masking unless it mentions name? Message content is message content.
                             .font(.radarBody)
                             .padding(12)
                             .background(

@@ -88,6 +88,53 @@
 "message_retention" = "Message Retention";
 "room_exit_condition" = "Room Exit Condition";
 "privacy_settings" = "Privacy Settings";
-"mask_id" = "Mask ID (Public)";
+"mask_id" = "ID Masking";
+"blocked_users" = "Blocked Users";
 "save" = "Save";
 "appearance" = "Dark Mode";
+"terms_of_service" = "Terms of Service";
+"privacy_policy" = "Privacy Policy";
+"legal" = "Legal";
+"login_with" = "Login with %@";
+"developer_settings" = "Developer Settings";
+"environment" = "Environment";
+"local_ip" = "Local IP Address";
+"open_source_licenses" = "Open Source Licenses";
+
+// Random Nickname Dialog
+"random_nickname_title" = "New Mask Generated!";
+"random_nickname_desc" = "A new ID for your anonymous journey has been generated.";
+"keep_it" = "Keep it";
+"change_nickname" = "Change";
+
+// Settings Options
+"6_hours" = "6 Hours";
+"12_hours" = "12 Hours";
+"24_hours" = "24 Hours";
+"off" = "Off";
+"activity_based" = "Activity Based";
+
+// MainView Filters
+"all" = "All";
+"ios" = "iOS";
+"android" = "Android";
+"raw_devices" = "RAW DEVICES";
+
+// Registers/Login
+"join_field" = "JOIN FIELD";
+"register" = "REGISTER";
+"cancel" = "Cancel";
+
+// System Messages (Client-side matching)
+"sys_joined_room" = "%@ joined the room";
+"sys_msg_evaporated" = "%@'s messages have evaporated";
+"ignore" = "IGNORE";
+
+// Identity / Nickname
+"public_nickname" = "Public Nickname";
+"enter_nickname" = "Enter new nickname";
+"public_nickname_desc" = "This name is shown to others and protects your real identity.";
+"identity_regenerated" = "Identity Regenerated";
+"identity_regenerated_desc" = "Your public identity has been refreshed due to UID expiration. You can customize it in Settings.";
+"identity_info_tooltip" = "This is your Public Alias. It changes automatically to keep you anonymous.";
+"ok" = "OK";

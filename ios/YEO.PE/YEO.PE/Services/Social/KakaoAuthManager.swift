@@ -14,7 +14,20 @@ class KakaoAuthManager: ObservableObject {
         if (UserApi.isKakaoTalkLoginAvailable()) {
             UserApi.shared.loginWithKakaoTalk {(oauthToken, error) in
                 if let error = error {
-                    completion(.failure(error))
+                    print("KakaoTalk Login failed: \(error)")
+                    // Fallback to Web Login
+                    UserApi.shared.loginWithKakaoAccount {(oauthToken, error) in
+                        if let error = error {
+                            completion(.failure(error))
+                        }
+                        else {
+                            if let token = oauthToken?.accessToken {
+                                completion(.success(token))
+                            } else {
+                                completion(.failure(NSError(domain: "KakaoAuth", code: -1, userInfo: [NSLocalizedDescriptionKey: "No access token"])))
+                            }
+                        }
+                    }
                 }
                 else {
                     if let token = oauthToken?.accessToken {

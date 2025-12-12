@@ -140,19 +140,19 @@ router.get('/me', authenticate, async (req, res, next) => {
 
 /**
  * PATCH /api/users/me
- * 사용자 정보 수정 (닉네임, 설정)
+ * 사용자 정보 수정 (닉네임, 설정, 공개 ID)
  */
 router.patch('/me', authenticate, async (req, res, next) => {
     try {
         const userId = req.user.userId;
-        const { nickname, settings } = req.body;
+        const { nickname, nicknameMask, settings } = req.body;
 
-        if (!nickname && !settings) {
+        if (!nickname && !settings && !nicknameMask) {
             throw new ValidationError('수정할 정보를 입력해주세요');
         }
 
         const userService = require('../services/userService');
-        const updatedUser = await userService.updateUser(userId, { nickname, settings });
+        const updatedUser = await userService.updateUser(userId, { nickname, nicknameMask, settings });
 
         logger.info(`사용자 정보 수정: ${userId}`);
 

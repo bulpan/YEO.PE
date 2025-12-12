@@ -10,6 +10,11 @@ struct User: Codable, Identifiable {
     var resolvedMask: String? {
         return nicknameMask ?? nickname_mask
     }
+    
+    // Primary Display Name (Public Identity)
+    var displayName: String {
+        return resolvedMask ?? nickname ?? "Unknown"
+    }
 
     let settings: UserSettings?
     let createdAt: String?

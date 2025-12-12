@@ -42,7 +42,7 @@ struct ProfileEditView: View {
                 
                 // Form
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("nickname".localized)
+                    Text("public_nickname".localized) // "Public Nickname"
                         .font(.radarCaption)
                         .foregroundColor(.textSecondary)
                         .padding(.leading, 4)
@@ -57,7 +57,7 @@ struct ProfileEditView: View {
                                 .stroke(Color.white.opacity(0.1), lineWidth: 1)
                         )
                     
-                    Text("nickname_guide".localized)
+                    Text("public_nickname_desc".localized) // "This name is shown to others."
                         .font(.caption)
                         .foregroundColor(.gray)
                         .padding(.leading, 4)
@@ -75,7 +75,9 @@ struct ProfileEditView: View {
             }
         }
         .onAppear {
-            if let currentNick = authViewModel.currentUser?.nickname {
+            if let currentMask = authViewModel.currentUser?.nicknameMask {
+                self.nickname = currentMask
+            } else if let currentNick = authViewModel.currentUser?.nickname {
                 self.nickname = currentNick
             }
         }
@@ -89,7 +91,8 @@ struct ProfileEditView: View {
             return
         }
         
-        authViewModel.updateProfile(nickname: trimmed) { success in
+        // Update Nickname Mask (Public Identity)
+        authViewModel.updateProfile(nicknameMask: trimmed) { success in
             if success {
                 presentationMode.wrappedValue.dismiss()
             } else {

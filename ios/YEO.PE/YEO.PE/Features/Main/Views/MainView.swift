@@ -16,7 +16,7 @@ struct MainView: View {
     @State private var matchedUser = "User #1234"
     @State private var selectedTargetUser: User?
     @State private var selectedRoom: Room?
-    @State private var showRoomListSheet = false
+    @State private var showRoomList = false
     @State private var isBoosting = false
     @State private var showQuickQuestionInput = false
     @State private var quickQuestionText = ""
@@ -100,7 +100,10 @@ struct MainView: View {
                              // Reset sheets
                              showProfileSheet = false
                              showSettingsSheet = false
-                             showRoomListSheet = false
+                             showProfileSheet = false
+                             showSettingsSheet = false
+                             showRoomList = false
+                             showLoginSheet = false
                              showLoginSheet = false
                              
                              // Highlight
@@ -116,7 +119,7 @@ struct MainView: View {
                              notificationTargetUserId = nil // Clear
                         } else {
                             // Default: Open Room List
-                            showRoomListSheet = true
+                            showRoomList = true
                         }
                     }
                     Spacer()
@@ -212,9 +215,9 @@ struct MainView: View {
                     VStack {
                         // Filter Picker
                         Picker("Filter", selection: $selectedDeviceFilter) {
-                            Text("All").tag(BLEManager.DeviceType?.none)
-                            Text("iOS").tag(BLEManager.DeviceType?.some(.ios))
-                            Text("Android").tag(BLEManager.DeviceType?.some(.android))
+                            Text("all".localized).tag(BLEManager.DeviceType?.none)
+                            Text("ios".localized).tag(BLEManager.DeviceType?.some(.ios))
+                            Text("android".localized).tag(BLEManager.DeviceType?.some(.android))
                         }
                         .pickerStyle(SegmentedPickerStyle())
                         .padding(.horizontal)
@@ -231,7 +234,7 @@ struct MainView: View {
                 // Bottom Bar
                 HStack {
                     Button(action: {
-                        showRoomListSheet = true
+                        showRoomList = true
                     }) {
                         VStack(spacing: 4) {
                             Image(systemName: "bubble.left.and.bubble.right.fill")
@@ -319,8 +322,11 @@ struct MainView: View {
             
             // Chat Request Alert Overlay
             if showChatAlert, let targetUser = selectedTargetUser {
+                // Determine Display Name based on MaskID setting
+                let displayName = targetUser.displayName
+                
                 ConnectionAlertView(
-                    matchedUser: targetUser.nicknameMask ?? targetUser.nickname ?? "Unknown",
+                    matchedUser: displayName,
                     title: "start_chat_title".localized,
                     message: "start_chat_message".localized,
                     confirmText: "start".localized,
@@ -417,13 +423,27 @@ struct MainView: View {
             SettingsView(authViewModel: authViewModel)
                 .environmentObject(themeManager)
         }
-        .sheet(isPresented: $showRoomListSheet) {
-            NavigationView {
-                RoomListView()
-                    .environmentObject(themeManager)
-            }
-            .presentationDetents([.medium, .large])
+        .sheet(isPresented: $showSettingsSheet) {
+            SettingsView(authViewModel: authViewModel)
+                .environmentObject(themeManager)
         }
+        .alert(isPresented: $authViewModel.showIdentityRegeneratedAlert) {
+            Alert(
+                title: Text("identity_regenerated".localized),
+                message: Text("identity_regenerated_desc".localized),
+                primaryButton: .default(Text("settings".localized)) {
+                    showSettingsSheet = true
+                },
+                secondaryButton: .cancel(Text("ok".localized))
+            )
+        }
+        // Room List via Navigation Push (Full Screen)
+        .background(
+            NavigationLink(destination: RoomListView(viewModel: roomViewModel).environmentObject(themeManager), isActive: $showRoomList) {
+                EmptyView()
+            }
+        )
+        .id(themeManager.isDarkMode) // Force redraw when theme changes
         .onAppear {
             roomViewModel.fetchNearbyRooms()
             roomViewModel.fetchMyRooms()
@@ -446,7 +466,7 @@ struct MainView: View {
                 // If we are NOT in this room, show notification and refresh list
                 if self.selectedRoom?.uniqueId != roomId {
                     self.roomViewModel.incrementUnreadCount(roomId: roomId)
-                    self.roomViewModel.fetchMyRooms()
+                    // REMOVED: self.roomViewModel.fetchMyRooms() to prevent race condition overwriting local +1
                     
                     DispatchQueue.main.async {
                         let bannerMessage = "\(nickname): \(content)"
@@ -473,7 +493,10 @@ struct MainView: View {
                      // Dismiss all sheets
                      showProfileSheet = false
                      showSettingsSheet = false
-                     showRoomListSheet = false
+                     showProfileSheet = false
+                     showSettingsSheet = false
+                     showRoomList = false
+                     showLoginSheet = false
                      showLoginSheet = false
                      
                      // Highlight

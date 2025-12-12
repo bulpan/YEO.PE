@@ -77,9 +77,17 @@ struct ProfileView: View {
                         
                         // User Info
                         VStack(spacing: 8) {
-                            Text(viewModel.currentUser?.nickname ?? "Anonymous")
-                                .font(.system(size: 28, weight: .black, design: .rounded))
-                                .foregroundColor(.textPrimary)
+                            HStack(alignment: .center, spacing: 8) {
+                                Text(viewModel.currentUser?.displayName ?? "Anonymous")
+                                    .font(.system(size: 28, weight: .black, design: .rounded))
+                                    .foregroundColor(.textPrimary)
+                                
+                                Button(action: { activeTooltip = "identity_info_tooltip" }) {
+                                    Image(systemName: "info.circle.fill")
+                                        .font(.system(size: 20))
+                                        .foregroundColor(.gray)
+                                }
+                            }
                             
                             // Email Display
                             if let email = viewModel.currentUser?.email {
@@ -87,14 +95,6 @@ struct ProfileView: View {
                                     .font(.caption)
                                     .foregroundColor(.gray)
                             }
-                            
-                            HStack(spacing: 6) {
-                                Image(systemName: "theatermasks.fill")
-                                    .font(.caption)
-                                Text("ID : \(viewModel.currentUser?.resolvedMask ?? "****")")
-                                    .font(.system(size: 14, design: .monospaced))
-                            }
-                            .foregroundColor(.gray)
                         }
                         
                         // Status Badge
