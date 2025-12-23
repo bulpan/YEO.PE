@@ -42,7 +42,7 @@ struct ReportSheet: View {
                         onReport(selectedReason, details.isEmpty ? nil : details)
                         presentationMode.wrappedValue.dismiss()
                     }) {
-                        Text("submit_report".localized)
+                        Text("report_submit".localized)
                             .foregroundColor(.blue)
                     }
                 }

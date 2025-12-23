@@ -47,6 +47,22 @@ const createRoom = async (userId, name, category = 'general', inviteeId = null) 
     [room.id, userId, 'creator']
   );
 
+  // Invitee Info Fetch (for Dynamic Naming on Client)
+  let inviteeInfo = {};
+  if (inviteeId) {
+    const invRes = await query('SELECT nickname, nickname_mask FROM yeope_schema.users WHERE id = $1', [inviteeId]);
+    if (invRes.rows.length > 0) {
+      inviteeInfo = {
+        inviteeNickname: invRes.rows[0].nickname,
+        inviteeNicknameMask: invRes.rows[0].nickname_mask
+      };
+    }
+  }
+
+  // Creator Info Fetch (Optional, but good for consistency)
+  const creatorRes = await query('SELECT nickname, nickname_mask FROM yeope_schema.users WHERE id = $1', [userId]);
+  const creatorInfo = creatorRes.rows[0] || {};
+
   logger.info(`방 생성: ${roomId} by user ${userId} (Invitee: ${inviteeId || 'None'})`);
 
   return {
@@ -54,6 +70,10 @@ const createRoom = async (userId, name, category = 'general', inviteeId = null) 
     roomId: room.room_id,
     name: room.name,
     creatorId: room.creator_id,
+    creatorNickname: creatorInfo.nickname_mask || creatorInfo.nickname,
+    creatorNicknameMask: creatorInfo.nickname_mask,
+    inviteeNickname: inviteeInfo.inviteeNicknameMask || inviteeInfo.inviteeNickname,
+    inviteeNicknameMask: inviteeInfo.inviteeNicknameMask,
     createdAt: room.created_at,
     expiresAt: room.expires_at,
     memberCount: room.member_count,
@@ -116,9 +136,13 @@ const getActiveRooms = async (options = {}) => {
   const { limit = 10, category, before } = options;
 
   let queryText = `
-    SELECT r.*, u.nickname_mask as creator_nickname_mask
+    SELECT r.*, 
+           u.nickname_mask as creator_nickname_mask,
+           u_invitee.nickname as invitee_nickname,
+           u_invitee.nickname_mask as invitee_nickname_mask
     FROM yeope_schema.rooms r
     LEFT JOIN yeope_schema.users u ON r.creator_id = u.id
+    LEFT JOIN yeope_schema.users u_invitee ON (r.metadata->>'inviteeId')::uuid = u_invitee.id
     WHERE r.is_active = true 
       AND r.expires_at > NOW()
   `;
@@ -149,6 +173,8 @@ const getActiveRooms = async (options = {}) => {
     name: room.name,
     creatorId: room.creator_id,
     creatorNicknameMask: room.creator_nickname_mask,
+    inviteeNickname: room.invitee_nickname,
+    inviteeNicknameMask: room.invitee_nickname_mask,
     createdAt: room.created_at,
     expiresAt: room.expires_at,
     memberCount: room.member_count,
@@ -392,27 +418,19 @@ const leaveRoom = async (userId, roomId) => {
       [room.id]
     );
 
-    // 6. 방장이 나가거나 멤버가 0명이면 방 종료 (만료 처리)
-    if (room.creator_id === userId) {
+    // 6. 멤버가 0명이면 방 종료 (만료 처리)
+    const countRes = await client.query('SELECT member_count FROM yeope_schema.rooms WHERE id = $1', [room.id]);
+    if (countRes.rows[0].member_count === 0) {
       await client.query(
         `UPDATE yeope_schema.rooms 
-             SET is_active = false, expires_at = NOW() 
-             WHERE id = $1`,
+               SET is_active = false, expires_at = NOW() 
+               WHERE id = $1`,
         [room.id]
       );
-      logger.info(`방장이 나가서 방 종료: ${room.room_id}`);
+      logger.info(`멤버가 0명이라 방 종료: ${room.room_id}`);
     } else {
-      // 멤버가 0명이면 종료
-      const countRes = await client.query('SELECT member_count FROM yeope_schema.rooms WHERE id = $1', [room.id]);
-      if (countRes.rows[0].member_count === 0) {
-        await client.query(
-          `UPDATE yeope_schema.rooms 
-                 SET is_active = false, expires_at = NOW() 
-                 WHERE id = $1`,
-          [room.id]
-        );
-        logger.info(`멤버가 0명이라 방 종료: ${room.room_id}`);
-      }
+      // 방장이 나갔더라도 방은 유지 (남은 멤버들이 "나갔음"을 확인해야 하므로)
+      logger.info(`사용자 ${userId} 퇴장. 남은 멤버 존재.`);
     }
 
     // Return system message for socket broadcast
@@ -438,7 +456,7 @@ const leaveRoom = async (userId, roomId) => {
  * 방 멤버 목록 조회
  */
 const getRoomMembers = async (roomId) => {
-  const room = await findRoomByRoomId(roomId);
+  const room = await findRoomByRoomId(roomId, true); // Include inactive rooms
 
   if (!room) {
     throw new NotFoundError('방을 찾을 수 없습니다');
@@ -525,6 +543,28 @@ const getUserRooms = async (userId) => {
   }));
 };
 
+/**
+ * 사용자가 참여 중인 모든 방 나가기 (로그아웃 시 호출)
+ */
+const leaveAllRooms = async (userId) => {
+  try {
+    const rooms = await getUserRooms(userId);
+    logger.info(`[Logout] User ${userId} leaving ${rooms.length} rooms...`);
+
+    for (const room of rooms) {
+      if (room.isActive) { // Only leave active rooms to send "left" message
+        try {
+          await leaveRoom(userId, room.roomId);
+        } catch (err) {
+          logger.warn(`[Logout] Failed to leave room ${room.roomId}: ${err.message}`);
+        }
+      }
+    }
+  } catch (err) {
+    logger.error(`[Logout] Error in leaveAllRooms: ${err.message}`);
+  }
+};
+
 module.exports = {
   createRoom,
   checkDuplicateRoom,
@@ -534,6 +574,7 @@ module.exports = {
   getRoomDetails,
   joinRoom,
   leaveRoom,
+  leaveAllRooms,
   getRoomMembers,
   getUserRooms
 };

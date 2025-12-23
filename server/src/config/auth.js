@@ -38,6 +38,20 @@ const generateRefreshToken = (payload) => {
 };
 
 /**
+ * Admin Token 생성
+ */
+const generateAdminToken = () => {
+  return jwt.sign(
+    {
+      role: 'admin',
+      type: 'access'
+    },
+    JWT_SECRET,
+    { expiresIn: '12h' }
+  );
+};
+
+/**
  * Token 검증
  */
 const verifyToken = (token) => {
@@ -51,6 +65,7 @@ const verifyToken = (token) => {
 module.exports = {
   generateAccessToken,
   generateRefreshToken,
+  generateAdminToken,
   verifyToken,
   JWT_SECRET
 };

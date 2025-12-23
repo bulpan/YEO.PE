@@ -83,7 +83,9 @@ const createMessage = async (userId, roomId, type, content, imageUrl = null) => 
     type: message.type,
     content: message.content,
     imageUrl: message.image_url,
-    createdAt: message.created_at
+    imageUrl: message.image_url,
+    createdAt: message.created_at,
+    roomMetadata: typeof room.metadata === 'string' ? JSON.parse(room.metadata) : room.metadata
   };
 };
 

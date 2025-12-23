@@ -25,13 +25,13 @@ class APIService {
             return
         }
         
-        // Debug: Request
-        let debugReq = "🚀 [\(method)] \(endpoint)"
-        print(debugReq)
-        DispatchQueue.main.async { self.debugMessageSubject.send(debugReq) }
-        
+            // Debug: Request (Disabled for Toast by logic below, only print)
+            print("🚀 [\(method)] \(endpoint)")
+            // REMOVED: DispatchQueue.main.async { self.debugMessageSubject.send(debugReq) }
+
         var request = URLRequest(url: url)
         request.httpMethod = method
+        request.cachePolicy = .reloadIgnoringLocalCacheData // Fix: Always fetch fresh data from server
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
         if let token = TokenManager.shared.accessToken {
@@ -48,6 +48,7 @@ class APIService {
         }
         
         URLSession.shared.dataTask(with: request) { data, response, error in
+
             if let error = error {
                 print("❌ Network Error: \(error.localizedDescription)")
                 DispatchQueue.main.async { self.debugMessageSubject.send("❌ Error: \(error.localizedDescription)") }
@@ -63,9 +64,19 @@ class APIService {
             
             print("✅ Response Status: \(httpResponse.statusCode)")
             
+            // Filter: Only show toast for non-200 codes
+            if httpResponse.statusCode != 200 {
+                if let str = String(data: data ?? Data(), encoding: .utf8) {
+                     let displayStr = str.count > 100 ? String(str.prefix(100)) + "..." : str
+                     DispatchQueue.main.async { self.debugMessageSubject.send("⚠️ [\(httpResponse.statusCode)] \(displayStr)") }
+                } else {
+                     DispatchQueue.main.async { self.debugMessageSubject.send("⚠️ Status: \(httpResponse.statusCode)") }
+                }
+            }
+
             if httpResponse.statusCode == 401 {
                 // Handle token expiration
-                DispatchQueue.main.async { self.debugMessageSubject.send("⚠️ 401 Unauthorized") }
+                // Already sent above via general non-200 check
                 completion(.failure(APIError.unauthorized))
                 return
             }
@@ -75,18 +86,20 @@ class APIService {
                 return
             }
             
-            // Debug print
+            // Success 200: Do NOT send debug toast, just print
             if let str = String(data: data, encoding: .utf8) {
-                print("API Response: \(str)")
-                // Truncate long responses for toast
-                let displayStr = str.count > 100 ? String(str.prefix(100)) + "..." : str
-                DispatchQueue.main.async { self.debugMessageSubject.send("✅ [\(httpResponse.statusCode)] \(displayStr)") }
+                print("API Response: \(str)") 
             }
             
             do {
                 let decoded = try JSONDecoder().decode(T.self, from: data)
                 completion(.success(decoded))
             } catch {
+                if httpResponse.statusCode == 200 {
+                   // If decoding fails on 200, THIS is an error worth showing
+                   DispatchQueue.main.async { self.debugMessageSubject.send("❌ Decoding Error") }
+                }
+                print("❌ Decoding Error: \(error)")
                 completion(.failure(APIError.decodingError))
             }
         }.resume()
@@ -170,10 +183,74 @@ class APIService {
         request("/users/blocked", method: "GET", completion: completion)
     }
     
-    func updateProfile(nickname: String? = nil, nicknameMask: String? = nil, completion: @escaping (Result<UserResponse, Error>) -> Void) {
+    // MARK: - Image Upload
+    func uploadImage(image: UIImage, completion: @escaping (Result<String, Error>) -> Void) {
+        guard let url = URL(string: "\(AppConfig.apiBaseURL)/upload/image") else {
+            completion(.failure(APIError.invalidURL))
+            return
+        }
+        
+        let boundary = "Boundary-\(UUID().uuidString)"
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        
+        if let token = TokenManager.shared.accessToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
+        guard let imageData = image.jpegData(compressionQuality: 0.7) ?? image.pngData() else {
+            completion(.failure(APIError.serverError("Image data conversion failed")))
+            return
+        }
+        
+        var body = Data()
+        let filename = "\(UUID().uuidString).jpg"
+        let mimeType = "image/jpeg"
+        
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"image\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
+        body.append(imageData)
+        body.append("\r\n".data(using: .utf8)!)
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        
+        request.httpBody = body
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                DispatchQueue.main.async { completion(.failure(error)) }
+                return
+            }
+            
+            guard let data = data else {
+                DispatchQueue.main.async { completion(.failure(APIError.noData)) }
+                return
+            }
+            
+            DispatchQueue.main.async { 
+                print("Image Upload Response: \(String(data: data, encoding: .utf8) ?? "nil")") 
+            }
+            
+            // Expected Response: { "imageUrl": "..." }
+            struct UploadResponse: Decodable {
+                let imageUrl: String
+            }
+            
+            do {
+                let decoded = try JSONDecoder().decode(UploadResponse.self, from: data)
+                DispatchQueue.main.async { completion(.success(decoded.imageUrl)) }
+            } catch {
+                DispatchQueue.main.async { completion(.failure(APIError.decodingError)) }
+            }
+        }.resume()
+    }
+
+    func updateProfile(nickname: String? = nil, nicknameMask: String? = nil, profileImageUrl: String? = nil, completion: @escaping (Result<UserResponse, Error>) -> Void) {
         var body: [String: Any] = [:]
         if let nickname = nickname { body["nickname"] = nickname }
         if let nicknameMask = nicknameMask { body["nicknameMask"] = nicknameMask }
+        if let profileImageUrl = profileImageUrl { body["profileImageUrl"] = profileImageUrl }
         request("/users/me", method: "PATCH", body: body, completion: completion)
     }
     

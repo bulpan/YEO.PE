@@ -7,14 +7,14 @@ struct SettingsView: View {
     // ObservedObjects
     @ObservedObject var languageManager = LanguageManager.shared
     @ObservedObject var themeManager = ThemeManager.shared
-    @ObservedObject var appIconManager = AppIconManager.shared
+    // Remvoed appIconManager
     @ObservedObject var authViewModel: AuthViewModel
     
     // Local State
     @State private var pushNotificationsEnabled = true
     @State private var messageRetention = 24
     @State private var roomExitCondition = "24h"
-    @State private var maskId = true
+    // Removed maskId
     @State private var showProfileEdit = false
     @State private var showTerms = false
     @State private var showPrivacy = false
@@ -31,7 +31,7 @@ struct SettingsView: View {
         _pushNotificationsEnabled = State(initialValue: authViewModel.currentUser?.settings?.pushEnabled ?? true)
         _messageRetention = State(initialValue: authViewModel.currentUser?.settings?.messageRetention ?? 24)
         _roomExitCondition = State(initialValue: authViewModel.currentUser?.settings?.roomExitCondition ?? "24h")
-        _maskId = State(initialValue: authViewModel.currentUser?.settings?.maskId ?? true)
+        // Removed maskId
         
         _selectedEnvironment = State(initialValue: ServerConfig.shared.environment)
         _tempLocalIP = State(initialValue: ServerConfig.shared.localIP)
@@ -92,7 +92,7 @@ struct SettingsView: View {
         .onChange(of: pushNotificationsEnabled) { _ in saveSettings() }
         .onChange(of: messageRetention) { _ in saveSettings() }
         .onChange(of: roomExitCondition) { _ in saveSettings() }
-        .onChange(of: maskId) { _ in saveSettings() }
+
         .onChange(of: selectedEnvironment) { _ in saveSettings() }
         .onChange(of: tempLocalIP) { _ in saveSettings() }
     }
@@ -127,23 +127,36 @@ struct SettingsView: View {
             Button(action: { showProfileEdit = true }) {
                 HStack {
                     ZStack {
-                        Circle()
-                            .fill(Color.theme.accentPrimary.opacity(0.1))
-                            .frame(width: 50, height: 50)
-                            .overlay(Circle().stroke(Color.theme.accentPrimary, lineWidth: 1))
-                        
-                        Text(authViewModel.currentUser?.nickname?.prefix(1).uppercased() ?? "?")
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(Color.theme.accentPrimary)
+                        if let url = authViewModel.currentUser?.fullProfileFileURL {
+                            AsyncImage(url: url) { phase in
+                                switch phase {
+                                case .empty:
+                                    ProgressView().frame(width: 50, height: 50)
+                                case .success(let image):
+                                    image.resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: 50, height: 50)
+                                        .clipShape(Circle())
+                                        .overlay(Circle().stroke(Color.theme.accentPrimary, lineWidth: 1))
+                                case .failure:
+                                    fallbackProfileImage
+                                @unknown default:
+                                    fallbackProfileImage
+                                }
+                            }
+                        } else {
+                            fallbackProfileImage
+                        }
                     }
                     
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(authViewModel.currentUser?.nickname ?? "Unknown")
+                        Text(authViewModel.currentUser?.displayName ?? "Unknown")
                             .font(.radarBody)
-                            .foregroundColor(Color.theme.textPrimary)
-                        Text(authViewModel.currentUser?.email ?? "")
+                            .foregroundColor(Color.theme.textPrimary) // High Contrast
+                        
+                        Text(friendlyEmail(authViewModel.currentUser?.email ?? ""))
                             .font(.radarCaption)
-                            .foregroundColor(.gray)
+                            .foregroundColor(Color.theme.textPrimary.opacity(0.8)) // Darker Gray
                     }
                     .padding(.leading, 8)
                     
@@ -161,21 +174,50 @@ struct SettingsView: View {
         .padding(.horizontal)
     }
     
+    var fallbackProfileImage: some View {
+        ZStack {
+            Circle()
+                .fill(Color.theme.accentPrimary.opacity(0.1))
+                .frame(width: 50, height: 50)
+                .overlay(Circle().stroke(Color.theme.accentPrimary, lineWidth: 1))
+            
+            Text(authViewModel.currentUser?.displayName.prefix(1).uppercased() ?? "?")
+                .font(.system(size: 20, weight: .bold))
+                .foregroundColor(Color.theme.accentPrimary)
+        }
+    }
+    
+    func friendlyEmail(_ email: String) -> String {
+        if email.hasPrefix("apple_") {
+            return "애플 계정 사용중" // Apple Account Used
+        } else if email.hasPrefix("google_") {
+            return "구글 계정 사용중" // Google Account Used
+        } else if email.hasPrefix("kakao_") {
+            return "카카오톡 계정 사용중" // KakaoTalk Account Used
+        } else if email.hasPrefix("naver_") { // Just in case
+            return "네이버 계정 사용중"
+        }
+        return email
+    }
+    
+
+    
     var uiSection: some View {
         VStack(alignment: .leading, spacing: 15) {
-            Text("appearance".localized)
+            Text("screen_mode".localized) // Changed from "appearance"
                 .font(.radarCaption)
                 .foregroundColor(Color.theme.textSecondary)
                 .padding(.leading, 4)
             
-            // Dark Mode
+            // Screen Mode Toggle (Opposite Mode Switch)
             HStack {
-                Text("dark_mode".localized)
+                // If Dark -> Show "Light Mode", If Light -> Show "Dark Mode"
+                Text(themeManager.isDarkMode ? "light_mode".localized : "dark_mode".localized)
                     .foregroundColor(Color.theme.textPrimary)
                 Spacer()
                 Toggle("", isOn: Binding(
-                    get: { themeManager.isDarkMode },
-                    set: { themeManager.isDarkMode = $0 }
+                    get: { false }, // Always show as "Off" (ready to switch)
+                    set: { _ in themeManager.isDarkMode.toggle() } // Switch on toggle
                 ))
                 .toggleStyle(SwitchToggleStyle(tint: Color.theme.accentPrimary))
                 .labelsHidden()
@@ -185,41 +227,12 @@ struct SettingsView: View {
             .cornerRadius(12)
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.theme.borderSubtle, lineWidth: 1))
             
-            // App Icon
-            VStack(alignment: .leading, spacing: 10) {
-                Text("app_icon".localized)
-                    .font(.radarBody)
-                    .foregroundColor(Color.theme.textPrimary)
-                
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 15) {
-                        ForEach(AppIcon.allCases) { icon in
-                            VStack {
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(iconForColor(icon))
-                                    .frame(width: 60, height: 60)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke(appIconManager.currentIcon == icon ? Color.theme.accentPrimary : Color.clear, lineWidth: 3)
-                                    )
-                                    .onTapGesture {
-                                        appIconManager.changeIcon(to: icon)
-                                    }
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 4)
-                }
-                .padding()
-                .background(Color.theme.bgLayer1)
-                .cornerRadius(12)
-            }
-            
             // Language
             HStack {
                 Text("language".localized)
                     .foregroundColor(Color.theme.textPrimary)
                 Spacer()
+                // ... (existing language picker code)
                 Picker("language".localized, selection: $languageManager.currentLanguage) {
                     ForEach(Language.allCases, id: \.self) { language in
                         Text(language.displayName).tag(language)
@@ -328,37 +341,7 @@ struct SettingsView: View {
                 .foregroundColor(Color.theme.textSecondary)
                 .padding(.leading, 4)
             
-            // Mask ID
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("mask_id".localized)
-                        .foregroundColor(Color.theme.textPrimary)
-                    
-                    if maskId, let nickname = authViewModel.currentUser?.nickname {
-                        let maskedName = nickname.count > 2 
-                            ? String(nickname.prefix(2)) + "****" 
-                            : String(nickname.prefix(1)) + "****"
-                        
-                        HStack(spacing: 4) {
-                            Image(systemName: "eye.slash.fill")
-                                .font(.caption)
-                            Text("ID: \(maskedName)")
-                                .font(.caption)
-                        }
-                        .foregroundColor(.gray)
-                    }
-                }
-                
-                Spacer()
-                
-                Toggle("", isOn: $maskId)
-                    .toggleStyle(SwitchToggleStyle(tint: Color.theme.accentPrimary))
-                    .labelsHidden()
-            }
-            .padding()
-            .background(Color.theme.bgLayer1)
-            .cornerRadius(12)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.theme.borderSubtle, lineWidth: 1))
+            // Privacy Settings Content
             
             // Blocked Users
             Button(action: { showBlockedUsers = true }) {
@@ -488,7 +471,7 @@ struct SettingsView: View {
         settings.pushEnabled = pushNotificationsEnabled
         settings.messageRetention = messageRetention
         settings.roomExitCondition = roomExitCondition
-        settings.maskId = maskId
+        settings.maskId = false // Disabled (Feature removed, default to unmasked)
         
         authViewModel.updateSettings(settings)
         
@@ -513,14 +496,6 @@ struct SettingsView: View {
                     }
                 }
             }
-        }
-    }
-    
-    func iconForColor(_ icon: AppIcon) -> Color {
-        switch icon {
-        case .primary: return Color.black
-        case .dark: return Color.deepBlack
-        case .neon: return Color.neonGreen
         }
     }
 }

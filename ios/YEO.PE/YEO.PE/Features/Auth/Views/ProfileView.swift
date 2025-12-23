@@ -11,12 +11,16 @@ struct ProfileView: View {
     
     @State private var activeTooltip: String? = nil
     
+    // Image Picker
+    @State private var showImagePicker = false
+    @State private var selectedImage: UIImage?
+    
     // Computed Properties for Settings
     private var bleVisibleBinding: Binding<Bool> {
         Binding(
             get: { viewModel.currentUser?.settings?.bleVisible ?? true },
             set: { newValue in
-                var settings = viewModel.currentUser?.settings ?? UserSettings(bleVisible: true, pushEnabled: true, messageRetention: 24, roomExitCondition: "24h", maskId: true)
+                var settings = viewModel.currentUser?.settings ?? UserSettings(bleVisible: true, pushEnabled: true, messageRetention: 24, roomExitCondition: "24h", maskId: false)
                 settings.bleVisible = newValue
                 viewModel.updateSettings(settings)
             }
@@ -27,7 +31,7 @@ struct ProfileView: View {
         Binding(
             get: { viewModel.currentUser?.settings?.pushEnabled ?? true },
             set: { newValue in
-                var settings = viewModel.currentUser?.settings ?? UserSettings(bleVisible: true, pushEnabled: true, messageRetention: 24, roomExitCondition: "24h", maskId: true)
+                var settings = viewModel.currentUser?.settings ?? UserSettings(bleVisible: true, pushEnabled: true, messageRetention: 24, roomExitCondition: "24h", maskId: false)
                 settings.pushEnabled = newValue
                 viewModel.updateSettings(settings)
             }
@@ -55,25 +59,76 @@ struct ProfileView: View {
                     // 2. Identity Card section
                     VStack(spacing: 20) {
                         // Pulsing Avatar
-                        ZStack {
-                            Circle()
-                                .stroke(Color.neonGreen.opacity(0.3), lineWidth: 1)
-                                .frame(width: 140, height: 140)
-                                .scaleEffect(isPulsing ? 1.2 : 1.0)
-                                .opacity(isPulsing ? 0 : 1)
-                                .animation(Animation.easeOut(duration: 2).repeatForever(autoreverses: false), value: isPulsing)
-                            
-                            Circle()
-                                .stroke(Color.neonGreen, lineWidth: 2)
-                                .frame(width: 100, height: 100)
-                                .overlay(
-                                    Image(systemName: "person.fill")
-                                        .font(.system(size: 40))
-                                        .foregroundColor(.neonGreen)
-                                )
-                                .shadow(color: .neonGreen.opacity(0.8), radius: 20)
+                        Button(action: {
+                            showImagePicker = true
+                        }) {
+                            ZStack {
+                                Circle()
+                                    .stroke(Color.neonGreen.opacity(0.3), lineWidth: 1)
+                                    .frame(width: 140, height: 140)
+                                    .scaleEffect(isPulsing ? 1.2 : 1.0)
+                                    .opacity(isPulsing ? 0 : 1)
+                                    .animation(Animation.easeOut(duration: 2).repeatForever(autoreverses: false), value: isPulsing)
+                                
+                                if let url = viewModel.currentUser?.fullProfileFileURL {
+                                    AsyncImage(url: url) { phase in
+                                        switch phase {
+                                        case .empty:
+                                            ProgressView()
+                                                .frame(width: 100, height: 100)
+                                        case .success(let image):
+                                            image.resizable()
+                                                .aspectRatio(contentMode: .fill)
+                                                .frame(width: 100, height: 100)
+                                                .clipShape(Circle())
+                                        case .failure:
+                                            Circle()
+                                                .stroke(Color.neonGreen, lineWidth: 2)
+                                                .frame(width: 100, height: 100)
+                                                .overlay(
+                                                    Image(systemName: "person.fill")
+                                                        .font(.system(size: 40))
+                                                        .foregroundColor(.neonGreen)
+                                                )
+                                        @unknown default:
+                                            EmptyView()
+                                        }
+                                    }
+                                } else {
+                                    Circle()
+                                        .stroke(Color.neonGreen, lineWidth: 2)
+                                        .frame(width: 100, height: 100)
+                                        .overlay(
+                                            Image(systemName: "person.fill")
+                                                .font(.system(size: 40))
+                                                .foregroundColor(.neonGreen)
+                                        )
+                                }
+                                
+                                // Camera Icon Badge
+                                Circle()
+                                    .fill(Color.theme.bgLayer1)
+                                    .frame(width: 32, height: 32)
+                                    .overlay(
+                                        Image(systemName: "camera.fill")
+                                            .font(.system(size: 16))
+                                            .foregroundColor(.neonGreen)
+                                    )
+                                    .offset(x: 35, y: 35)
+                                    .shadow(radius: 2)
+                            }
+                            .shadow(color: .neonGreen.opacity(0.8), radius: 20)
                         }
+                        .frame(width: 140, height: 140) // Click area
                         .onAppear { isPulsing = true }
+                        .sheet(isPresented: $showImagePicker) {
+                            ImagePicker(image: $selectedImage)
+                        }
+                        .onChange(of: selectedImage) { newImage in
+                            if let image = newImage {
+                                viewModel.uploadProfileImage(image)
+                            }
+                        }
                         
                         // User Info
                         VStack(spacing: 8) {
@@ -184,7 +239,7 @@ struct ProfileView: View {
                         
                         // Cell 4: Retention (Cycle)
                         Button(action: {
-                            var settings = viewModel.currentUser?.settings ?? UserSettings(bleVisible: true, pushEnabled: true, messageRetention: 24, roomExitCondition: "24h", maskId: true)
+                            var settings = viewModel.currentUser?.settings ?? UserSettings(bleVisible: true, pushEnabled: true, messageRetention: 24, roomExitCondition: "24h", maskId: false)
                             let current = settings.messageRetention ?? 24
                             let next = current == 6 ? 12 : (current == 12 ? 24 : 6)
                             settings.messageRetention = next
@@ -427,5 +482,42 @@ extension Color {
             blue:  Double(b) / 255,
             opacity: Double(a) / 255
         )
+    }
+}
+
+struct ImagePicker: UIViewControllerRepresentable {
+    @Binding var image: UIImage?
+    @Environment(\.presentationMode) private var presentationMode
+ 
+    func makeUIViewController(context: UIViewControllerRepresentableContext<ImagePicker>) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.delegate = context.coordinator
+        picker.allowsEditing = true 
+        return picker
+    }
+ 
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: UIViewControllerRepresentableContext<ImagePicker>) {
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+ 
+    class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        let parent: ImagePicker
+ 
+        init(_ parent: ImagePicker) {
+            self.parent = parent
+        }
+ 
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            if let editedImage = info[.editedImage] as? UIImage {
+                parent.image = editedImage
+            } else if let originalImage = info[.originalImage] as? UIImage {
+                parent.image = originalImage
+            }
+ 
+            parent.presentationMode.wrappedValue.dismiss()
+        }
     }
 }

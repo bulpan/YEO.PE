@@ -44,6 +44,23 @@ class RoomListViewModel: ObservableObject {
                 print("Failed to decode new room: \(error)")
             }
         }
+
+        
+        // Listen for Logout to clear data
+        NotificationCenter.default.addObserver(self, selector: #selector(handleLogout), name: NSNotification.Name("UserDidLogout"), object: nil)
+    }
+    
+    @objc private func handleLogout() {
+        print("🧹 RoomListViewModel: Clearing rooms on logout")
+        clearRooms()
+    }
+    
+    func clearRooms() {
+        DispatchQueue.main.async {
+            self.myRooms = []
+            self.nearbyRooms = []
+            self.errorMessage = nil
+        }
     }
 
     deinit {
@@ -105,7 +122,9 @@ class RoomListViewModel: ObservableObject {
     
     func createOneOnOneRoom(with user: User, completion: @escaping (Room?) -> Void) {
         // Naming convention: "Chat with [Nickname]" (Server might mask this later)
-        let roomName = "Chat with \(user.nickname ?? "User")"
+        // Naming convention: "Chat with [Nickname]"
+        let displayName = user.nickname ?? user.nicknameMask ?? "User"
+        let roomName = "Chat with \(displayName)"
         let body: [String: Any] = [
             "name": roomName,
             "category": "private",

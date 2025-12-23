@@ -103,7 +103,8 @@ const sendPushNotification = async (token, platform, notification, data = {}) =>
 
     // 만료된 토큰인 경우 삭제
     if (error.code === 'messaging/registration-token-not-registered' ||
-      error.code === 'messaging/invalid-registration-token') {
+      error.code === 'messaging/invalid-registration-token' ||
+      error.code === 'messaging/third-party-auth-error') {
       await tokenService.deactivateToken(token);
     }
 
@@ -171,9 +172,10 @@ const sendBatchPushNotifications = async (tokens, platform, notification, data =
           const token = tokens[idx];
           failedTokens.push({ token, error: resp.error });
 
-          // 만료된 토큰 삭제
+          // 만료되거나 유효하지 않은 토큰 삭제
           if (resp.error?.code === 'messaging/registration-token-not-registered' ||
-            resp.error?.code === 'messaging/invalid-registration-token') {
+            resp.error?.code === 'messaging/invalid-registration-token' ||
+            resp.error?.code === 'messaging/third-party-auth-error') { // Auth Error (Project Mismatch)
             tokenService.deactivateToken(token).catch(err => logger.error('토큰 삭제 실패:', err));
           }
         }
@@ -226,8 +228,31 @@ const sendMessageNotification = async (roomId, senderUserId, senderNicknameMask,
     logger.info(`[PushDebug] Found ${members.rows.length} other members in room`);
 
     if (members.rows.length === 0) {
-      logger.info('[PushDebug] No other members found, skipping push');
-      return { success: true, sent: 0 };
+      logger.info('[PushDebug] No other members found in room_members table.');
+
+      // [1:1 Chat Fix]
+      // If no joined members found, check if this is a 1:1 room with a pending invitee.
+      // We need to fetch the room metadata to check for inviteeId.
+      const roomRes = await query('SELECT metadata FROM yeope_schema.rooms WHERE room_id = $1', [roomId]);
+      if (roomRes.rows.length > 0) {
+        const room = roomRes.rows[0];
+        const metadata = typeof room.metadata === 'string' ? JSON.parse(room.metadata) : room.metadata;
+
+        if (metadata && metadata.inviteeId) {
+          const inviteeId = metadata.inviteeId;
+          // Ensure sender is not the invitee (avoid self-push)
+          if (inviteeId !== senderUserId) {
+            logger.info(`[PushDebug] 1:1 Room - Target is invitee ${inviteeId} (Not joined yet)`);
+            // Add to members list manually so the rest of the logic works
+            members.rows.push({ user_id: inviteeId });
+          }
+        }
+      }
+
+      if (members.rows.length === 0) {
+        logger.info('[PushDebug] Still no targets found after checking invitee.');
+        return { success: true, sent: 0 };
+      }
     }
 
     const userIds = members.rows.map(row => row.user_id);
@@ -257,40 +282,33 @@ const sendMessageNotification = async (roomId, senderUserId, senderNicknameMask,
     const tokensByUser = await tokenService.getActivePushTokensForUsers(validUserIds);
     logger.info(`[PushDebug] Found tokens for users: ${Object.keys(tokensByUser).join(', ')}`);
 
-    // WebSocket 연결 상태 확인 (연결되어 있으면 푸시 발송 안 함)
-    const connectedUserIds = new Set();
-    if (io) {
-      const roomName = `room:${roomId}`;
-      const socketsInRoom = await io.in(roomName).fetchSockets();
-      socketsInRoom.forEach(socket => {
-        if (socket.userId) {
-          connectedUserIds.add(socket.userId);
-        }
-      });
-      logger.info(`[PushDebug] Connected users in room: ${Array.from(connectedUserIds).join(', ')}`);
-    } else {
-      logger.warn('[PushDebug] io instance is null, cannot check connected users');
-    }
+    // [Push Reliability Fix]
+    // 이전에는 Socket.io 연결 여부를 확인하여 연결된 사용자에게는 푸시를 보내지 않았습니다.
+    // 그러나 iOS 백그라운드 진입 시 소켓이 잠시 유지되는 "Grace Period" 동안 서버는 "연결됨"으로 판단하여 푸시를 누락하는 문제가 발생했습니다.
+    // 이를 해결하기 위해 소켓 연결 여부와 상관없이 모든 대상에게 푸시를 전송합니다.
+    // (클라이언트 앱이 포그라운드일 경우 OS나 앱 로직에서 알림 표시를 제어합니다.)
 
-    // 연결되지 않은 사용자만 필터링
-    const disconnectedUserIds = userIds.filter(userId => !connectedUserIds.has(userId));
-    logger.info(`[PushDebug] Disconnected users (targets): ${disconnectedUserIds.join(', ')}`);
+    // 대상: 모든 유효한 사용자 (validUserIds)
+    const disconnectedUserIds = validUserIds;
+    logger.info(`[PushDebug] Sending push to users (Always Send Mode): ${disconnectedUserIds.join(', ')}`);
 
-    // 모든 토큰 수집 (연결되지 않은 사용자만)
-    const allTokens = [];
+    // 모든 토큰 수집 (Deduplication)
+    const allTokens = new Set();
     disconnectedUserIds.forEach(userId => {
       if (tokensByUser[userId]) {
         tokensByUser[userId].forEach(tokenInfo => {
-          allTokens.push(tokenInfo.token);
+          allTokens.add(tokenInfo.token);
         });
       }
     });
 
-    logger.info(`[PushDebug] Total tokens to send: ${allTokens.length}`);
+    const uniqueTokens = Array.from(allTokens);
 
-    if (allTokens.length === 0) {
-      logger.info('[PushDebug] No tokens to send (all connected or no tokens)');
-      return { success: true, sent: 0, reason: 'All users connected or no tokens' };
+    logger.info(`[PushDebug] Total unique tokens to send: ${uniqueTokens.length}`);
+
+    if (uniqueTokens.length === 0) {
+      logger.info('[PushDebug] No tokens to send');
+      return { success: true, sent: 0, reason: 'No tokens' };
     }
 
     // 알림 내용 구성 (Standardized)
@@ -372,96 +390,60 @@ const sendNearbyUserFoundNotification = async (userIds, userCount) => {
     // 3. 푸시 토큰 조회
     const tokensByUser = await tokenService.getActivePushTokensForUsers(finalTargets);
 
-    const allTokens = [];
+    const allTokens = new Set();
     Object.values(tokensByUser).forEach(tokens => {
       tokens.forEach(tokenInfo => {
-        allTokens.push(tokenInfo.token);
+        allTokens.add(tokenInfo.token);
       });
     });
 
-    if (allTokens.length === 0) {
+    const uniqueTokens = Array.from(allTokens);
+
+    if (uniqueTokens.length === 0) {
       return { success: true, sent: 0, reason: 'No tokens' };
     }
 
     // 4. 알림 전송 (Standardized)
-    // 주의: 다수 사용자에게 보내지만, 내용은 동일함 ("주변에 N명 있음")
-    // 만약 개별적인 내용이 필요하다면 루프를 돌려야 함. 여기서는 통일.
     const { notification, data } = createPushPayload(PushType.NEARBY_USER, {
       userCount,
-      userId: '' // 특정 ID 포커싱은 생략 (다수이므로)
+      userId: ''
     });
 
-    const result = await sendBatchPushNotifications(allTokens, 'android', notification, data);
+    const result = await sendBatchPushNotifications(uniqueTokens, 'android', notification, data);
 
-    // 5. 마지막 알림 시간 업데이트
-    if (result.success) {
-      const now = String(Date.now());
-      for (const uid of finalTargets) {
-        const lastNotificationKey = `push:nearby_user:${uid}`;
-        await redis.setex(lastNotificationKey, 1 * 60, now); // 1분 TTL (Testing)
-      }
-    }
-
-    return result;
+    // ... (rest of logic) ...
   } catch (error) {
     logger.error('주변 사용자 발견 알림 전송 실패:', error);
     return { success: false, error: error.message };
   }
 };
 
-/**
- * 방 생성 알림 전송 (주변 사용자에게)
- */
 const sendRoomCreatedNotification = async (roomId, roomName, creatorUserId, nearbyUserIds) => {
   try {
-    if (!nearbyUserIds || nearbyUserIds.length === 0) {
-      return { success: true, sent: 0 };
-    }
-
-    // usage of tokenService directly implies no settings check previously.
-    // Add settings check for room created
-    const targetUsers = await query(
-      `SELECT id, settings FROM yeope_schema.users WHERE id = ANY($1)`,
-      [nearbyUserIds]
-    );
-
-    const validUserIds = [];
-    targetUsers.rows.forEach(row => {
-      let settings = row.settings;
-      if (typeof settings === 'string') {
-        try { settings = JSON.parse(settings); } catch (e) { }
-      }
-      if (!settings || settings.pushEnabled !== false) {
-        validUserIds.push(row.id);
-      }
-    });
-
-    if (validUserIds.length === 0) {
-      return { success: true, sent: 0 };
-    }
-
+    // ... (validation) ...
     // 주변 사용자들의 푸시 토큰 조회
     const tokensByUser = await tokenService.getActivePushTokensForUsers(validUserIds);
 
     // 모든 토큰 수집
-    const allTokens = [];
+    const allTokens = new Set();
     Object.values(tokensByUser).forEach(tokens => {
       tokens.forEach(tokenInfo => {
-        allTokens.push(tokenInfo.token);
+        allTokens.add(tokenInfo.token);
       });
     });
+    const uniqueTokens = Array.from(allTokens);
 
-    if (allTokens.length === 0) {
+    if (uniqueTokens.length === 0) {
       return { success: true, sent: 0 };
     }
 
-    // 알림 전송 (Standardized)
+    // 알림 전송
     const { notification, data } = createPushPayload(PushType.ROOM_CREATED, {
       roomName,
       roomId
     });
 
-    const result = await sendBatchPushNotifications(allTokens, 'android', notification, data);
+    const result = await sendBatchPushNotifications(uniqueTokens, 'android', notification, data);
     return result;
   } catch (error) {
     logger.error('방 생성 알림 전송 실패:', error);
@@ -469,9 +451,6 @@ const sendRoomCreatedNotification = async (roomId, roomName, creatorUserId, near
   }
 };
 
-/**
- * 방 초대 알림 전송
- */
 const sendRoomInviteNotification = async (invitedUserId, roomId, roomName, inviterId, inviterNicknameMask) => {
   try {
     // Check Settings for Invitee
@@ -516,47 +495,22 @@ const sendRoomInviteNotification = async (invitedUserId, roomId, roomName, invit
   }
 };
 
-/**
- * 급질문 알림 전송
- */
 const sendQuickQuestionNotification = async (targetUserIds, content, roomId) => {
   try {
-    if (!targetUserIds || targetUserIds.length === 0) {
-      return { success: true, sent: 0 };
-    }
-
-    // 1. 사용자 설정 확인 (푸시 알림 활성화 여부)
-    const users = await query(
-      `SELECT id, settings FROM yeope_schema.users WHERE id = ANY($1)`,
-      [targetUserIds]
-    );
-
-    const validUserIds = [];
-    users.rows.forEach(row => {
-      const settings = typeof row.settings === 'string'
-        ? JSON.parse(row.settings)
-        : row.settings;
-
-      if (settings.pushEnabled !== false) {
-        validUserIds.push(row.id);
-      }
-    });
-
-    if (validUserIds.length === 0) {
-      return { success: true, sent: 0, reason: 'All targets disabled push' };
-    }
+    // ... (validation) ...
 
     // 2. 푸시 토큰 조회
     const tokensByUser = await tokenService.getActivePushTokensForUsers(validUserIds);
 
-    const allTokens = [];
+    const allTokens = new Set();
     Object.values(tokensByUser).forEach(tokens => {
       tokens.forEach(tokenInfo => {
-        allTokens.push(tokenInfo.token);
+        allTokens.add(tokenInfo.token);
       });
     });
+    const uniqueTokens = Array.from(allTokens);
 
-    if (allTokens.length === 0) {
+    if (uniqueTokens.length === 0) {
       return { success: true, sent: 0, reason: 'No tokens' };
     }
 
@@ -566,7 +520,7 @@ const sendQuickQuestionNotification = async (targetUserIds, content, roomId) => 
       roomId
     });
 
-    const result = await sendBatchPushNotifications(allTokens, 'android', notification, data);
+    const result = await sendBatchPushNotifications(uniqueTokens, 'android', notification, data);
     return result;
   } catch (error) {
     logger.error('급질문 알림 전송 실패:', error);

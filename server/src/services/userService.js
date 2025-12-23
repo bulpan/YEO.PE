@@ -49,16 +49,17 @@ const createUser = async (email, password, nickname) => {
   // 사용자 생성
   const result = await query(
     `INSERT INTO yeope_schema.users 
-     (email, auth_provider, nickname, nickname_mask, password_hash, settings)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     RETURNING id, email, nickname, nickname_mask, created_at`,
+     (email, auth_provider, nickname, nickname_mask, password_hash, settings, profile_image_url)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     RETURNING id, email, nickname, nickname_mask, profile_image_url, created_at`,
     [
       email,
       'email',
       nickname,
       nicknameMask,
       passwordHash,
-      JSON.stringify({ bleVisible: true, pushEnabled: true })
+      JSON.stringify({ bleVisible: true, pushEnabled: true }),
+      null // Initial profile image is null
     ]
   );
 
@@ -102,7 +103,8 @@ const loginUser = async (email, password) => {
     id: user.id,
     email: user.email,
     nickname: user.nickname,
-    nicknameMask: user.nickname_mask
+    nicknameMask: user.nickname_mask,
+    profileImageUrl: user.profile_image_url // Mapped
   };
 };
 
@@ -121,6 +123,7 @@ const getUserProfile = async (userId) => {
     email: user.email,
     nickname: user.nickname,
     nicknameMask: user.nickname_mask,
+    profileImageUrl: user.profile_image_url, // Added
     settings: typeof user.settings === 'string'
       ? JSON.parse(user.settings)
       : user.settings,
@@ -133,7 +136,7 @@ const getUserProfile = async (userId) => {
  * 사용자 정보 수정
  */
 const updateUser = async (userId, data) => {
-  const { nickname, nicknameMask, settings } = data;
+  const { nickname, nicknameMask, settings, profileImageUrl } = data;
   const updates = [];
   const values = [];
   let paramIndex = 1;
@@ -167,7 +170,14 @@ const updateUser = async (userId, data) => {
     values.push(nicknameMask);
   }
 
-  // 3. 설정 업데이트
+  // 3. 프로필 이미지 업데이트
+  if (profileImageUrl !== undefined) {
+    // Allow null/empty string to remove? For now assume valid URL or empty to clear
+    updates.push(`profile_image_url = $${paramIndex++}`);
+    values.push(profileImageUrl);
+  }
+
+  // 4. 설정 업데이트
   if (settings) {
     // 기존 설정 조회
     const currentUser = await findUserById(userId);
@@ -227,16 +237,17 @@ const loginSocialUser = async (provider, providerId, email, nickname) => {
     try {
       const createResult = await query(
         `INSERT INTO yeope_schema.users 
-         (email, auth_provider, provider_id, nickname, nickname_mask, settings)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING id, email, nickname, nickname_mask, created_at`,
+         (email, auth_provider, provider_id, nickname, nickname_mask, settings, profile_image_url)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id, email, nickname, nickname_mask, profile_image_url, created_at`,
         [
           email,
           provider,
           providerId,
           nickname,
           nicknameMask,
-          JSON.stringify({ bleVisible: true, pushEnabled: true })
+          JSON.stringify({ bleVisible: true, pushEnabled: true }),
+          null
         ]
       );
       user = createResult.rows[0];
@@ -308,6 +319,9 @@ const regenerateMask = async (userId) => {
 /**
  * 사용자 차단
  */
+/**
+ * 사용자 차단 (닉네임 스냅샷 저장)
+ */
 const blockUser = async (blockerId, blockedId) => {
   if (blockerId === blockedId) {
     throw new ValidationError('자신을 차단할 수 없습니다');
@@ -319,12 +333,15 @@ const blockUser = async (blockerId, blockedId) => {
     throw new NotFoundError('차단할 사용자를 찾을 수 없습니다');
   }
 
+  // Snapshot Nickname (Use Mask or Nickname)
+  const snapshotNickname = blockedUser.nickname_mask || blockedUser.nickname || 'Unknown';
+
   // Insert ignore duplicates
   await query(
-    `INSERT INTO yeope_schema.blocked_users (blocker_id, blocked_id) 
-     VALUES ($1, $2) 
+    `INSERT INTO yeope_schema.blocked_users (blocker_id, blocked_id, blocked_nickname) 
+     VALUES ($1, $2, $3) 
      ON CONFLICT (blocker_id, blocked_id) DO NOTHING`,
-    [blockerId, blockedId]
+    [blockerId, blockedId, snapshotNickname]
   );
   return true;
 };
@@ -341,17 +358,28 @@ const unblockUser = async (blockerId, blockedId) => {
 };
 
 /**
- * 차단 목록 조회
+ * 차단 목록 조회 (스냅샷 닉네임 반환)
  */
 const getBlockedUsers = async (userId) => {
   const result = await query(
-    `SELECT u.id, u.nickname, u.nickname_mask 
+    `SELECT 
+       b.blocked_id as id, 
+       COALESCE(b.blocked_nickname, u.nickname_mask, u.nickname) as display_name,
+       u.nickname_mask,
+       b.created_at
      FROM yeope_schema.blocked_users b
-     JOIN yeope_schema.users u ON b.blocked_id = u.id
-     WHERE b.blocker_id = $1`,
+     LEFT JOIN yeope_schema.users u ON b.blocked_id = u.id
+     WHERE b.blocker_id = $1
+     ORDER BY b.created_at DESC`,
     [userId]
   );
-  return result.rows;
+
+  return result.rows.map(row => ({
+    id: row.id,
+    nickname: row.display_name, // Client expects 'nickname' or 'displayName'
+    nicknameMask: row.nickname_mask,
+    blockedAt: row.created_at
+  }));
 };
 
 /**

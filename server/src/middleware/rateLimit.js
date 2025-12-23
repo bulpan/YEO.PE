@@ -70,11 +70,24 @@ const roomCreationLimiter = rateLimit({
   legacyHeaders: false
 });
 
+/**
+ * Admin API Rate Limiter
+ * 분당 1000회 요청 제한 (대시보드 폴링 허용)
+ */
+const adminLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 1000,
+  message: 'Admin 요청 허용량 초과',
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
 module.exports = {
   apiLimiter,
   authLimiter,
   messageLimiter,
-  roomCreationLimiter
+  roomCreationLimiter,
+  adminLimiter
 };
 
 

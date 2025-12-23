@@ -91,7 +91,9 @@
 "mask_id" = "ID Masking";
 "blocked_users" = "Blocked Users";
 "save" = "Save";
-"appearance" = "Dark Mode";
+"screen_mode" = "Screen Mode";
+"light_mode" = "Light Mode";
+"dark_mode" = "Dark Mode";
 "terms_of_service" = "Terms of Service";
 "privacy_policy" = "Privacy Policy";
 "legal" = "Legal";
@@ -131,10 +133,19 @@
 "ignore" = "IGNORE";
 
 // Identity / Nickname
-"public_nickname" = "Public Nickname";
-"enter_nickname" = "Enter new nickname";
-"public_nickname_desc" = "This name is shown to others and protects your real identity.";
-"identity_regenerated" = "Identity Regenerated";
-"identity_regenerated_desc" = "Your public identity has been refreshed due to UID expiration. You can customize it in Settings.";
-"identity_info_tooltip" = "This is your Public Alias. It changes automatically to keep you anonymous.";
-"ok" = "OK";
+// Block & Report
+"block_user" = "Block User";
+"report_user" = "Report User";
+"block_confirm_title" = "Block %@?";
+"block_confirm_message" = "You will no longer receive messages or see this user. This action persists even if they change their nickname. This cannot be undone.";
+"blocked" = "Blocked";
+"blocked_msg" = "User blocked.";
+"report_reason" = "Reason for Reporting";
+"report_details" = "Details (Optional)";
+"report_submit" = "Submit Report";
+"report_spam" = "Spam";
+"report_abusive" = "Abusive Language";
+"report_inappropriate" = "Inappropriate Content";
+"report_other" = "Other";
+"blocked_users_title" = "Blocked Users";
+"block_policy_info" = "Blocked users are tracked by their unique device ID. Even if they change their nickname, the block remains effective. Re-installing the app may reset this.";

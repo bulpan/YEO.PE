@@ -307,6 +307,50 @@ class ChatViewModel: ObservableObject {
         }
     }
     
+    func blockUser(userId: String, completion: @escaping (Bool) -> Void) {
+        let body = ["targetUserId": userId]
+        
+        APIService.shared.request("/users/block", method: "POST", body: body) { (result: Result<StandardResponse, Error>) in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    print("✅ User blocked successfully")
+                    // Locally filter messages from this user
+                    self.messages.removeAll { $0.userId == userId }
+                    // Also remove from members list so they don't appear in typing or header
+                    self.members.removeAll { $0.id == userId }
+                    completion(true)
+                case .failure(let error):
+                    print("❌ Failed to block user: \(error)")
+                    completion(false)
+                }
+            }
+        }
+    }
+    
+    func reportUser(userId: String, reason: String, details: String?, completion: @escaping (Bool) -> Void) {
+        var body: [String: Any] = [
+            "targetUserId": userId,
+            "reason": reason
+        ]
+        if let details = details {
+            body["details"] = details
+        }
+        
+        APIService.shared.request("/users/report", method: "POST", body: body) { (result: Result<StandardResponse, Error>) in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    print("✅ User reported successfully")
+                    completion(true)
+                case .failure(let error):
+                    print("❌ Failed to report user: \(error)")
+                    completion(false)
+                }
+            }
+        }
+    }
+    
     func updatePresence() {
         // Prevent re-joining if we are exiting the room
         guard !isExiting else {

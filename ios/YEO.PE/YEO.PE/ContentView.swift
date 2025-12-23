@@ -5,6 +5,7 @@ struct ContentView: View {
     @StateObject private var authViewModel = AuthViewModel()
     @ObservedObject private var bleManager = BLEManager.shared // Observe BLEManager
     @AppStorage("hasSeenOnboarding") var hasSeenOnboarding: Bool = false
+    @AppStorage("isDarkMode") var isDarkMode: Bool = true // Observe Theme
     @State private var debugMessage: String?
     @State private var showToast = false
     @State private var showProfileEditSheet = false // Triggered by Toast
@@ -55,7 +56,7 @@ struct ContentView: View {
                 }
                 .environmentObject(authViewModel)
                 .background(Color.deepBlack)
-                .preferredColorScheme(.dark)
+                .preferredColorScheme(isDarkMode ? .dark : .light) // Dynamic Scheme
                 .navigationViewStyle(StackNavigationViewStyle())
                 .onAppear {
                     // Ensure BLEManager is running if authorized

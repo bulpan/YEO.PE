@@ -58,6 +58,20 @@ class BLEManager: NSObject, ObservableObject {
     @Published var isRawScanMode = false
     @Published var rawPeripherals: [UUID: RawPeripheral] = [:]
     
+    // Stealth Mode
+    @Published var isStealthMode = false {
+        didSet {
+            print("👻 Stealth Mode Changed: \(isStealthMode)")
+            if isStealthMode {
+                stopAdvertising()
+            } else {
+                if !isAdvertising {
+                    fetchUIDAndStartAdvertising()
+                }
+            }
+        }
+    }
+    
     // Block Filtering
     var blockedUserIds: Set<String> = []
     
@@ -169,6 +183,10 @@ class BLEManager: NSObject, ObservableObject {
     }
     
     private func startAdvertising(uid: String) {
+        guard !isStealthMode else { 
+            print("🚫 Stealth Mode is ON. Advertising skipped.")
+            return 
+        }
         guard let pManager = peripheralManager, pManager.state == .poweredOn else { return }
         
         // Reset services
@@ -409,15 +427,15 @@ extension BLEManager: CBCentralManagerDelegate {
         if let localName = localName, localName.count == 6 {
             handleDiscoveredUID(localName, rssi: RSSI.intValue, peripheralId: peripheral.identifier)
         } else if !isRawScanMode {
-            let hasServiceUUID = (advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID])?.contains(serviceUUID) ?? false
-            if hasServiceUUID {
-                if let cachedUID = peripheralMap[peripheral.identifier] {
-                    handleDiscoveredUID(cachedUID, rssi: RSSI.intValue, peripheralId: peripheral.identifier)
-                } else {
-                    activePeripherals[peripheral.identifier] = peripheral
-                    peripheral.delegate = self
-                    centralManager?.connect(peripheral, options: nil)
-                }
+            // When scanning with a Service UUID filter (foreground or background), 
+            // `didDiscover` implies a match. Background packets (overflow) may not 
+            // contain the UUID in `advertisementData`, so we skip the explicit check.
+            if let cachedUID = peripheralMap[peripheral.identifier] {
+                handleDiscoveredUID(cachedUID, rssi: RSSI.intValue, peripheralId: peripheral.identifier)
+            } else {
+                activePeripherals[peripheral.identifier] = peripheral
+                peripheral.delegate = self
+                centralManager?.connect(peripheral, options: nil)
             }
         }
     }

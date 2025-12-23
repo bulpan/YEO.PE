@@ -11,7 +11,26 @@ const cors = require('cors');
 const logger = require('./utils/logger');
 
 // 데이터베이스 및 서비스 초기화
-require('./config/database'); // PostgreSQL 연결
+// 데이터베이스 및 서비스 초기화
+const { pool, query } = require('./config/database'); // PostgreSQL 연결
+const fs = require('fs');
+const path = require('path');
+
+// [Migration] Run Block Nickname Migration on Startup
+const runMigration = async () => {
+  try {
+    const sqlPath = path.join(__dirname, '../database/migration_block_nickname.sql');
+    if (fs.existsSync(sqlPath)) {
+      const sql = fs.readFileSync(sqlPath, 'utf8');
+      await query(sql);
+      logger.info('✅ Migration (Block Nickname) executed successfully.');
+    }
+  } catch (error) {
+    logger.warn('⚠️ Migration failed or already exists:', error.message);
+  }
+};
+runMigration();
+
 require('./config/redis'); // Redis 연결
 const { startTTLScheduler } = require('./services/ttlService');
 
@@ -37,11 +56,35 @@ app.set('io', io);
 app.use(require('./middleware/requestLogger'));
 
 // 정적 파일 서빙 (랜딩 페이지)
-app.use(express.static('public'));
+// 정적 파일 서빙 (랜딩 페이지)
+// 정적 파일 서빙 (랜딩 페이지)
+// Admin Panel Static Files (Prioritize specific admin handling)
+app.use('/admin', express.static(path.join(__dirname, '../public/admin')));
 
-// 전역 Rate Limiting
-const { apiLimiter } = require('./middleware/rateLimit');
-app.use('/api', apiLimiter);
+// Admin Panel Redirect
+app.get('/admin', (req, res) => {
+  res.redirect('/admin/');
+});
+
+// Admin Panel SPA fallback
+app.get('/admin/*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/admin/index.html'));
+});
+
+// 정적 파일 서빙 (랜딩 페이지) - General Fallback
+app.use(express.static(path.join(__dirname, '../public')));
+
+// Rate Limiting
+const { apiLimiter, adminLimiter } = require('./middleware/rateLimit');
+
+// 1. Admin 라우트에 대해서는 관대한 제한 적용
+app.use('/api/admin', adminLimiter);
+
+// 2. 나머지 API에 대해서는 일반 제한 적용 (Admin 제외)
+app.use('/api', (req, res, next) => {
+  if (req.path.startsWith('/admin')) return next();
+  apiLimiter(req, res, next);
+});
 
 // 기본 라우트
 app.get('/health', (req, res) => {
@@ -62,6 +105,7 @@ app.use('/api/push', require('./routes/push'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/upload', require('./routes/upload'));
 app.use('/api/reports', require('./routes/reports'));
+app.use('/api/admin', require('./routes/admin'));
 
 // Firebase 초기화 (푸시 알림)
 const pushService = require('./services/pushService');

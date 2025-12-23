@@ -9,6 +9,7 @@ struct ChatView: View {
         _viewModel = StateObject(wrappedValue: ChatViewModel(room: room, targetUser: targetUser, currentUser: currentUser))
     }
     
+    @State private var reportTargetUser: User?
     @State private var showMenu = false
     @State private var showLeaveConfirmation = false
     
@@ -84,14 +85,33 @@ struct ChatView: View {
                         secondaryButton: .cancel()
                     )
                 }
+                .sheet(item: $reportTargetUser) { user in
+                    ReportSheet(
+                        targetUserId: user.id,
+                        targetUserNickname: user.nickname ?? "Unknown",
+                        onReport: { reason, details in
+                            viewModel.reportUser(userId: user.id, reason: reason, details: details) { _ in }
+                        },
+                        onBlock: {
+                            viewModel.blockUser(userId: user.id) { success in
+                                if success {
+                                    // If handling 1:1 specifically, might want to exit?
+                                    // For now, blocking simply removes them locally and prevents future messages.
+                                }
+                            }
+                        }
+                    )
+                }
                 
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 12) {
                             ForEach(viewModel.messages) { message in
                                 let sender = viewModel.members.first(where: { $0.id == message.userId })
-                                MessageRow(message: message, sender: sender)
-                                    .id(message.id)
+                                MessageRow(message: message, sender: sender, onAvatarTap: { tappedUser in
+                                    reportTargetUser = tappedUser
+                                })
+                                .id(message.id)
                             }
                         }
                         .padding()
@@ -153,6 +173,7 @@ struct ChatView: View {
 struct MessageRow: View {
     let message: Message
     let sender: User?
+    var onAvatarTap: ((User) -> Void)? = nil
     
     var isMe: Bool {
         guard let currentUserId = TokenManager.shared.userId else { return false }
@@ -163,7 +184,7 @@ struct MessageRow: View {
         // If sender is known, respect their setting. Default to true (Masked) if generic preference?
         // User said: "If I set it to mask... show masked. If unset... show real."
         // App default is true.
-        return sender?.settings?.maskId ?? true
+        return sender?.settings?.maskId ?? false
     }
     
     var body: some View {
@@ -209,10 +230,33 @@ struct MessageRow: View {
                 
                 if !isMe {
                     // Avatar Placeholder
-                    Circle()
-                        .fill(Color.mysteryViolet)
-                        .frame(width: 30, height: 30)
-                        .overlay(Text(String((shouldMask ? (message.nicknameMask ?? "?") : (message.nickname ?? "?")).prefix(1))).font(.caption).foregroundColor(.white))
+                    Button(action: {
+                        if let user = sender {
+                            onAvatarTap?(user)
+                        } else {
+                            // Create a temporary User object from message info if sender is missing
+                            let tempUser = User(
+                                id: message.userId,
+                                email: "",
+                                nickname: message.nickname ?? "Unknown",
+                                nicknameMask: message.nicknameMask,
+                                nickname_mask: nil,
+                                settings: nil,
+                                createdAt: nil,
+                                lastLoginAt: nil,
+                                distance: nil,
+                                hasActiveRoom: false,
+                                roomId: nil,
+                                roomName: nil
+                            )
+                            onAvatarTap?(tempUser)
+                        }
+                    }) {
+                        Circle()
+                            .fill(Color.mysteryViolet)
+                            .frame(width: 30, height: 30)
+                            .overlay(Text(String((shouldMask ? (message.nicknameMask ?? "?") : (message.nickname ?? "?")).prefix(1))).font(.caption).foregroundColor(.white))
+                    }
                 }
                 
                 VStack(alignment: isMe ? .trailing : .leading, spacing: 4) {

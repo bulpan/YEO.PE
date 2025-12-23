@@ -134,6 +134,14 @@ router.post('/logout', authenticate, async (req, res, next) => {
   try {
     const userId = req.user.userId;
 
+    // [Logout Cleanup] Leave all rooms
+    try {
+      const roomService = require('../services/roomService');
+      await roomService.leaveAllRooms(userId);
+    } catch (err) {
+      logger.error(`Logout cleanup failed for ${userId}:`, err);
+    }
+
     // Refresh Token 삭제
     await redis.del(`refresh_token:${userId}`);
 

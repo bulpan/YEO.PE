@@ -44,6 +44,27 @@ const messageHandler = (socket, io) => {
         createdAt: message.createdAt
       });
 
+      // [Dual Emission for 1:1 Chats]
+      // If this is a 1:1 room (has inviteeId), also emit to the invitee's PERSONAL channel.
+      // This ensures they receive the message even if they haven't "joined" the room socket channel yet.
+      if (message.roomMetadata && message.roomMetadata.inviteeId) {
+        const inviteeId = message.roomMetadata.inviteeId;
+        // Don't echo back to sender if they are the invitee (edge case, usually creator sends first)
+        if (inviteeId !== userId) {
+          logger.info(`[Socket 1:1] Dual emitting to user:${inviteeId}`);
+          io.to(`user:${inviteeId}`).emit('new-message', {
+            messageId: message.messageId,
+            roomId,
+            userId: message.userId,
+            nicknameMask: message.nicknameMask,
+            type: message.type,
+            content: message.content,
+            imageUrl: message.imageUrl,
+            createdAt: message.createdAt
+          });
+        }
+      }
+
       // 푸시 알림 전송 (백그라운드에서 비동기 처리)
       // WebSocket에 연결되지 않은 사용자에게만 전송
       logger.info(`[PushDebug] Calling sendMessageNotification for room ${roomId}`);

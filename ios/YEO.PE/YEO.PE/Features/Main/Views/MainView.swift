@@ -230,8 +230,7 @@ struct MainView: View {
                 }
                 
                 Spacer()
-                
-                // Bottom Bar
+
                 HStack {
                     Button(action: {
                         showRoomList = true
@@ -295,6 +294,7 @@ struct MainView: View {
                         .foregroundColor(.textPrimary)
                     }
                 }
+
                 .padding(.horizontal, 30)
                 .padding(.vertical, 20)
                 .glassmorphism(cornerRadius: 30)
@@ -443,7 +443,7 @@ struct MainView: View {
                 EmptyView()
             }
         )
-        .id(themeManager.isDarkMode) // Force redraw when theme changes
+        // Removed .id(themeManager.isDarkMode) to prevent full rebuild
         .onAppear {
             roomViewModel.fetchNearbyRooms()
             roomViewModel.fetchMyRooms()
@@ -486,6 +486,8 @@ struct MainView: View {
                 }
             } // <-- close first socket handler properly
             
+            // [Ghost User Fix] Listen for User Left events
+
             // Listen for Global Notification Tap (if implemented via UNUserNotificationCenter)
             // Or a NotificationCenter broadcast for "HighlightUser"
             NotificationCenter.default.addObserver(forName: NSNotification.Name("HighlightUser"), object: nil, queue: .main) { notification in

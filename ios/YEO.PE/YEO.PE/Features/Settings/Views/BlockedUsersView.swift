@@ -2,18 +2,17 @@ import SwiftUI
 
 struct BlockedUsersView: View {
     @ObservedObject var authViewModel: AuthViewModel
-    @State private var blockedUsers: [User] = []
-    @State private var isLoading = true
+    @State private var showPolicyAlert = false
     
     var body: some View {
         ZStack {
             Color.deepBlack.edgesIgnoringSafeArea(.all)
             
             VStack {
-                if isLoading {
+                if authViewModel.isLoading {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: .neonGreen))
-                } else if blockedUsers.isEmpty {
+                } else if authViewModel.blockedUsers.isEmpty {
                     VStack(spacing: 10) {
                         Image(systemName: "shield.slash")
                             .font(.system(size: 40))
@@ -23,25 +22,17 @@ struct BlockedUsersView: View {
                     }
                 } else {
                     List {
-                        ForEach(blockedUsers) { user in
+                        ForEach(authViewModel.blockedUsers) { user in
                             HStack {
                                 Text(user.nickname ?? "Unknown")
                                     .foregroundColor(.white)
                                     .font(.radarBody)
                                 
                                 Spacer()
-                                
-                                Button(action: {
-                                    unblock(user)
-                                }) {
-                                    Text("unblock".localized) // "Unblock"
-                                        .font(.caption)
-                                        .foregroundColor(.black)
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 6)
-                                        .background(Color.white)
-                                        .cornerRadius(8)
-                                }
+                                // No Unblock Button per policy
+                                Text("blocked".localized)
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
                             }
                             .listRowBackground(Color.deepBlack)
                         }
@@ -51,29 +42,25 @@ struct BlockedUsersView: View {
             }
         }
         .navigationBarTitle("blocked_users".localized, displayMode: .inline)
-        .onAppear(perform: loadBlockedUsers)
-    }
-    
-    private func loadBlockedUsers() {
-        isLoading = true
-        APIService.shared.getBlockedUsers { result in
-            DispatchQueue.main.async {
-                self.isLoading = false
-                switch result {
-                case .success(let response):
-                    self.blockedUsers = response.blockedUsers
-                case .failure(let error):
-                    print("Failed to fetch blocked users: \(error)")
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    showPolicyAlert = true
+                }) {
+                    Image(systemName: "info.circle")
+                        .foregroundColor(.neonGreen)
                 }
             }
         }
-    }
-    
-    private func unblock(_ user: User) {
-        authViewModel.unblockUser(userId: user.id)
-        // Optimistically remove from list
-        withAnimation {
-            blockedUsers.removeAll { $0.id == user.id }
+        .alert(isPresented: $showPolicyAlert) {
+            Alert(
+                title: Text("blocked_users_title".localized),
+                message: Text("block_policy_info".localized),
+                dismissButton: .default(Text("ok".localized))
+            )
+        }
+        .onAppear {
+            authViewModel.fetchBlockedUsers()
         }
     }
 }

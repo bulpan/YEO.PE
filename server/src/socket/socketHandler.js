@@ -108,6 +108,9 @@ const handleConnection = (io) => {
     // 연결 해제 처리
     socket.on('disconnect', (reason) => {
       logger.info(`사용자 연결 해제: ${socket.userId} (reason: ${reason})`);
+
+      // [Ghost User Fix] Broadcast to all users to remove this user from Radar immediately
+      io.emit('user-left', { userId: socket.userId });
     });
 
     // 에러 처리

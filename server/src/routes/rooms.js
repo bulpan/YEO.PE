@@ -104,21 +104,32 @@ router.post('/', authenticate, roomCreationLimiter, async (req, res, next) => {
           name: room.name,
           creatorId: userId,
           category: category,
-          isActive: true,
+          isActive: room.isActive ?? true, // Use actual room state
           memberCount: 1,
           createdAt: room.createdAt,
-          allowsMultiple: true
+          allowsMultiple: true,
+          // Metadata & Invitee Info for Client Display
+          metadata: room.metadata,
+          inviteeId: inviteeId,
+          inviteeNickname: room.inviteeNickname,
+          inviteeNicknameMask: room.inviteeNicknameMask
         });
       }
     }
 
     res.status(201).json({
+      id: room.id,
       roomId: room.roomId,
       name: room.name,
       createdAt: room.createdAt,
       expiresAt: room.expiresAt,
       memberCount: room.memberCount,
-      metadata: room.metadata
+      metadata: room.metadata,
+      // Nickname Info for Client Display
+      creatorNickname: room.creatorNickname,
+      creatorNicknameMask: room.creatorNicknameMask,
+      inviteeNickname: room.inviteeNickname,
+      inviteeNicknameMask: room.inviteeNicknameMask
     });
   } catch (error) {
     next(error);
@@ -194,6 +205,7 @@ router.post('/:roomId/join', authenticate, async (req, res, next) => {
 
     if (result.alreadyJoined) {
       return res.json({
+        success: true,
         message: '이미 참여 중인 방입니다',
         roomId
       });
@@ -218,6 +230,7 @@ router.post('/:roomId/join', authenticate, async (req, res, next) => {
     }
 
     res.json({
+      success: true,
       roomId,
       message: '방에 참여했습니다'
     });

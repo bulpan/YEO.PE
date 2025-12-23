@@ -47,15 +47,39 @@ struct ProfileEditView: View {
                         .foregroundColor(.textSecondary)
                         .padding(.leading, 4)
                     
-                    TextField("enter_nickname".localized, text: $nickname)
-                        .padding()
-                        .background(Color.glassBlack)
-                        .cornerRadius(12)
-                        .foregroundColor(.white)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                        )
+                    HStack {
+                        TextField("enter_nickname".localized, text: $nickname)
+                            .padding()
+                            .background(Color.glassBlack)
+                            .cornerRadius(12)
+                            .foregroundColor(.white)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                            )
+                        
+                        // Randomize Button
+                        Button(action: {
+                            authViewModel.randomizeMask()
+                            // Wait a bit for the async update, then refresh local state
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                if let newMask = authViewModel.currentUser?.nicknameMask {
+                                    self.nickname = newMask
+                                }
+                            }
+                        }) {
+                            Image(systemName: "dice.fill")
+                                .font(.title2)
+                                .foregroundColor(.neonGreen)
+                                .frame(width: 50, height: 50)
+                                .background(Color.glassBlack)
+                                .cornerRadius(12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                                )
+                        }
+                    }
                     
                     Text("public_nickname_desc".localized) // "This name is shown to others."
                         .font(.caption)

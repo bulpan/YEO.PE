@@ -7,7 +7,7 @@
 1.  **Naver Developers 접속**
     *   [Naver Developers](https://developers.naver.com/) 에 접속하여 네이버 계정으로 로그인합니다.
     *   **Application > 애플리케이션 등록** 메뉴로 이동합니다.
-
+        bulpann@naver.com 으로 로그인
 2.  **애플리케이션 등록**
     *   **애플리케이션 이름**: `YEO.PE` (또는 원하시는 앱 이름)
     *   **사용 API**: `네이버 로그인`을 선택합니다.

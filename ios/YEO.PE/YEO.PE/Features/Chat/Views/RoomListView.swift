@@ -168,49 +168,90 @@ struct RoomRow: View {
     let room: Room
     let currentUserId: String?
     
+    var isQuickQuestion: Bool {
+        return room.metadata?.category == "quick_question"
+    }
+    
+    var isWaitingForResponse: Bool {
+        return room.isActive == false && currentUserId == room.creatorId
+    }
+    
     var body: some View {
         HStack {
+            // Icon / Avatar Area
+            ZStack {
+                if isQuickQuestion {
+                    Circle()
+                        .fill(Color.yellow.opacity(0.1))
+                        .frame(width: 50, height: 50)
+                        .overlay(
+                            Image(systemName: "bolt.fill")
+                                .font(.system(size: 24))
+                                .foregroundColor(.yellow)
+                        )
+                        .overlay(
+                            Circle()
+                                .stroke(Color.yellow.opacity(0.3), lineWidth: 1)
+                        )
+                } else if isWaitingForResponse {
+                    Circle()
+                        .fill(Color.gray.opacity(0.1))
+                        .frame(width: 50, height: 50)
+                        .overlay(
+                            Image(systemName: "clock")
+                                .font(.system(size: 20))
+                                .foregroundColor(.gray)
+                        )
+                } else {
+                    // General / Active Room
+                    Circle()
+                        .fill(Color.theme.accentPrimary.opacity(0.1))
+                        .frame(width: 50, height: 50)
+                        .overlay(
+                            Text(String(room.displayName.prefix(1)))
+                                .font(.system(size: 20, weight: .bold))
+                                .foregroundColor(Color.theme.accentPrimary)
+                        )
+                }
+            }
+            .padding(.trailing, 8)
+            
+            // Content
             VStack(alignment: .leading, spacing: 4) {
-                // Row 1: Name (Count/Status)
                 HStack {
                     Text(room.displayName)
                         .font(.headline)
-                        .foregroundColor(shouldDimRoom ? Color.theme.textSecondary : Color.theme.textPrimary)
+                        .foregroundColor(isWaitingForResponse ? .gray : .textPrimary)
                     
-                    if room.isActive == false {
-                        if currentUserId == room.creatorId {
-                            // Text("waiting_for_response".localized) // Removed as per request
-                        } else {
-                            // Text("(Invited)") // Removed as per request
-                        }
-                    } else {
-                        Text("(\(room.memberCount ?? 0))")
-                            .font(.caption)
-                            .foregroundColor(Color.theme.textSecondary)
+                    if isQuickQuestion {
+                        Text("OPEN")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.black)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.yellow)
+                            .cornerRadius(4)
                     }
                 }
                 
-                // Row 2: Last Message
                 if let lastMessage = room.lastMessage {
                     Text(lastMessage)
                         .font(.subheadline)
-                        .foregroundColor(Color.theme.textSecondary)
-                        .lineLimit(2)
+                        .foregroundColor(.textSecondary)
+                        .lineLimit(1)
+                } else if isWaitingForResponse {
+                    Text("waiting_response_short".localized) // "Waiting for reply..."
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                        .italic()
                 } else {
                     Text("no_messages".localized)
                         .font(.caption)
-                        .foregroundColor(Color.theme.textSecondary)
+                        .foregroundColor(.textSecondary)
                 }
             }
             
             Spacer()
-            
-            // Quick Question Icon
-            if room.metadata?.category == "quick_question" {
-                 Image(systemName: "bolt.fill")
-                    .foregroundColor(.yellow)
-                    .padding(.trailing, 4)
-            }
             
             // Unread Badge
             if let unreadCount = room.unreadCount, unreadCount > 0 {
@@ -223,10 +264,7 @@ struct RoomRow: View {
                     .clipShape(Circle())
             }
         }
-        .padding(.vertical, 4)
-    }
-    
-    var shouldDimRoom: Bool {
-        return room.isActive == false && currentUserId == room.creatorId
+        .padding(.vertical, 8)
+        .opacity(isWaitingForResponse ? 0.6 : 1.0)
     }
 }

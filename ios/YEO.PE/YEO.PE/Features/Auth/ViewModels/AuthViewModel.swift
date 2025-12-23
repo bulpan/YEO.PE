@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import UIKit
 
 class AuthViewModel: ObservableObject {
     @Published var email = ""
@@ -10,8 +11,15 @@ class AuthViewModel: ObservableObject {
     @Published var errorMessage: String?
     
     @Published var keepLoggedIn = true // Default to true for better background experience
-    @Published var currentUser: User?
+    @Published var currentUser: User? {
+        didSet {
+            if let visible = currentUser?.settings?.bleVisible {
+                BLEManager.shared.isStealthMode = !visible
+            }
+        }
+    }
     @Published var blockedUserIds: Set<String> = []
+    @Published var blockedUsers: [User] = [] // Added for UI List
     @Published var showIdentityRegeneratedAlert = false
     
     var userId: String? {
@@ -26,6 +34,33 @@ class AuthViewModel: ObservableObject {
         }
         
         NotificationCenter.default.addObserver(self, selector: #selector(handleIdentityUpdate), name: .identityUpdated, object: nil)
+    }
+
+// ... existing login/register methods ...
+
+    // MARK: - Block & Report
+    func fetchBlockedUsers() {
+        guard isLoggedIn else { return }
+        isLoading = true
+        APIService.shared.getBlockedUsers { [weak self] result in
+            DispatchQueue.main.async {
+                self?.isLoading = false
+                switch result {
+                case .success(let response):
+                    // Store IDs for filtering
+                    let ids = response.blockedUsers.compactMap { $0.id }
+                    self?.blockedUserIds = Set(ids)
+                    
+                    // Store full objects for UI list
+                    self?.blockedUsers = response.blockedUsers
+                    
+                    BLEManager.shared.blockedUserIds = self?.blockedUserIds ?? []
+                    print("🚫 Fetched \(ids.count) blocked users")
+                case .failure(let error):
+                    print("⚠️ Failed to fetch blocked blocked users: \(error)")
+                }
+            }
+        }
     }
     
     @objc private func handleIdentityUpdate(_ notification: Notification) {
@@ -127,11 +162,25 @@ class AuthViewModel: ObservableObject {
     }
     
     func logout() {
-        TokenManager.shared.clearTokens()
-        isLoggedIn = false
-        currentUser = nil
-        blockedUserIds.removeAll()
-        BLEManager.shared.blockedUserIds.removeAll()
+        // [Logout Cleanup] Notify server first
+        APIService.shared.request("/auth/logout", method: "POST") { [weak self] (result: Result<[String: String], Error>) in
+            DispatchQueue.main.async {
+                // Clear tokens regardless of server success/failure
+                TokenManager.shared.clearTokens()
+                
+                // Stop BLE to prevent ghost user (User disappears from Radar)
+                BLEManager.shared.stop()
+                BLEManager.shared.discoveredUsers.removeAll()
+                
+                self?.isLoggedIn = false
+                self?.currentUser = nil
+                self?.blockedUserIds.removeAll()
+                BLEManager.shared.blockedUserIds.removeAll()
+                
+                // [Logout Cleanup] Notify other ViewModels
+                NotificationCenter.default.post(name: NSNotification.Name("UserDidLogout"), object: nil)
+            }
+        }
     }
     
     // Check for random nickname pattern to show toast
@@ -161,6 +210,34 @@ class AuthViewModel: ObservableObject {
                 case .failure(let error):
                     self?.errorMessage = error.localizedDescription
                     completion(false)
+                }
+            }
+        }
+    }
+    
+    func uploadProfileImage(_ image: UIImage) {
+        isLoading = true
+        APIService.shared.uploadImage(image: image) { [weak self] result in
+            switch result {
+            case .success(let imageUrl):
+                print("✅ Image uploaded: \(imageUrl). Updating profile...")
+                // Now update profile with this URL
+                APIService.shared.updateProfile(profileImageUrl: imageUrl) { [weak self] profileResult in
+                    DispatchQueue.main.async {
+                        self?.isLoading = false
+                        switch profileResult {
+                        case .success(let response):
+                            self?.currentUser = response.user
+                            print("✅ Profile image updated!")
+                        case .failure(let error):
+                            self?.errorMessage = error.localizedDescription
+                        }
+                    }
+                }
+            case .failure(let error):
+                DispatchQueue.main.async {
+                    self?.isLoading = false
+                    self?.errorMessage = error.localizedDescription
                 }
             }
         }
@@ -213,23 +290,7 @@ class AuthViewModel: ObservableObject {
     }
     
     // MARK: - Block & Report
-    func fetchBlockedUsers() {
-        guard isLoggedIn else { return }
-        APIService.shared.getBlockedUsers { [weak self] result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success(let response):
-                    // Store IDs in Set for easy filtering
-                    let ids = response.blockedUsers.compactMap { $0.id }
-                    self?.blockedUserIds = Set(ids)
-                    BLEManager.shared.blockedUserIds = self?.blockedUserIds ?? []
-                    print("🚫 Fetched \(ids.count) blocked users")
-                case .failure(let error):
-                    print("⚠️ Failed to fetch blocked blocked users: \(error)")
-                }
-            }
-        }
-    }
+
     
     func blockUser(userId: String, completion: @escaping (Bool) -> Void) {
         APIService.shared.blockUser(targetUserId: userId) { [weak self] result in

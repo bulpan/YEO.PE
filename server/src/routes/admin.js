@@ -1,0 +1,209 @@
+const express = require('express');
+const router = express.Router();
+const { authenticateAdmin } = require('../middleware/adminAuth');
+const { generateAdminToken } = require('../config/auth');
+const { AuthenticationError } = require('../utils/errors');
+const { pool } = require('../config/database');
+const fs = require('fs');
+const path = require('path');
+
+// --- Auth ---
+
+/**
+ * Admin Login
+ * POST /api/admin/login
+ */
+router.post('/login', (req, res, next) => {
+    try {
+        const { password } = req.body;
+        const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin1234';
+
+        if (password !== ADMIN_PASSWORD) {
+            throw new AuthenticationError('비밀번호가 일치하지 않습니다.');
+        }
+
+        const token = generateAdminToken();
+        res.json({ token });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// --- Protected Routes ---
+router.use(authenticateAdmin);
+
+/**
+ * Dashboard Stats
+ * GET /api/admin/stats
+ */
+router.get('/stats', async (req, res, next) => {
+    try {
+        const io = req.app.get('io');
+
+        // 1. Active Users (Socket)
+        const activeUsers = io.engine.clientsCount;
+
+        // 2. Room Counts (DB)
+        const roomCountQuery = await pool.query('SELECT COUNT(*) FROM yeope_schema.rooms');
+        const totalRooms = parseInt(roomCountQuery.rows[0].count);
+
+        // 3. User Counts (DB)
+        const userCountQuery = await pool.query('SELECT COUNT(*) FROM yeope_schema.users');
+        const totalUsers = parseInt(userCountQuery.rows[0].count);
+
+        // 4. Message Counts (Last 24h)
+        const messageCountQuery = await pool.query(`
+      SELECT COUNT(*) FROM yeope_schema.messages 
+      WHERE created_at > NOW() - INTERVAL '24 hours'
+    `);
+        const messages24h = parseInt(messageCountQuery.rows[0].count);
+
+        res.json({
+            activeUsers,
+            totalRooms,
+            totalUsers,
+            messages24h
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * Room List
+ * GET /api/admin/rooms
+ */
+router.get('/rooms', async (req, res, next) => {
+    try {
+        const result = await pool.query(`
+      SELECT 
+        r.id, r.room_id, r.name, r.member_count, r.created_at, r.expires_at,
+        u.nickname as creator_nickname
+      FROM yeope_schema.rooms r
+      LEFT JOIN yeope_schema.users u ON r.creator_id = u.id
+      ORDER BY r.created_at DESC
+      LIMIT 100
+    `);
+        res.json(result.rows);
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * Room Detail
+ * GET /api/admin/rooms/:id
+ */
+router.get('/rooms/:id', async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        // Room Info
+        const roomQuery = await pool.query(`
+      SELECT r.*, u.nickname as creator_nickname
+      FROM yeope_schema.rooms r
+      LEFT JOIN yeope_schema.users u ON r.creator_id = u.id
+      WHERE r.id = $1 OR r.room_id = $1
+    `, [id]);
+
+        if (roomQuery.rows.length === 0) {
+            return res.status(404).json({ error: 'Room not found' });
+        }
+
+        const room = roomQuery.rows[0];
+
+        // Messages (Last 50)
+        const messagesQuery = await pool.query(`
+      SELECT m.*, u.nickname
+      FROM yeope_schema.messages m
+      LEFT JOIN yeope_schema.users u ON m.user_id = u.id
+      WHERE m.room_id = $1
+      ORDER BY m.created_at DESC
+      LIMIT 50
+    `, [room.id]);
+
+        res.json({
+            room,
+            messages: messagesQuery.rows
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * Delete Room
+ * DELETE /api/admin/rooms/:id
+ */
+router.delete('/rooms/:id', async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        // UUID verification logic might be needed if id is room_id string
+        const result = await pool.query('DELETE FROM yeope_schema.rooms WHERE id = $1 OR room_id = $1 RETURNING id', [id]);
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Room not found' });
+        }
+
+        // Force disconnect socket room (optional, but good for immediate effect)
+        const io = req.app.get('io');
+        const roomId = result.rows[0].id; // This is the internal UUID
+        io.to(roomId).emit('room_deleted', { message: 'Admin deleted this room' });
+
+        res.json({ success: true, deletedId: roomId });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * User List
+ * GET /api/admin/users
+ */
+router.get('/users', async (req, res, next) => {
+    try {
+        const result = await pool.query(`
+      SELECT id, email, nickname, nickname_mask, created_at, last_login_at, is_active
+      FROM yeope_schema.users
+      ORDER BY created_at DESC
+      LIMIT 50
+    `);
+        res.json(result.rows);
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * Server Logs (Tail)
+ * GET /api/admin/logs
+ */
+router.get('/logs', (req, res, next) => {
+    try {
+        // Assuming logs are in logs/combined.log or similar from Winston
+        // Adjust path based on where logger saves files
+        const logDir = path.join(__dirname, '../../logs');
+        const logFile = path.join(logDir, 'combined.log'); // or error.log
+
+        if (!fs.existsSync(logFile)) {
+            return res.json({ logs: [] });
+        }
+
+        // Read last 10KB or so
+        const stats = fs.statSync(logFile);
+        const size = stats.size;
+        const start = Math.max(0, size - 20000); // Last 20KB
+
+        const stream = fs.createReadStream(logFile, { start, encoding: 'utf8' });
+        let data = '';
+        stream.on('data', chunk => data += chunk);
+        stream.on('end', () => {
+            const lines = data.split('\n').filter(Boolean).reverse();
+            res.json({ logs: lines });
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+module.exports = router;

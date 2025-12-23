@@ -105,6 +105,7 @@ const getUsersByUIDs = async (uidList) => {
        u.id as user_id,
        u.nickname,
        u.nickname_mask,
+       u.profile_image_url,
        bu.expires_at as uid_expires_at,
        bu.is_active as is_ble_active
      FROM yeope_schema.ble_uids bu
@@ -121,7 +122,9 @@ const getUsersByUIDs = async (uidList) => {
         return {
             uid: user.uid,
             id: user.user_id,
+            nickname: user.nickname,
             nicknameMask: user.nickname_mask,
+            profileImageUrl: user.profile_image_url,
             distance: uidInfo ? calculateDistance(uidInfo.rssi) : null,
             rssi: uidInfo ? uidInfo.rssi : null,
             isBleActive: user.is_ble_active
