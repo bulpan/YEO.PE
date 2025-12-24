@@ -16,9 +16,18 @@ const { pool, query } = require('./config/database'); // PostgreSQL 연결
 const fs = require('fs');
 const path = require('path');
 
-// [Migration] Run Block Nickname Migration on Startup
+// [Migration] Run Blocked Users & Nickname Migrations on Startup
 const runMigration = async () => {
   try {
+    // 1. Ensure Table Exists
+    const ensureTableSqlPath = path.join(__dirname, '../database/migration_ensure_blocked_users.sql');
+    if (fs.existsSync(ensureTableSqlPath)) {
+      const sql = fs.readFileSync(ensureTableSqlPath, 'utf8');
+      await query(sql);
+      logger.info('✅ Migration (Ensure Blocked Users Table) executed successfully.');
+    }
+
+    // 2. Add Nickname Column (Idempotent)
     const sqlPath = path.join(__dirname, '../database/migration_block_nickname.sql');
     if (fs.existsSync(sqlPath)) {
       const sql = fs.readFileSync(sqlPath, 'utf8');
@@ -26,7 +35,7 @@ const runMigration = async () => {
       logger.info('✅ Migration (Block Nickname) executed successfully.');
     }
   } catch (error) {
-    logger.warn('⚠️ Migration failed or already exists:', error.message);
+    logger.warn('⚠️ Migration failed:', error.message);
   }
 };
 runMigration();

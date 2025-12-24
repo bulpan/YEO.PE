@@ -1,4 +1,4 @@
--- Fix blocked_users table schema
+-- Ensure blocked_users table exists
 CREATE TABLE IF NOT EXISTS yeope_schema.blocked_users (
     id SERIAL PRIMARY KEY,
     blocker_id UUID NOT NULL REFERENCES yeope_schema.users(id) ON DELETE CASCADE,
