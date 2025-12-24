@@ -64,20 +64,27 @@ class APIService {
             
             print("✅ Response Status: \(httpResponse.statusCode)")
             
-            // Filter: Only show toast for non-200 codes
-            if httpResponse.statusCode != 200 {
-                if let str = String(data: data ?? Data(), encoding: .utf8) {
-                     let displayStr = str.count > 100 ? String(str.prefix(100)) + "..." : str
-                     DispatchQueue.main.async { self.debugMessageSubject.send("⚠️ [\(httpResponse.statusCode)] \(displayStr)") }
-                } else {
-                     DispatchQueue.main.async { self.debugMessageSubject.send("⚠️ Status: \(httpResponse.statusCode)") }
+            // Handle non-200 responses systematically
+            if !(200...299).contains(httpResponse.statusCode) {
+                var errorMessage = "Server Error: \(httpResponse.statusCode)"
+                
+                // Try to parse error message from body
+                if let data = data, let errorResponse = try? JSONDecoder().decode(StandardResponse.self, from: data), let msg = errorResponse.message {
+                    errorMessage = msg
+                } else if let data = data, let str = String(data: data, encoding: .utf8) {
+                    // Fallback to string body if short
+                    if str.count < 200 { errorMessage = str }
                 }
-            }
-
-            if httpResponse.statusCode == 401 {
-                // Handle token expiration
-                // Already sent above via general non-200 check
-                completion(.failure(APIError.unauthorized))
+                
+                DispatchQueue.main.async { self.debugMessageSubject.send("⚠️ API Error: \(errorMessage)") }
+                print("❌ API Error [\(httpResponse.statusCode)]: \(errorMessage)")
+                
+                // Map status codes to specific errors if needed
+                if httpResponse.statusCode == 401 {
+                    completion(.failure(APIError.unauthorized))
+                } else {
+                    completion(.failure(APIError.serverError(errorMessage)))
+                }
                 return
             }
             
@@ -95,11 +102,13 @@ class APIService {
                 let decoded = try JSONDecoder().decode(T.self, from: data)
                 completion(.success(decoded))
             } catch {
-                if httpResponse.statusCode == 200 {
-                   // If decoding fails on 200, THIS is an error worth showing
-                   DispatchQueue.main.async { self.debugMessageSubject.send("❌ Decoding Error") }
+                print("❌ Decoding Error for \(T.self): \(error)")
+                // Helpful debug print for decoding errors
+                if let str = String(data: data, encoding: .utf8) {
+                    print("⬇️ Received JSON: \(str)")
                 }
-                print("❌ Decoding Error: \(error)")
+                
+                DispatchQueue.main.async { self.debugMessageSubject.send("❌ Decoding Error") }
                 completion(.failure(APIError.decodingError))
             }
         }.resume()
