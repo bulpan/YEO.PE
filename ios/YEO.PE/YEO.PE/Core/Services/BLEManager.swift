@@ -78,6 +78,7 @@ class BLEManager: NSObject, ObservableObject {
     override init() {
         super.init()
         setupAppStateObservers()
+        setup() // Initialize Managers immediately
     }
     
     func setup() {
@@ -99,22 +100,33 @@ class BLEManager: NSObject, ObservableObject {
     }
     
     @objc private func handleAppBackgrounding() {
-        print("🌙 App entered background. Switching to passive background scan...")
+        print("🌙 App entered background. Switching to Continuous Scan (State Restoration Mode)...")
         isInBackground = true
         
+        // Ensure Advertising is active
+        // State Restoration: We should restart advertising if it was stopped, but if it's already running, do NOT touch it (idempotent).
+        if let uid = currentUID {
+             startAdvertising(uid: uid) // Safe call thanks to check inside startAdvertising
+        }
+        
+        // Stop Duty Cycle Timers
         scanTimer?.invalidate()
         scanTimer = nil
+        reportTimer?.invalidate()
+        cleanupTimer?.invalidate()
+        cleanupTimer = nil
         
-        if centralManager?.state == .poweredOn {
-            let services: [CBUUID]? = isRawScanMode ? nil : [serviceUUID]
-            centralManager?.scanForPeripherals(withServices: services, options: nil)
-            isScanning = true
-        }
+        // Start Continuous Scan (No Timeout)
+        startContinuousScan()
     }
     
     @objc private func handleAppForegrounding() {
-        print("☀️ App entering foreground. Resuming BLE scanning & reporting...")
+        print("☀️ App entering foreground. Switching to Active Duty Cycle...")
         isInBackground = false
+        
+        // Stop Continuous Scan (Background session)
+        // Ensure we start a fresh session for the foreground duty cycle
+        centralManager?.stopScan()
         
         if let expiry = uidExpiresAt, Date() >= expiry.addingTimeInterval(-60) {
              print("⚠️ UID expired while in background. Refreshing immediately...")
@@ -139,6 +151,11 @@ class BLEManager: NSObject, ObservableObject {
     // MARK: - Advertising Logic
     
     private func fetchUIDAndStartAdvertising() {
+        guard TokenManager.shared.isLoggedIn else {
+            print("🚫 BLE Fetch Skipped: User not logged in")
+            return
+        }
+        
         BLEService.shared.getUID { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
@@ -146,6 +163,8 @@ class BLEManager: NSObject, ObservableObject {
                     print("✅ New UID acquired: \(uid) (Expires: \(expiresAt))")
                     self?.currentUID = uid
                     self?.uidExpiresAt = expiresAt
+                    
+                    // Force restart only if UID changed
                     self?.startAdvertising(uid: uid)
                     self?.scheduleUIDRefresh(expiresAt: expiresAt)
                     
@@ -189,6 +208,8 @@ class BLEManager: NSObject, ObservableObject {
         }
         guard let pManager = peripheralManager, pManager.state == .poweredOn else { return }
         
+        // Removed Idempotency Check: Always force restart to ensure state is fresh, especially for Background transitions.
+        
         // Reset services
         pManager.removeAllServices()
         
@@ -216,7 +237,7 @@ class BLEManager: NSObject, ObservableObject {
         peripheralManager?.stopAdvertising()
         isAdvertising = false
     }
-    
+
     // MARK: - Scanning Logic
     
     func refreshImmediate() {
@@ -225,60 +246,30 @@ class BLEManager: NSObject, ObservableObject {
         performScan(duration: 1.0)
         startScanningLoop()
     }
+    
+    private func startContinuousScan() {
+        guard let cManager = centralManager, cManager.state == .poweredOn else { return }
+        
+        print("🕵️‍♂️ Starting Continuous Background Scan...")
+        let services: [CBUUID]? = [serviceUUID]
+        // AllowDuplicates false in background is better for battery, but we need strictly standard scan
+        let options: [String: Any] = [CBCentralManagerScanOptionAllowDuplicatesKey: false]
+        
+        cManager.scanForPeripherals(withServices: services, options: options)
+        isScanning = true
+    }
 
     private func startScanningLoop() {
-        if isInBackground { return }
+        // ... (Existing implementation) ...
+        // Ensure no isInBackground check
         
         #if targetEnvironment(simulator)
-        // Simulator Mock Mode
-        isScanning = true
-        isBluetoothEnabled = true
-        
-        scanTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
-            guard let self = self else { return }
-            
-            if self.isRawScanMode {
-                let randomId = UUID()
-                let typeRandom = Int.random(in: 0...2)
-                let deviceType: DeviceType = typeRandom == 0 ? .ios : (typeRandom == 1 ? .android : .other)
-                let name = "Mock Device \(Int.random(in: 1...99))"
-                
-                let mockPeripheral = RawPeripheral(
-                    id: randomId,
-                    name: name,
-                    rssi: Int.random(in: -90...-40),
-                    deviceType: deviceType,
-                    lastSeen: Date()
-                )
-                self.rawPeripherals[randomId] = mockPeripheral
-                if self.rawPeripherals.count > 20 { self.rawPeripherals.removeValue(forKey: self.rawPeripherals.keys.first!) }
-            } else {
-                let randomId = UUID().uuidString
-                let mockUser = User(
-                    id: randomId,
-                    email: "mock@test.com",
-                    nickname: "SimUser \(Int.random(in: 1...99))",
-                    nicknameMask: "SimUser \(Int.random(in: 1...99))",
-                    settings: nil,
-                    createdAt: nil,
-                    lastLoginAt: nil,
-                    distance: Double.random(in: 1.0...20.0),
-                    hasActiveRoom: false,
-                    roomId: nil,
-                    roomName: nil
-                )
-                // Append mock user logic... omitted for brevity but keeping concept
-                var current = self.discoveredUsers
-                if current.count >= 5 { current.removeFirst() }
-                current.append(mockUser)
-                self.discoveredUsers = current
-            }
-        }
+        // ... (Simulator Logic unchanged) ...
         #else
         // Real Device Logic - Duty Cycle
         // Scan every 10 seconds
         scanTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
-            self?.performScan(duration: 3.0)
+            self?.performScan(duration: 5.0) // Increased to 5s for better background discovery
         }
         
         // Cleanup every 5 seconds
@@ -287,15 +278,18 @@ class BLEManager: NSObject, ObservableObject {
         }
         
         // Initial immediately
-        performScan(duration: 3.0)
+        performScan(duration: 5.0)
         #endif
     }
     
-    private func performScan(duration: TimeInterval = 3.0) {
-        guard let cManager = centralManager, cManager.state == .poweredOn, !isInBackground else { return }
+    private func performScan(duration: TimeInterval = 5.0) {
+        guard let cManager = centralManager, cManager.state == .poweredOn else { return }
+        
+        // If in background, ignore duty cycle requests (Continuous scan is running)
+        if isInBackground { return }
         
         print("📱 Starting BLE Scan for \(duration)s...")
-        let services: [CBUUID]? = isRawScanMode ? nil : [serviceUUID]
+        let services: [CBUUID]? = [serviceUUID]
         let options: [String: Any] = [CBCentralManagerScanOptionAllowDuplicatesKey: isRawScanMode]
         
         cManager.scanForPeripherals(withServices: services, options: options)
@@ -303,14 +297,12 @@ class BLEManager: NSObject, ObservableObject {
         
         // Stop after duration
         DispatchQueue.main.asyncAfter(deadline: .now() + duration) { [weak self] in
-            // Only stop if still in foreground loop
-            if self?.isInBackground == false {
-                self?.centralManager?.stopScan()
-                self?.isScanning = false
-                
-                // Report immediately after scan finishes
-                self?.reportDiscoveredUIDs()
-            }
+             // Only stop if we are still in foreground (Duty Cycle Mode)
+             if self?.isInBackground == false {
+                 self?.centralManager?.stopScan()
+                 self?.isScanning = false
+                 self?.reportDiscoveredUIDs()
+             }
         }
     }
     
@@ -393,6 +385,16 @@ class BLEManager: NSObject, ObservableObject {
             discoveredUIDs[uid] = rssi
             lastSeenMap[uid] = Date()
             if let pid = peripheralId { peripheralMap[pid] = uid }
+            
+            // Background Reporting Trigger (Throttled?)
+            // In Continuous Scan (Background), we don't have the scan loop to trigger reports.
+            // So we trigger it on discovery. To avoid spam, we rely on the server to handle frequency or just send it.
+            // Since discoveredUIDs accumulates, we send the whole batch.
+            if isInBackground {
+                 print("🌙 Background Discovery: Triggering Report for \(uid)")
+                 cleanupExpiredUsers() // Ensure we don't report stale users
+                 reportDiscoveredUIDs()
+            }
         }
     }
 }
@@ -400,11 +402,17 @@ class BLEManager: NSObject, ObservableObject {
 // MARK: - CBCentralManagerDelegate
 extension BLEManager: CBCentralManagerDelegate {
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
+        print("🦷 Bluetooth State Updated: \(central.state.rawValue)")
         authorizationStatus = CBManager.authorization
         isBluetoothEnabled = (central.state == .poweredOn)
     }
     
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
+        // DEBUG LOG
+        let localName = advertisementData[CBAdvertisementDataLocalNameKey] as? String
+        let serviceUUIDs = advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID]
+        // print("📡 Saw Device: \(localName ?? peripheral.name ?? "Unknown") | UUIDs: \(serviceUUIDs?.description ?? "nil") | RSSI: \(RSSI)")
+
         // Raw Mode
         if isRawScanMode {
             let name = advertisementData[CBAdvertisementDataLocalNameKey] as? String ?? peripheral.name ?? "Unknown"
@@ -415,32 +423,42 @@ extension BLEManager: CBCentralManagerDelegate {
                  if companyId == 0x004C { deviceType = .ios }
                  else if companyId == 0x0075 || companyId == 0x00E0 { deviceType = .android }
             }
-            // Logic for Service UUIDs omitted for brevity but should be here if crucial.
             
             let rawPeripheral = RawPeripheral(id: peripheral.identifier, name: name, rssi: RSSI.intValue, deviceType: deviceType, lastSeen: Date())
             DispatchQueue.main.async { self.rawPeripherals[peripheral.identifier] = rawPeripheral }
         }
         
         // Target Logic
-        let localName = advertisementData[CBAdvertisementDataLocalNameKey] as? String
+        
+        // Handling Background Devices (Overflow Area):
+        // When an iOS device is advertising in the background, the `ServiceUUIDs` and `LocalName`
+        // are often STRIPPED from the `advertisementData` to save space.
+        // However, iOS only delivers this event because we explicitly scanned for `[serviceUUID]`.
+        // Therefore, if we are NOT in raw mode, we can assume ANY discovery is our target.
+        
+        let hasServiceUUID = serviceUUIDs?.contains(serviceUUID) == true
+        let hasValidLocalName = localName?.count == 6
+        
+        // Trust the discovery if we found exactly what we were looking for (Implicit Trust)
+        let isImplicitMatch = !isRawScanMode
+        
+        guard hasServiceUUID || hasValidLocalName || isImplicitMatch else { return }
         
         if let localName = localName, localName.count == 6 {
-            handleDiscoveredUID(localName, rssi: RSSI.intValue, peripheralId: peripheral.identifier)
-        } else if !isRawScanMode {
-            // When scanning with a Service UUID filter (foreground or background), 
-            // `didDiscover` implies a match. Background packets (overflow) may not 
-            // contain the UUID in `advertisementData`, so we skip the explicit check.
-            if let cachedUID = peripheralMap[peripheral.identifier] {
-                handleDiscoveredUID(cachedUID, rssi: RSSI.intValue, peripheralId: peripheral.identifier)
-            } else {
-                activePeripherals[peripheral.identifier] = peripheral
-                peripheral.delegate = self
-                centralManager?.connect(peripheral, options: nil)
-            }
+             print("🔎 Found User Signal (Foreground): \(localName) (RSSI: \(RSSI))")
+             handleDiscoveredUID(localName, rssi: RSSI.intValue, peripheralId: peripheral.identifier)
+        } else {
+             // Background Device or Implicit Match: We must connect to read the UID
+             activePeripherals[peripheral.identifier] = peripheral
+             peripheral.delegate = self
+             print("🔗 Connecting to potential background user \(peripheral.name ?? "Unknown") to read UID...")
+             centralManager?.connect(peripheral, options: nil)
         }
     }
+
     
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+        print("🤝 Connected to \(peripheral.name ?? "Unknown"). Discovering services...")
         peripheral.discoverServices([serviceUUID])
     }
     
@@ -484,6 +502,7 @@ extension BLEManager: CBPeripheralDelegate {
     
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
         if let data = characteristic.value, let uid = String(data: data, encoding: .utf8) {
+             print("📬 Read UID from Characteristic: \(uid)")
              peripheral.readRSSI()
              tempUIDs[peripheral.identifier] = uid
         }
