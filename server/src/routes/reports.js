@@ -10,11 +10,12 @@ const initTable = async () => {
     try {
         await query(`
             CREATE TABLE IF NOT EXISTS yeope_schema.reports (
-                id SERIAL PRIMARY KEY,
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 reporter_id UUID NOT NULL REFERENCES yeope_schema.users(id),
-                target_id UUID NOT NULL REFERENCES yeope_schema.users(id),
+                reported_id UUID NOT NULL REFERENCES yeope_schema.users(id),
                 reason TEXT NOT NULL,
                 details TEXT,
+                status VARCHAR(50) DEFAULT 'pending',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
@@ -47,7 +48,7 @@ router.post('/', authenticate, async (req, res, next) => {
         }
 
         await query(
-            `INSERT INTO yeope_schema.reports (reporter_id, target_id, reason, details)
+            `INSERT INTO yeope_schema.reports (reporter_id, reported_id, reason, details)
              VALUES ($1, $2, $3, $4)`,
             [reporterId, targetUserId, reason, details || '']
         );

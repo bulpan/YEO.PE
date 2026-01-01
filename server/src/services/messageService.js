@@ -67,6 +67,14 @@ const createMessage = async (userId, roomId, type, content, imageUrl = null) => 
     [room.id, userId, type, content, imageUrl, expiresAt]
   );
 
+  // [Fix] Self-Message Unread Bug: Update Sender's last_seen_at immediately
+  await query(
+    `UPDATE yeope_schema.room_members 
+     SET last_seen_at = NOW() 
+     WHERE room_id = $1 AND user_id = $2`,
+    [room.id, userId]
+  );
+
   const message = result.rows[0];
 
   // 사용자 정보 조회

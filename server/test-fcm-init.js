@@ -12,6 +12,27 @@ try {
     });
 
     console.log('Firebase Admin SDK initialized successfully.');
+
+    // Try a dry-run send to verify Authentication with Google
+    const message = {
+        tokens: ['fake-token'],
+        data: { test: 'value' }
+    };
+
+    console.log('Attempting dry-run send to verify credentials...');
+    admin.messaging().sendEachForMulticast(message, true)
+        .then(response => {
+            console.log('✅ Auth connection successful!');
+            console.log('Success Count:', response.successCount);
+            console.log('Failure Count:', response.failureCount);
+            if (response.failureCount > 0) {
+                console.log('Sample Error (expected for fake token):', response.responses[0].error.code);
+            }
+        })
+        .catch(error => {
+            console.error('❌ FATAL AUTH ERROR:', error);
+        });
+
 } catch (error) {
     console.error('Error initializing Firebase:', error);
 }

@@ -26,20 +26,20 @@ struct OnboardingView: View {
             TabView(selection: $currentPage) {
                 OnboardingPage(
                     systemImage: "dot.radiowaves.left.and.right",
-                    title: "onboarding_1_title".localized, // "Discover Nearby"
-                    description: "onboarding_1_desc".localized // "Find people within 30m using Bluetooth."
+                    title: "onboarding_1_title_v2".localized,
+                    description: "onboarding_1_desc_v2".localized
                 ).tag(0)
                 
                 OnboardingPage(
                     systemImage: "theatermasks.fill",
-                    title: "onboarding_2_title".localized, // "Anonymous Chat"
-                    description: "onboarding_2_desc".localized // "Chat securely without revealing your identity."
+                    title: "onboarding_2_title_v2".localized,
+                    description: "onboarding_2_desc_v2".localized
                 ).tag(1)
                 
                 OnboardingPage(
                     systemImage: "clock.arrow.circlepath",
-                    title: "onboarding_3_title".localized, // "Ephemeral"
-                    description: "onboarding_3_desc".localized // "Messages disappear automatically."
+                    title: "onboarding_3_title_v2".localized,
+                    description: "onboarding_3_desc_v2".localized
                 ).tag(2)
             }
             .tabViewStyle(PageTabViewStyle(indexDisplayMode: .always))
@@ -89,17 +89,19 @@ struct OnboardingPage: View {
                 .foregroundColor(.neonGreen)
                 .shadow(color: .neonGreen.opacity(0.5), radius: 20, x: 0, y: 0)
             
-            VStack(spacing: 15) {
+            VStack(spacing: 20) {
                 Text(title)
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
+                    .font(.system(size: 28, weight: .bold)) // Larger Title
+                    .multilineTextAlignment(.center)
                     .foregroundColor(.white)
+                    .padding(.horizontal)
                 
                 Text(description)
-                    .font(.body)
+                    .font(.system(size: 17)) // Larger Body
                     .multilineTextAlignment(.center)
-                    .foregroundColor(.gray)
-                    .padding(.horizontal, 30)
+                    .lineSpacing(4) // Better readability
+                    .foregroundColor(Color.gray.opacity(0.9))
+                    .padding(.horizontal, 40)
             }
         }
         .padding(.bottom, 100)

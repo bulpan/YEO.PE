@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,15 +8,22 @@
     <style>
         /* YEO.PE의 아이덴티티: 다크 & 네온 라임 (BLE 신호 느낌) */
         :root {
-            --bg-color: #050505; /* 더 깊은 어둠 */
+            --bg-color: #050505;
+            /* 더 깊은 어둠 */
             --text-color: #f0f0f0;
-            --accent-color: #39ff14; /* 강렬한 네온 라임 (블루투스 신호) */
-            --sub-accent: #7000ff; /* 신비로운 보라 (익명성) */
+            --accent-color: #39ff14;
+            /* 강렬한 네온 라임 (블루투스 신호) */
+            --sub-accent: #7000ff;
+            /* 신비로운 보라 (익명성) */
             --gray: #2a2a2a;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
             background-color: var(--bg-color);
             color: var(--text-color);
@@ -25,9 +33,21 @@
         }
 
         /* 유틸리티 */
-        .container { max-width: 1100px; margin: 0 auto; padding: 0 20px; }
-        .highlight { color: var(--accent-color); }
-        .stroke { -webkit-text-stroke: 1px #fff; color: transparent; }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .highlight {
+            color: var(--accent-color);
+        }
+
+        .stroke {
+            -webkit-text-stroke: 1px #fff;
+            color: transparent;
+        }
+
         .gradient-text {
             background: linear-gradient(90deg, var(--accent-color), #fff);
             -webkit-background-clip: text;
@@ -40,36 +60,42 @@
             justify-content: space-between;
             align-items: center;
             padding: 25px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
-        .logo { 
-            font-size: 1.8rem; 
-            font-weight: 900; 
-            letter-spacing: -1px; 
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 900;
+            letter-spacing: -1px;
             font-style: italic;
         }
+
         .btn-cta {
             background: #fff;
             color: #000;
             padding: 12px 28px;
-            border-radius: 4px; /* 둥근 것보다 각진 게 더 힙함 */
+            border-radius: 4px;
+            /* 둥근 것보다 각진 게 더 힙함 */
             font-weight: 800;
             text-decoration: none;
             transition: 0.3s;
             text-transform: uppercase;
             font-size: 0.9rem;
         }
-        .btn-cta:hover { 
-            background: var(--accent-color); 
+
+        .btn-cta:hover {
+            background: var(--accent-color);
             box-shadow: 0 0 20px var(--accent-color);
         }
 
         /* 히어로 섹션 */
         .hero {
             padding: 140px 0 100px;
-            text-align: left; /* 왼쪽 정렬로 시크하게 */
+            text-align: left;
+            /* 왼쪽 정렬로 시크하게 */
             position: relative;
         }
+
         .hero h1 {
             font-size: 5.5rem;
             line-height: 0.85;
@@ -78,6 +104,7 @@
             letter-spacing: -3px;
             text-transform: uppercase;
         }
+
         .hero p {
             font-size: 1.4rem;
             color: #888;
@@ -85,12 +112,14 @@
             font-weight: 400;
             max-width: 500px;
         }
-        
+
         /* 레이더 애니메이션 효과 (배경 장식) */
         .radar {
             position: absolute;
-            top: 50%; left: 70%;
-            width: 400px; height: 400px;
+            top: 50%;
+            left: 70%;
+            width: 400px;
+            height: 400px;
             border: 2px solid var(--accent-color);
             border-radius: 50%;
             opacity: 0.2;
@@ -98,16 +127,29 @@
             animation: pulse 2s infinite;
             z-index: -1;
         }
+
         .radar::before {
-            content:''; position: absolute; top:50%; left:50%;
-            width: 70%; height: 70%;
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 70%;
+            height: 70%;
             border: 2px solid var(--accent-color);
             border-radius: 50%;
             transform: translate(-50%, -50%);
         }
+
         @keyframes pulse {
-            0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.5; }
-            100% { transform: translate(-50%, -50%) scale(1.2); opacity: 0; }
+            0% {
+                transform: translate(-50%, -50%) scale(0.8);
+                opacity: 0.5;
+            }
+
+            100% {
+                transform: translate(-50%, -50%) scale(1.2);
+                opacity: 0;
+            }
         }
 
         /* 흐르는 텍스트 (Marquee) */
@@ -117,30 +159,42 @@
             padding: 15px 0;
             overflow: hidden;
             white-space: nowrap;
-            transform: rotate(2deg); /* 살짝 삐딱하게 */
+            transform: rotate(2deg);
+            /* 살짝 삐딱하게 */
             margin: 60px 0;
             border-top: 2px solid var(--accent-color);
             border-bottom: 2px solid var(--accent-color);
         }
+
         .marquee-text {
             font-size: 1.8rem;
             font-weight: 900;
             display: inline-block;
             animation: marquee 15s linear infinite;
         }
+
         @keyframes marquee {
-            0% { transform: translateX(0); }
-            100% { transform: translateX(-50%); }
+            0% {
+                transform: translateX(0);
+            }
+
+            100% {
+                transform: translateX(-50%);
+            }
         }
 
         /* 벤토 그리드 (기능 소개) */
-        .features { padding: 80px 0; }
+        .features {
+            padding: 80px 0;
+        }
+
         .grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             grid-template-rows: repeat(2, 280px);
             gap: 15px;
         }
+
         .card {
             background: #111;
             border: 1px solid #333;
@@ -152,21 +206,25 @@
             position: relative;
             overflow: hidden;
         }
-        .card:hover { 
-            border-color: var(--accent-color); 
+
+        .card:hover {
+            border-color: var(--accent-color);
             background: #161616;
         }
-        .card h3 { 
-            font-size: 1.6rem; 
-            font-weight: 800; 
-            margin-bottom: 10px; 
+
+        .card h3 {
+            font-size: 1.6rem;
+            font-weight: 800;
+            margin-bottom: 10px;
             color: #fff;
         }
-        .card p { 
-            color: #999; 
-            font-size: 1rem; 
+
+        .card p {
+            color: #999;
+            font-size: 1rem;
             line-height: 1.5;
         }
+
         .tag {
             display: inline-block;
             background: var(--gray);
@@ -178,23 +236,257 @@
         }
 
         /* 그리드 배치 (비대칭) */
-        .card.col-2 { grid-column: span 2; }
-        .card.row-2 { grid-row: span 2; background: linear-gradient(180deg, #111, #1a052e); }
-        .card.accent { background: var(--accent-color); color: #000; border: none; }
-        .card.accent h3, .card.accent p { color: #000; }
-        .card.accent p { opacity: 0.8; }
+        .card.col-2 {
+            grid-column: span 2;
+        }
+
+        .card.row-2 {
+            grid-row: span 2;
+            background: linear-gradient(180deg, #111, #1a052e);
+        }
+
+        .card.accent {
+            background: var(--accent-color);
+            color: #000;
+            border: none;
+        }
+
+        .card.accent h3,
+        .card.accent p {
+            color: #000;
+        }
+
+        .card.accent p {
+            opacity: 0.8;
+        }
 
         /* 모바일 */
         @media (max-width: 768px) {
-            .hero h1 { font-size: 3.5rem; }
-            .hero p { font-size: 1.1rem; }
-            .grid { grid-template-columns: 1fr; grid-template-rows: auto; }
-            .card.col-2, .card.row-2 { grid-column: span 1; grid-row: span 1; min-height: 220px; }
-            .radar { left: 50%; width: 300px; height: 300px; }
+            .hero h1 {
+                font-size: 3.5rem;
+            }
+
+            .hero p {
+                font-size: 1.1rem;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto;
+            }
+
+            .card.col-2,
+            .card.row-2 {
+                grid-column: span 1;
+                grid-row: span 1;
+                min-height: 220px;
+            }
+
+            .radar {
+                left: 50%;
+                width: 300px;
+                height: 300px;
+            }
+        }
+
+        /* 앱 아이콘 프로토타입 스타일 */
+        .icon-section {
+            padding: 40px 0;
+            background: #111;
+            border-bottom: 1px solid #333;
+            text-align: center;
+        }
+
+        .icon-container {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .app-icon {
+            width: 180px;
+            height: 180px;
+            background: #000;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+            /* 테두리는 디자인 확인용 (실제 아이콘엔 없음) */
+            outline: 1px solid #333;
+        }
+
+        .icon-label {
+            margin-top: 10px;
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        /* 공통 폰트 스타일 */
+        .yeope-font {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-style: italic;
+            font-weight: 900;
+            line-height: 0.8;
+            letter-spacing: -2px;
+        }
+
+        /* Variation 1: Standard Balanced */
+        .v1 .layout {
+            display: flex;
+            align-items: stretch;
+            height: 80%;
+            width: 80%;
+        }
+
+        .v1 .big-y {
+            font-size: 160px;
+            line-height: 1;
+            margin-right: -5px;
+            transform: translateX(-10px) scaleY(1.1);
+            /* Y를 길게 */
+        }
+
+        .v1 .right-stack {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .v1 .eo,
+        .v1 .pe {
+            font-size: 42px;
+            line-height: 0.9;
+        }
+
+        /* Variation 2: Tighter & Bigger Y */
+        .v2 .layout {
+            display: flex;
+            height: 100%;
+            width: 100%;
+            align-items: flex-end;
+            /* 바닥 정렬 */
+            padding-bottom: 25px;
+            /* 바닥 여백 */
+            padding-left: 10px;
+        }
+
+        .v2 .big-y {
+            font-size: 200px;
+            /* 더 크게 */
+            line-height: 0.7;
+            /* 더 타이트하게 */
+            transform: skew(-10deg) translateX(-15px);
+            /* 기울기 더 강조 */
+            margin-bottom: 0px;
+
+            /* Gradient Effect */
+            background: linear-gradient(to bottom, #ffffff 30%, #bbbbbb 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .v2 .right-stack {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            margin-left: -60px;
+            /* 훨씬 더 왼쪽으로 (40 -> 60) */
+            padding-bottom: 0px;
+            transform: translateY(8px);
+            /* 인위적으로 더 내림 */
+        }
+
+        .v2 .eo,
+        .v2 .pe {
+            font-size: 50px;
+            line-height: 0.85;
+            transform: skew(-5deg);
+        }
+
+        /* Variation 3: Extreme Crop / Abstract */
+        .v3 .layout {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .v3 .big-y {
+            position: absolute;
+            left: -20px;
+            bottom: -30px;
+            font-size: 240px;
+            line-height: 1;
+            transform: rotate(-5deg);
+        }
+
+        .v3 .right-stack {
+            position: absolute;
+            right: 15px;
+            top: 40px;
+            text-align: right;
+        }
+
+        .v3 .eo,
+        .v3 .pe {
+            font-size: 38px;
+            display: block;
         }
     </style>
 </head>
+
 <body>
+
+    <!-- 아이콘 프로토타입 섹션 (테스트용) -->
+    <div class="icon-section">
+        <h2 style="color:#fff; margin-bottom:10px;">App Icon Prototypes</h2>
+        <p style="color:#666;">Black Background • Heavy Italic • Big 'Y' Layout</p>
+
+        <div class="icon-container">
+            <div>
+                <div class="app-icon v1">
+                    <div class="layout yeope-font">
+                        <div class="big-y">Y</div>
+                        <div class="right-stack">
+                            <div class="eo">EO</div>
+                            <div class="pe">.PE</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="icon-label">Option 1: Balanced</div>
+            </div>
+
+            <div>
+                <div class="app-icon v2">
+                    <div class="layout yeope-font">
+                        <div class="big-y">Y</div>
+                        <div class="right-stack">
+                            <div class="eo">EO</div>
+                            <div class="pe">.PE</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="icon-label">Option 2: Aggressive & Tilted (Best?)</div>
+            </div>
+
+            <div>
+                <div class="app-icon v3">
+                    <div class="layout yeope-font">
+                        <div class="big-y">Y</div>
+                        <div class="right-stack">
+                            <div class="eo">EO</div>
+                            <div class="pe">.PE</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="icon-label">Option 3: Abstract Crop</div>
+            </div>
+        </div>
+    </div>
 
     <div class="container">
         <header>
@@ -212,7 +504,7 @@
             <p>
                 지도 위의 친구는 가짜야.<br>
                 지금 당신의 반경 30m, 진짜 사람들과 연결되세요.<br>
-            <strong style="color:#fff">블루투스 기반 근거리 소셜 네트워크, .. 여페? ~옆에^^</strong>
+                <strong style="color:#fff">블루투스 기반 근거리 소셜 네트워크, .. 여페? ~옆에^^</strong>
             </p>
             <div style="margin-top: 40px;">
                 <a href="#" class="btn-cta" style="padding: 16px 40px; font-size: 1rem;">주변 탐색 시작 📡</a>
@@ -223,8 +515,8 @@
 
     <div class="marquee-wrap">
         <div class="marquee-text">
-             BLE ONLY • NO LOCATION DATA • GHOST CHAT • SUBWAY • FESTIVAL • CAFE • ANONYMOUS • 
-             BLE ONLY • NO LOCATION DATA • GHOST CHAT • SUBWAY • FESTIVAL • CAFE • ANONYMOUS • 
+            BLE ONLY • NO LOCATION DATA • GHOST CHAT • SUBWAY • FESTIVAL • CAFE • ANONYMOUS •
+            BLE ONLY • NO LOCATION DATA • GHOST CHAT • SUBWAY • FESTIVAL • CAFE • ANONYMOUS •
         </div>
     </div>
 
@@ -272,10 +564,12 @@
         <div class="logo" style="font-size: 1.2rem; margin-bottom: 10px; opacity: 0.5;">YEO.PE</div>
         <p style="font-size: 0.9rem;">The real connection is offline based.</p>
         <p style="margin-top: 20px; font-size: 0.85rem;">
-            <a href="mailto:yeope2025@gmail.com" style="color: #666; text-decoration: none; transition: 0.3s;" onmouseover="this.style.color='#39ff14'" onmouseout="this.style.color='#666'">yeope2025@gmail.com</a>
+            <a href="mailto:yeope2025@gmail.com" style="color: #666; text-decoration: none; transition: 0.3s;"
+                onmouseover="this.style.color='#39ff14'" onmouseout="this.style.color='#666'">yeope2025@gmail.com</a>
         </p>
         <p style="margin-top: 15px; font-size: 0.8rem;">© 2025 YEO.PE Team.</p>
     </footer>
 
 </body>
+
 </html>

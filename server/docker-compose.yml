@@ -5,6 +5,7 @@ services:
     build: .
     container_name: yeope-app
     restart: always
+    init: true
     ports:
       - "3000:3000"
     environment:
@@ -12,17 +13,22 @@ services:
       - PORT=3000
       - DB_HOST=postgres
       - DB_PORT=5432
-      - REDIS_HOST=redis
+      - REDIS_HOST=yeope-redis
       - REDIS_PORT=6379
       - DB_USER=yeope_user
       - DB_NAME=yeope
       - DB_PASSWORD=yeope_password_2024
-      # Add other necessary env vars or load from .env file
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
     depends_on:
       - postgres
       - redis
+    command: node --watch src/index.js
     volumes:
       - ./uploads:/usr/src/app/public/uploads
+      - ./src:/usr/src/app/src
+      - ./public:/usr/src/app/public
+
+      - ./logs:/usr/src/app/logs
     networks:
       - yeope-network
 

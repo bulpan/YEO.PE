@@ -98,13 +98,21 @@ router.get('/rooms/:id', async (req, res, next) => {
     try {
         const { id } = req.params;
 
-        // Room Info
-        const roomQuery = await pool.query(`
+        // Check if input is a valid UUID
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+        let queryText = `
       SELECT r.*, u.nickname as creator_nickname
       FROM yeope_schema.rooms r
       LEFT JOIN yeope_schema.users u ON r.creator_id = u.id
-      WHERE r.id = $1 OR r.room_id = $1
-    `, [id]);
+      WHERE r.room_id = $1::text
+    `;
+
+        if (isUUID) {
+            queryText += ` OR r.id = $1::uuid`;
+        }
+
+        const roomQuery = await pool.query(queryText, [id]);
 
         if (roomQuery.rows.length === 0) {
             return res.status(404).json({ error: 'Room not found' });
@@ -157,6 +165,54 @@ router.delete('/rooms/:id', async (req, res, next) => {
 });
 
 /**
+ * Report List
+ * GET /api/admin/reports
+ */
+router.get('/reports', async (req, res, next) => {
+    try {
+        const result = await pool.query(`
+      SELECT r.*, u.nickname as reporter_nickname, t.nickname as reported_nickname
+      FROM yeope_schema.reports r
+      LEFT JOIN yeope_schema.users u ON r.reporter_id = u.id
+      LEFT JOIN yeope_schema.users t ON r.reported_id = t.id
+      ORDER BY r.created_at DESC
+      LIMIT 100
+    `);
+        res.json(result.rows);
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * Ban User
+ * POST /api/admin/users/:id/ban
+ */
+router.post('/users/:id/ban', async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        await pool.query('UPDATE yeope_schema.users SET is_active = false WHERE id = $1', [id]);
+        res.json({ success: true, message: 'User banned' });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * Unban User
+ * POST /api/admin/users/:id/unblock
+ */
+router.post('/users/:id/unblock', async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        await pool.query('UPDATE yeope_schema.users SET is_active = true WHERE id = $1', [id]);
+        res.json({ success: true, message: 'User unbanned' });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
  * User List
  * GET /api/admin/users
  */
@@ -185,6 +241,9 @@ router.get('/logs', (req, res, next) => {
         const logDir = path.join(__dirname, '../../logs');
         const logFile = path.join(logDir, 'combined.log'); // or error.log
 
+        console.log(`[Debug] Log Path Check: ${logFile}, Exists: ${fs.existsSync(logFile)}`);
+
+
         if (!fs.existsSync(logFile)) {
             return res.json({ logs: [] });
         }
@@ -198,8 +257,32 @@ router.get('/logs', (req, res, next) => {
         let data = '';
         stream.on('data', chunk => data += chunk);
         stream.on('end', () => {
-            const lines = data.split('\n').filter(Boolean).reverse();
-            res.json({ logs: lines });
+            const rawLines = data.split('\n').filter(Boolean).reverse();
+
+            // Parse lines as JSON but return string for frontend compatibility
+            const parsedLogs = rawLines.map(line => {
+                try {
+                    const obj = JSON.parse(line);
+                    const msg = typeof obj.message === 'object' ? JSON.stringify(obj.message) : obj.message;
+                    return `${obj.timestamp} [${obj.level}]: ${msg}`;
+                } catch (e) {
+                    return line;
+                }
+            });
+
+            // Optional: Filter by query
+            const filter = req.query.filter;
+            if (filter) {
+                // SPECIAL HANDLING: If frontend asks for 'PushSummary', search for 'Push' to include all worker logs
+                let search = filter;
+                if (filter === 'PushSummary') {
+                    search = 'Push';
+                }
+                const filtered = parsedLogs.filter(logStr => logStr.includes(search));
+                res.json({ logs: filtered });
+            } else {
+                res.json({ logs: parsedLogs });
+            }
         });
     } catch (error) {
         next(error);

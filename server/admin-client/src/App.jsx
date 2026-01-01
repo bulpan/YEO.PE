@@ -3,8 +3,10 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Rooms from './pages/Rooms';
 import RoomDetail from './pages/RoomDetail';
-import Users from './pages/Users';
 import Logs from './pages/Logs';
+import PushLogs from './pages/PushLogs';
+import Reports from './pages/Reports';
+import Users from './pages/Users';
 import Layout from './components/Layout';
 
 function PrivateRoute({ children }) {
@@ -42,9 +44,21 @@ export default function App() {
           </PrivateRoute>
         } />
 
+        <Route path="/reports" element={
+          <PrivateRoute>
+            <Reports />
+          </PrivateRoute>
+        } />
+
         <Route path="/logs" element={
           <PrivateRoute>
             <Logs />
+          </PrivateRoute>
+        } />
+
+        <Route path="/push-logs" element={
+          <PrivateRoute>
+            <PushLogs />
           </PrivateRoute>
         } />
       </Routes>

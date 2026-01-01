@@ -8,52 +8,40 @@ REMOTE_DIR="/opt/yeope"
 
 echo "🚀 Starting Deployment to OCI ($SERVER_IP)..."
 
-# 1. Archive Server Code
-echo "📦 Zipping server code..."
-# Remove old zip if exists
-rm -f yeope-server.zip
-# Zip server directory excluding node_modules and other ignorables
-zip -r -q yeope-server.zip server -x "server/node_modules/*" "server/.git/*" "server/coverage/*" "server/.DS_Store" "server/tests/simulation/*"
+# 1. Sync Server Code (Rsync)
+echo "🔄 Syncing server code via rsync..."
 
-if [ ! -f yeope-server.zip ]; then
-    echo "❌ Failed to create zip file."
-    exit 1
-fi
-echo "✅ Zip created: yeope-server.zip"
-
-# 2. Upload to Server
-echo "📤 Uploading to server..."
-scp -i "$KEY_PATH" -o StrictHostKeyChecking=no yeope-server.zip $USER@$SERVER_IP:/home/$USER/yeope-server.zip
+rsync -avz --delete \
+    -e "ssh -i $KEY_PATH -o StrictHostKeyChecking=no" \
+    --exclude 'node_modules' \
+    --exclude '.git' \
+    --exclude '.DS_Store' \
+    --exclude 'coverage' \
+    --exclude 'tests/simulation' \
+    --exclude 'nginx/ssl' \
+    server/ \
+    $USER@$SERVER_IP:$REMOTE_DIR/server/
 
 if [ $? -ne 0 ]; then
-    echo "❌ Upload failed."
+    echo "❌ Rsync failed."
     exit 1
 fi
-echo "✅ Upload complete."
+echo "✅ Rsync complete."
 
-# 3. Remote Execution (Unzip & Restart Docker)
-echo "🔄 Updating server and restarting Docker..."
+# 2. Remote Execution (Restart Docker)
+echo "🔄 Restarting Docker containers..."
 ssh -i "$KEY_PATH" -o StrictHostKeyChecking=no $USER@$SERVER_IP << EOF
-    # Go to root
-    cd /home/$USER
+    cd $REMOTE_DIR/server
     
-    # Move zip to destination and unzip
-    sudo mv yeope-server.zip $REMOTE_DIR/
-    cd $REMOTE_DIR
-    
-    # Remove old code (optional, but safer to unzip specific files or purge)
-    # Be careful not to delete .env or data if they are not persisted elsewhere
-    # Here we overwrite with unzip
-    echo "📂 Unzipping..."
-    sudo unzip -o -q yeope-server.zip
-    
-    # Fix permissions
-    sudo chown -R $USER:$USER server/
-    
-    # Restart Docker
-    cd server
+    # Fix permissions (ensure user owns the synced files)
+    sudo chown -R $USER:$USER .
+
     echo "🐳 Rebuilding and restarting containers..."
-    docker compose up -d --build app
+    # Full restart to ensure network consistency
+    docker compose down
+    # Prune builder cache to prevent snapshot errors
+    docker builder prune -f
+    docker compose up -d --build
     
     # Verify
     docker compose ps

@@ -22,6 +22,10 @@ struct SettingsView: View {
     @State private var showPushPermissionAlert = false
     @State private var showOpenSource = false
     
+    // Language Restart
+    @State private var showRestartAlert = false
+    @State private var pendingLanguage: Language?
+    
     // Server Config
     @State private var selectedEnvironment: ServerEnvironment = .production
     @State private var tempLocalIP: String = ""
@@ -86,6 +90,22 @@ struct SettingsView: View {
                     }
                 }),
                 secondaryButton: .cancel()
+            )
+        }
+        .alert(isPresented: $showRestartAlert) {
+            Alert(
+                title: Text("language_restart_title".localized),
+                message: Text("language_restart_message".localized),
+                primaryButton: .destructive(Text("exit_app".localized)) {
+                    if let lang = pendingLanguage {
+                        languageManager.currentLanguage = lang
+                        // Force Exit
+                        exit(0)
+                    }
+                },
+                secondaryButton: .cancel(Text("cancel".localized)) {
+                    pendingLanguage = nil
+                }
             )
         }
         // Immediate Saving
@@ -233,7 +253,15 @@ struct SettingsView: View {
                     .foregroundColor(Color.theme.textPrimary)
                 Spacer()
                 // ... (existing language picker code)
-                Picker("language".localized, selection: $languageManager.currentLanguage) {
+                Picker("language".localized, selection: Binding(
+                    get: { languageManager.currentLanguage },
+                    set: { newLang in
+                        if newLang != languageManager.currentLanguage {
+                            pendingLanguage = newLang
+                            showRestartAlert = true
+                        }
+                    }
+                )) {
                     ForEach(Language.allCases, id: \.self) { language in
                         Text(language.displayName).tag(language)
                     }

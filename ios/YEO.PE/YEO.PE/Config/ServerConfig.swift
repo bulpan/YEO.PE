@@ -35,7 +35,13 @@ class ServerConfig: ObservableObject {
         let envString = UserDefaults.standard.string(forKey: "serverEnvironment") ?? ServerEnvironment.production.rawValue
         self.environment = ServerEnvironment(rawValue: envString) ?? .production
         
+        // Prioritize Generated Config (Build Time IP) -> UserDefaults -> Hardcoded Default
+        #if DEBUG
+        self.environment = .local // Force Local in Debug builds (Optional: user preference)
+        self.localIP = GeneratedConfig.localIP
+        #else
         self.localIP = UserDefaults.standard.string(forKey: "localServerIP") ?? defaultLocalIP
+        #endif
     }
     
     var apiBaseURL: String {

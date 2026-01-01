@@ -29,6 +29,17 @@ router.post('/register', authenticate, async (req, res, next) => {
       throw new ValidationError('플랫폼은 "ios" 또는 "android"여야 합니다');
     }
 
+    // [Duplicate Fix] 먼저 동일한 디바이스 ID를 가진 다른 토큰들을 비활성화
+    // (앱 재설치 등으로 새 토큰이 발급되었을 때, 구 토큰으로 중복 발송되는 것을 방지)
+    if (deviceId) {
+      await query(
+        `UPDATE yeope_schema.push_tokens 
+         SET is_active = false, updated_at = NOW()
+         WHERE user_id = $1 AND device_id = $2 AND device_token != $3`,
+        [userId, deviceId, deviceToken]
+      );
+    }
+
     // 기존 토큰 확인 (같은 사용자, 같은 토큰)
     const existing = await query(
       `SELECT id FROM yeope_schema.push_tokens 
@@ -143,6 +154,55 @@ router.get('/tokens', authenticate, async (req, res, next) => {
     }));
 
     res.json({ tokens });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/push/test
+ * 테스트 푸시 발송 (디버깅용)
+ */
+router.post('/test', authenticate, async (req, res, next) => {
+  try {
+    const { targetUserId } = req.body;
+    const userId = req.user.userId;
+
+    if (!targetUserId) {
+      throw new ValidationError('targetUserId가 필요합니다');
+    }
+
+    const { sendPushNotification, initializeFirebase } = require('../services/pushService');
+    const tokenService = require('../services/tokenService');
+
+    const tokens = await tokenService.getActivePushTokens(targetUserId);
+
+    if (tokens.length === 0) {
+      return res.json({ success: false, message: '해당 사용자의 유효한 푸시 토큰이 없습니다.' });
+    }
+
+    const results = [];
+    for (const tokenInfo of tokens) {
+      const result = await sendPushNotification(
+        tokenInfo.device_token,
+        tokenInfo.platform,
+        {
+          title: '테스트 푸시',
+          body: '이것은 테스트 푸시 알림입니다.'
+        },
+        {
+          type: 'TEST',
+          timestamp: String(Date.now())
+        }
+      );
+      results.push({ token: tokenInfo.device_token.substring(0, 10) + '...', result });
+    }
+
+    res.json({
+      success: true,
+      message: '테스트 푸시 발송 시도 완료',
+      results
+    });
   } catch (error) {
     next(error);
   }

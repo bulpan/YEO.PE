@@ -15,72 +15,135 @@ const createRoom = async (userId, name, category = 'general', inviteeId = null) 
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + 24); // 24시간 후 만료
 
-  const isActive = !inviteeId; // 초대자가 있으면 비활성 상태로 시작
+  const isActive = true; // Always active
   const metadata = { category };
   if (inviteeId) {
     metadata.inviteeId = inviteeId;
   }
 
-  const result = await query(
-    `INSERT INTO yeope_schema.rooms 
-     (room_id, name, creator_id, expires_at, member_count, is_active, metadata)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
-     RETURNING id, room_id, name, creator_id, created_at, expires_at, member_count, metadata`,
-    [
-      roomId,
-      name,
-      userId,
-      expiresAt,
-      1, // 생성자 포함
-      isActive,
-      JSON.stringify(metadata)
-    ]
-  );
+  try {
+    const result = await query(
+      `INSERT INTO yeope_schema.rooms 
+       (room_id, name, creator_id, expires_at, member_count, is_active, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, room_id, name, creator_id, created_at, expires_at, member_count, metadata`,
+      [
+        roomId,
+        name,
+        userId,
+        expiresAt,
+        1, // 생성자 포함
+        isActive,
+        JSON.stringify(metadata)
+      ]
+    );
 
-  const room = result.rows[0];
+    const room = result.rows[0];
 
-  // 생성자를 방 멤버로 추가
-  await query(
-    `INSERT INTO yeope_schema.room_members 
-     (room_id, user_id, role, last_seen_at)
-     VALUES ($1, $2, $3, NOW())`,
-    [room.id, userId, 'creator']
-  );
+    // 생성자를 방 멤버로 추가
+    await query(
+      `INSERT INTO yeope_schema.room_members 
+       (room_id, user_id, role, last_seen_at)
+       VALUES ($1, $2, $3, NOW())`,
+      [room.id, userId, 'creator']
+    );
 
-  // Invitee Info Fetch (for Dynamic Naming on Client)
-  let inviteeInfo = {};
-  if (inviteeId) {
-    const invRes = await query('SELECT nickname, nickname_mask FROM yeope_schema.users WHERE id = $1', [inviteeId]);
-    if (invRes.rows.length > 0) {
-      inviteeInfo = {
-        inviteeNickname: invRes.rows[0].nickname,
-        inviteeNicknameMask: invRes.rows[0].nickname_mask
-      };
+    // Invitee Info Fetch (for Dynamic Naming on Client)
+    let inviteeInfo = {};
+    if (inviteeId) {
+      const invRes = await query('SELECT nickname, nickname_mask FROM yeope_schema.users WHERE id = $1', [inviteeId]);
+      if (invRes.rows.length > 0) {
+        inviteeInfo = {
+          inviteeNickname: invRes.rows[0].nickname,
+          inviteeNicknameMask: invRes.rows[0].nickname_mask
+        };
+      }
     }
+
+    // Creator Info Fetch (Optional, but good for consistency)
+    const creatorRes = await query('SELECT nickname, nickname_mask, profile_image_url FROM yeope_schema.users WHERE id = $1', [userId]);
+    const creatorInfo = creatorRes.rows[0] || {};
+
+    logger.info(`방 생성: ${roomId} by user ${userId} (Invitee: ${inviteeId || 'None'})`);
+
+    return {
+      id: room.id,
+      roomId: room.room_id,
+      name: room.name,
+      creatorId: room.creator_id,
+      creatorNickname: creatorInfo.nickname_mask || creatorInfo.nickname,
+      creatorNicknameMask: creatorInfo.nickname_mask,
+      creatorProfileImageUrl: creatorInfo.profile_image_url,
+      inviteeNickname: inviteeInfo.inviteeNicknameMask || inviteeInfo.inviteeNickname,
+      inviteeNicknameMask: inviteeInfo.inviteeNicknameMask,
+      createdAt: room.created_at,
+      expiresAt: room.expires_at,
+      memberCount: room.member_count,
+      metadata: typeof room.metadata === 'string'
+        ? JSON.parse(room.metadata)
+        : room.metadata
+    };
+  } catch (error) {
+    if (error.code === '23505') { // Unique Violation
+      // Find the existing room (assuming constraint is on metadata->>'inviteeId' + creator_id pair or similar)
+      logger.warn(`Duplicate room creation attempt (1:1 room already exists). Returning existing room. User: ${userId}, Invitee: ${inviteeId}`);
+
+      // We need to find the room that caused the conflict.
+      // Assuming conflict is on (creator_id, (metadata->>'inviteeId')::uuid) where active=true
+      // Note: This query matches the unique index condition.
+      const existingRes = await query(
+        `SELECT * FROM yeope_schema.rooms 
+         WHERE creator_id = $1 
+         AND (metadata->>'inviteeId')::uuid = $2 
+         AND is_active = true
+         LIMIT 1`,
+        [userId, inviteeId]
+      );
+
+      if (existingRes.rows.length > 0) {
+        const existingRoom = existingRes.rows[0];
+
+        // Resurrect Logic:
+        // 1. Reactivate Room & Reset Expiry
+        const newExpiresAt = new Date();
+        newExpiresAt.setHours(newExpiresAt.getHours() + 24);
+
+        await query(
+          `UPDATE yeope_schema.rooms 
+           SET is_active = true, expires_at = $1, member_count = 1 
+           WHERE id = $2`,
+          [newExpiresAt, existingRoom.id]
+        );
+
+        // 2. Re-add User to Room Members (Since they left, they are not in `room_members` or have `left_at` set)
+        // Check if row exists first
+        const memberRes = await query(
+          `SELECT * FROM yeope_schema.room_members WHERE room_id = $1 AND user_id = $2`,
+          [existingRoom.id, userId]
+        );
+
+        if (memberRes.rows.length > 0) {
+          await query(
+            `UPDATE yeope_schema.room_members 
+              SET left_at = NULL, joined_at = NOW(), last_seen_at = NOW(), role = 'creator'
+              WHERE room_id = $1 AND user_id = $2`,
+            [existingRoom.id, userId]
+          );
+        } else {
+          await query(
+            `INSERT INTO yeope_schema.room_members 
+              (room_id, user_id, role, last_seen_at)
+              VALUES ($1, $2, 'creator', NOW())`,
+            [existingRoom.id, userId]
+          );
+        }
+
+        logger.info(`Resurrected room ${existingRoom.room_id} for user ${userId}`);
+        return await getRoomDetails(existingRoom.room_id);
+      }
+    }
+    throw error;
   }
-
-  // Creator Info Fetch (Optional, but good for consistency)
-  const creatorRes = await query('SELECT nickname, nickname_mask FROM yeope_schema.users WHERE id = $1', [userId]);
-  const creatorInfo = creatorRes.rows[0] || {};
-
-  logger.info(`방 생성: ${roomId} by user ${userId} (Invitee: ${inviteeId || 'None'})`);
-
-  return {
-    id: room.id,
-    roomId: room.room_id,
-    name: room.name,
-    creatorId: room.creator_id,
-    creatorNickname: creatorInfo.nickname_mask || creatorInfo.nickname,
-    creatorNicknameMask: creatorInfo.nickname_mask,
-    inviteeNickname: inviteeInfo.inviteeNicknameMask || inviteeInfo.inviteeNickname,
-    inviteeNicknameMask: inviteeInfo.inviteeNicknameMask,
-    createdAt: room.created_at,
-    expiresAt: room.expires_at,
-    memberCount: room.member_count,
-    metadata: typeof room.metadata === 'string'
-      ? JSON.parse(room.metadata)
-      : room.metadata
-  };
 };
 
 
@@ -138,11 +201,13 @@ const getActiveRooms = async (options = {}) => {
   let queryText = `
     SELECT r.*, 
            u.nickname_mask as creator_nickname_mask,
+           u.profile_image_url as creator_profile_image_url,
            u_invitee.nickname as invitee_nickname,
-           u_invitee.nickname_mask as invitee_nickname_mask
+           u_invitee.nickname_mask as invitee_nickname_mask,
+           u_invitee.profile_image_url as invitee_profile_image_url
     FROM yeope_schema.rooms r
     LEFT JOIN yeope_schema.users u ON r.creator_id = u.id
-    LEFT JOIN yeope_schema.users u_invitee ON (r.metadata->>'inviteeId')::uuid = u_invitee.id
+    LEFT JOIN yeope_schema.users u_invitee ON r.metadata->>'inviteeId' = u_invitee.id::text
     WHERE r.is_active = true 
       AND r.expires_at > NOW()
   `;
@@ -173,8 +238,10 @@ const getActiveRooms = async (options = {}) => {
     name: room.name,
     creatorId: room.creator_id,
     creatorNicknameMask: room.creator_nickname_mask,
+    creatorProfileImageUrl: room.creator_profile_image_url,
     inviteeNickname: room.invitee_nickname,
     inviteeNicknameMask: room.invitee_nickname_mask,
+    inviteeProfileImageUrl: room.invitee_profile_image_url,
     createdAt: room.created_at,
     expiresAt: room.expires_at,
     memberCount: room.member_count,
@@ -193,11 +260,13 @@ const getRoomDetails = async (roomId) => {
     `SELECT r.*, 
             u_creator.nickname as creator_nickname,
             u_creator.nickname_mask as creator_nickname_mask,
+            u_creator.profile_image_url as creator_profile_image_url,
             u_invitee.nickname as invitee_nickname,
-            u_invitee.nickname_mask as invitee_nickname_mask
+            u_invitee.nickname_mask as invitee_nickname_mask,
+            u_invitee.profile_image_url as invitee_profile_image_url
      FROM yeope_schema.rooms r
      LEFT JOIN yeope_schema.users u_creator ON r.creator_id = u_creator.id
-     LEFT JOIN yeope_schema.users u_invitee ON (r.metadata->>'inviteeId')::uuid = u_invitee.id
+     LEFT JOIN yeope_schema.users u_invitee ON r.metadata->>'inviteeId' = u_invitee.id::text
      WHERE r.room_id = $1`,
     [roomId]
   );
@@ -221,8 +290,10 @@ const getRoomDetails = async (roomId) => {
     creatorId: room.creator_id,
     creatorNickname: room.creator_nickname_mask || room.creator_nickname,
     creatorNicknameMask: room.creator_nickname_mask,
+    creatorProfileImageUrl: room.creator_profile_image_url,
     inviteeNickname: room.invitee_nickname_mask || room.invitee_nickname,
     inviteeNicknameMask: room.invitee_nickname_mask,
+    inviteeProfileImageUrl: room.invitee_profile_image_url,
     createdAt: room.created_at,
     expiresAt: room.expires_at,
     memberCount: room.member_count,
@@ -281,60 +352,69 @@ const joinRoom = async (userId, roomId) => {
   }
 
   // 트랜잭션으로 방 참여 처리
-  const transactionResult = await transaction(async (client) => {
-    // 방 멤버 추가
-    await client.query(
-      `INSERT INTO yeope_schema.room_members 
-       (room_id, user_id, role, last_seen_at)
-       VALUES ($1, $2, $3, NOW())`,
-      [room.id, userId, 'member']
-    );
+  try {
+    const transactionResult = await transaction(async (client) => {
+      // 방 멤버 추가
+      await client.query(
+        `INSERT INTO yeope_schema.room_members 
+         (room_id, user_id, role, last_seen_at)
+         VALUES ($1, $2, $3, NOW())`,
+        [room.id, userId, 'member']
+      );
 
-    // 멤버 수 증가 및 방 활성화 (필요 시)
-    let updateQuery = `UPDATE yeope_schema.rooms SET member_count = member_count + 1`;
-    const params = [room.id];
+      // 멤버 수 증가 및 방 활성화 (필요 시)
+      let updateQuery = `UPDATE yeope_schema.rooms SET member_count = member_count + 1`;
+      const params = [room.id];
 
-    // 비활성 상태이고 초대된 사용자가 들어오는 경우 활성화
-    if (!room.is_active) {
-      updateQuery += `, is_active = true`;
-    }
-
-    updateQuery += ` WHERE id = $1`;
-
-    await client.query(updateQuery, params);
-    // 시스템 메시지 추가 (참여 알림)
-    const userRes = await client.query('SELECT nickname_mask FROM yeope_schema.users WHERE id = $1', [userId]);
-    const nickname = userRes.rows[0]?.nickname_mask || 'Anonymous';
-    const systemContent = `${nickname} joined the room.`;
-
-    const msgResult = await client.query(
-      `INSERT INTO yeope_schema.messages 
-       (room_id, user_id, type, content, created_at, expires_at)
-       VALUES ($1, $2, 'system', $3, NOW(), (SELECT expires_at FROM yeope_schema.rooms WHERE id = $1))
-       RETURNING id, created_at`,
-      [room.id, userId, systemContent]
-    );
-
-    const messageId = msgResult.rows[0].id;
-    const createdAt = msgResult.rows[0].created_at;
-
-    return {
-      alreadyJoined: false,
-      systemMessage: {
-        messageId,
-        roomId: room.room_id,
-        userId,
-        nickname, // Include nickname for client display
-        type: 'system',
-        content: systemContent,
-        createdAt
+      // 비활성 상태이고 초대된 사용자가 들어오는 경우 활성화
+      if (!room.is_active) {
+        updateQuery += `, is_active = true`;
       }
-    };
-  });
 
-  logger.info(`사용자 ${userId}가 방 ${roomId}에 참여 (Activated: ${!room.is_active})`);
+      updateQuery += ` WHERE id = $1`;
 
-  return transactionResult;
+      await client.query(updateQuery, params);
+      // 시스템 메시지 추가 (참여 알림)
+      const userRes = await client.query('SELECT nickname_mask FROM yeope_schema.users WHERE id = $1', [userId]);
+      const nickname = userRes.rows[0]?.nickname_mask || 'Anonymous';
+      const systemContent = `${nickname} joined the room.`;
+
+      const msgResult = await client.query(
+        `INSERT INTO yeope_schema.messages 
+         (room_id, user_id, type, content, created_at, expires_at)
+         VALUES ($1, $2, 'system', $3, NOW(), (SELECT expires_at FROM yeope_schema.rooms WHERE id = $1))
+         RETURNING id, created_at`,
+        [room.id, userId, systemContent]
+      );
+
+      const messageId = msgResult.rows[0].id;
+      const createdAt = msgResult.rows[0].created_at;
+
+      return {
+        alreadyJoined: false,
+        systemMessage: {
+          messageId,
+          roomId: room.room_id,
+          userId,
+          nickname, // Include nickname for client display
+          type: 'system',
+          content: systemContent,
+          createdAt
+        }
+      };
+    });
+
+    logger.info(`사용자 ${userId}가 방 ${roomId}에 참여 (Activated: ${!room.is_active})`);
+
+    return transactionResult;
+  } catch (error) {
+    // Race Condition: 동시 요청으로 인한 중복 키 오류 (23505) 발생 시 '이미 참여 중'으로 처리
+    if (error.code === '23505') {
+      logger.warn(`Data Race detected in joinRoom for user ${userId} in room ${roomId}. Treating as already joined.`);
+      return { alreadyJoined: true };
+    }
+    throw error;
+  }
 };
 
 /**
@@ -494,8 +574,10 @@ const getUserRooms = async (userId) => {
             COALESCE(rm.last_seen_at, r.created_at) as last_seen_at,
             u_creator.nickname as creator_nickname,
             u_creator.nickname_mask as creator_nickname_mask,
+            u_creator.profile_image_url as creator_profile_image_url,
             u_invitee.nickname as invitee_nickname,
             u_invitee.nickname_mask as invitee_nickname_mask,
+            u_invitee.profile_image_url as invitee_profile_image_url,
             (SELECT COUNT(*)::int FROM yeope_schema.messages m 
              WHERE m.room_id = r.id 
                AND m.created_at > COALESCE(rm.last_seen_at, r.created_at)
@@ -513,9 +595,9 @@ const getUserRooms = async (userId) => {
        ORDER BY room_id, joined_at DESC
      ) rm ON r.id = rm.room_id
      LEFT JOIN yeope_schema.users u_creator ON r.creator_id = u_creator.id
-     LEFT JOIN yeope_schema.users u_invitee ON (r.metadata->>'inviteeId')::uuid = u_invitee.id
+     LEFT JOIN yeope_schema.users u_invitee ON r.metadata->>'inviteeId' = u_invitee.id::text
      WHERE (rm.user_id IS NOT NULL AND r.expires_at > NOW())
-        OR ((r.metadata->>'inviteeId')::uuid = $1 AND r.is_active = false AND r.expires_at > NOW())
+        OR (r.metadata->>'inviteeId' = $1::text AND r.expires_at > NOW())
      ORDER BY last_seen_at DESC`,
     [userId]
   );
@@ -535,8 +617,10 @@ const getUserRooms = async (userId) => {
     creatorId: room.creator_id,
     creatorNickname: room.creator_nickname_mask || room.creator_nickname, // Add creator info
     creatorNicknameMask: room.creator_nickname_mask,
+    creatorProfileImageUrl: room.creator_profile_image_url,
     inviteeNickname: room.invitee_nickname_mask || room.invitee_nickname, // Add invitee info
     inviteeNicknameMask: room.invitee_nickname_mask,
+    inviteeProfileImageUrl: room.invitee_profile_image_url,
     metadata: typeof room.metadata === 'string'
       ? JSON.parse(room.metadata)
       : room.metadata

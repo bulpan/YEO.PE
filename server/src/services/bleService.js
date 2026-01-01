@@ -20,54 +20,56 @@ const generateShortUID = () => {
  * 사용자에게 Short UID 발급
  */
 const issueUID = async (userId) => {
-    // 기존 활성 UID 비활성화
-    await query(
-        `UPDATE yeope_schema.ble_uids 
-     SET is_active = false 
-     WHERE user_id = $1 AND is_active = true`,
-        [userId]
-    );
-
-    // 새 UID 생성
-    let uid;
-    let isUnique = false;
-    let attempts = 0;
-    const maxAttempts = 10;
-
-    while (!isUnique && attempts < maxAttempts) {
-        uid = generateShortUID();
-        const existing = await query(
-            'SELECT id FROM yeope_schema.ble_uids WHERE uid = $1',
-            [uid]
+    return await transaction(async (client) => {
+        // 기존 활성 UID 비활성화
+        await client.query(
+            `UPDATE yeope_schema.ble_uids 
+             SET is_active = false 
+             WHERE user_id = $1 AND is_active = true`,
+            [userId]
         );
-        if (existing.rows.length === 0) {
-            isUnique = true;
+
+        // 새 UID 생성
+        let uid;
+        let isUnique = false;
+        let attempts = 0;
+        const maxAttempts = 10;
+
+        while (!isUnique && attempts < maxAttempts) {
+            uid = generateShortUID();
+            const existing = await client.query(
+                'SELECT id FROM yeope_schema.ble_uids WHERE uid = $1',
+                [uid]
+            );
+            if (existing.rows.length === 0) {
+                isUnique = true;
+            }
+            attempts++;
         }
-        attempts++;
-    }
 
-    if (!isUnique) {
-        throw new Error('UID 생성 실패: 고유한 UID를 생성할 수 없습니다');
-    }
+        if (!isUnique) {
+            throw new Error('UID 생성 실패: 고유한 UID를 생성할 수 없습니다');
+        }
 
-    // 만료 시간 설정 (24시간 후)
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 24);
+        // 만료 시간 설정 (24시간 후)
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + 24);
 
-    // UID 저장
-    await query(
-        `INSERT INTO yeope_schema.ble_uids 
-     (user_id, uid, expires_at, is_active)
-     VALUES ($1, $2, $3, true)`,
-        [userId, uid, expiresAt]
-    );
+        // UID 저장
+        await client.query(
+            `INSERT INTO yeope_schema.ble_uids 
+             (user_id, uid, expires_at, is_active)
+             VALUES ($1, $2, $3, true)`,
+            [userId, uid, expiresAt]
+        );
 
-    logger.info(`Short UID 발급: ${uid} for user ${userId}`);
+        logger.info(`Short UID 발급: ${uid} for user ${userId}`);
 
-    return {
-        uid,
-        expiresAt
-    };
+        return {
+            uid,
+            expiresAt
+        };
+    });
 };
 
 /**

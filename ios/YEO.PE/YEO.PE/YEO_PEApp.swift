@@ -21,24 +21,45 @@ import NaverThirdPartyLogin
 struct YEO_PEApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
+    // Global State
+    @StateObject private var themeManager = ThemeManager.shared
+    @State private var showSplash = true
+    
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .onOpenURL { url in
-                    #if canImport(KakaoSDKAuth)
-                    if (AuthApi.isKakaoTalkLoginUrl(url)) {
-                        _ = AuthController.handleOpenUrl(url: url)
-                    }
-                    #endif
-                    
-                    #if canImport(GoogleSignIn)
-                    _ = GIDSignIn.sharedInstance.handle(url)
-                    #endif
-                    
-                    #if canImport(NaverThirdPartyLogin)
-                    NaverThirdPartyLoginConnection.getSharedInstance().receiveAccessToken(url)
-                    #endif
+            ZStack {
+                if showSplash {
+                    SplashView()
+                        .environmentObject(themeManager)
+                        .transition(.opacity) // Smooth fade out
+                        .onAppear {
+                            // Delay for splash screen duration
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                                withAnimation(.easeOut(duration: 0.5)) {
+                                    showSplash = false
+                                }
+                            }
+                        }
+                } else {
+                    ContentView()
+                        .environmentObject(themeManager)
+                        .onOpenURL { url in
+                            #if canImport(KakaoSDKAuth)
+                            if (AuthApi.isKakaoTalkLoginUrl(url)) {
+                                _ = AuthController.handleOpenUrl(url: url)
+                            }
+                            #endif
+                            
+                            #if canImport(GoogleSignIn)
+                            _ = GIDSignIn.sharedInstance.handle(url)
+                            #endif
+                            
+                            #if canImport(NaverThirdPartyLogin)
+                            NaverThirdPartyLoginConnection.getSharedInstance().receiveAccessToken(url)
+                            #endif
+                        }
                 }
+            }
         }
     }
 }

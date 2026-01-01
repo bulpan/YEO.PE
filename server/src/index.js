@@ -18,30 +18,36 @@ const path = require('path');
 
 // [Migration] Run Blocked Users & Nickname Migrations on Startup
 const runMigration = async () => {
-  try {
-    // 1. Ensure Table Exists
-    const ensureTableSqlPath = path.join(__dirname, '../database/migration_ensure_blocked_users.sql');
-    if (fs.existsSync(ensureTableSqlPath)) {
-      const sql = fs.readFileSync(ensureTableSqlPath, 'utf8');
-      await query(sql);
-      logger.info('✅ Migration (Ensure Blocked Users Table) executed successfully.');
-    }
+  const migrations = [
+    { name: 'Ensure Blocked Users', file: 'migration_ensure_blocked_users.sql' },
+    { name: 'Block Nickname', file: 'migration_block_nickname.sql' },
+    { name: 'Profile Image', file: 'migration_add_profile_image.sql' },
+    { name: 'BLE UIDs', file: 'migration_add_ble_uids.sql' },
+    { name: 'Push Tokens', file: 'migration_add_push_tokens.sql' },
+    { name: 'Reports', file: 'migration_block_report.sql' }
+  ];
 
-    // 2. Add Nickname Column (Idempotent)
-    const sqlPath = path.join(__dirname, '../database/migration_block_nickname.sql');
-    if (fs.existsSync(sqlPath)) {
-      const sql = fs.readFileSync(sqlPath, 'utf8');
-      await query(sql);
-      logger.info('✅ Migration (Block Nickname) executed successfully.');
+  for (const m of migrations) {
+    try {
+      const sqlPath = path.join(__dirname, '../database', m.file);
+      if (fs.existsSync(sqlPath)) {
+        const sql = fs.readFileSync(sqlPath, 'utf8');
+        await query(sql);
+        logger.info(`✅ Migration (${m.name}) executed successfully.`);
+      }
+    } catch (error) {
+      logger.warn(`⚠️ Migration (${m.name}) failed:`, error.message);
     }
-  } catch (error) {
-    logger.warn('⚠️ Migration failed:', error.message);
   }
 };
 runMigration();
 
 require('./config/redis'); // Redis 연결
 const { startTTLScheduler } = require('./services/ttlService');
+const { startWorker } = require('./workers/pushWorker');
+
+// Start Background Workers
+startWorker();
 
 const app = express();
 const server = http.createServer(app);
@@ -68,7 +74,16 @@ app.use(require('./middleware/requestLogger'));
 // 정적 파일 서빙 (랜딩 페이지)
 // 정적 파일 서빙 (랜딩 페이지)
 // Admin Panel Static Files (Prioritize specific admin handling)
-app.use('/admin', express.static(path.join(__dirname, '../public/admin')));
+// Admin Panel Static Files (Prioritize specific admin handling)
+app.use('/admin', express.static(path.join(__dirname, '../public/admin'), {
+  setHeaders: (res, path) => {
+    if (path.endsWith('index.html')) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+}));
 
 // Admin Panel Redirect
 app.get('/admin', (req, res) => {
@@ -77,6 +92,9 @@ app.get('/admin', (req, res) => {
 
 // Admin Panel SPA fallback
 app.get('/admin/*', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.sendFile(path.join(__dirname, '../public/admin/index.html'));
 });
 

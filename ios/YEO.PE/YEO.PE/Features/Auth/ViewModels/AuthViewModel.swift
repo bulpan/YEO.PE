@@ -31,6 +31,7 @@ class AuthViewModel: ObservableObject {
         if self.isLoggedIn {
             fetchProfile()
             fetchBlockedUsers()
+            APIService.shared.registerFCMToken(token: nil) // Ensure token is registered on app launch
         }
         
         NotificationCenter.default.addObserver(self, selector: #selector(handleIdentityUpdate), name: .identityUpdated, object: nil)

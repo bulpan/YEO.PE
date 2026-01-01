@@ -5,14 +5,19 @@ const requestLogger = (req, res, next) => {
     const start = Date.now();
     const { method, url, body, query, params } = req;
 
-    // 1. Log Incoming Request
+    // Exclude recursive log endpoints
+    if (url.includes('/api/admin/logs')) {
+        return next();
+    }
+
+    // 1. Log Incoming Request (Existing logic...)
     logger.info(`[API Request] ${method} ${url}`, {
         body: sanitize(body),
         query: query,
         ip: req.ip
     });
 
-    // 2. Capture Response Body
+    // 2. Capture Response Body (Existing logic...)
     const originalSend = res.send;
     const originalJson = res.json;
     let responseBody;
@@ -27,7 +32,7 @@ const requestLogger = (req, res, next) => {
         return originalJson.apply(this, arguments);
     };
 
-    // 3. Log Response on Finish
+    // 3. Log Response on Finish (Existing logic...)
     res.on('finish', () => {
         const duration = Date.now() - start;
         let logBody = responseBody;

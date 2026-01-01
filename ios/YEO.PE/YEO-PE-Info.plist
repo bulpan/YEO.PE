@@ -17,6 +17,13 @@
 	</array>
 	<key>GIDClientID</key>
 	<string>684700489154-4jbnnebtl7sv5nt234hnig7mn38gq52g.apps.googleusercontent.com</string>
+	<key>KAKAO_APP_KEY</key>
+	<string>159b87acd87f2a049822bfdb62c3a18a</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>kakaokompassauth</string>
+		<string>kakaolink</string>
+	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
@@ -29,12 +36,13 @@
 		<string>processing</string>
 		<string>nearby-interaction</string>
 	</array>
-	<key>LSApplicationQueriesSchemes</key>
-	<array>
-		<string>kakaokompassauth</string>
-		<string>kakaolink</string>
-	</array>
-	<key>KAKAO_APP_KEY</key>
-	<string>159b87acd87f2a049822bfdb62c3a18a</string>
+    <key>FirebaseInAppMessagingAutomaticDataCollectionEnabled</key>
+    <false/>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>로컬 서버와 통신하기 위해 로컬 네트워크 권한이 필요합니다.</string>
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>주변 사용자를 탐색하고 채팅방 신호를 감지하기 위해 블루투스 권한이 필요합니다.</string>
+    <key>NSBluetoothPeripheralUsageDescription</key>
+    <string>주변 사용자에게 내 신호를 공유하기 위해 블루투스 권한이 필요합니다.</string>
 </dict>
 </plist>

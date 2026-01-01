@@ -63,20 +63,20 @@ export default function RoomDetail() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
                         <p className="text-sm text-gray-400">방 이름</p>
-                        <p className="text-lg font-semibold text-white">{room.name}</p>
+                        <p className="text-lg font-semibold text-white">{room?.name || 'Unknown'}</p>
                     </div>
                     <div>
                         <p className="text-sm text-gray-400">개설자</p>
-                        <p className="text-lg font-semibold text-white">{room.creator_nickname}</p>
+                        <p className="text-lg font-semibold text-white">{room?.creator_nickname || 'Unknown'}</p>
                     </div>
                     <div>
                         <p className="text-sm text-gray-400">참여 인원</p>
-                        <p className="text-lg font-semibold text-white">{room.member_count}명</p>
+                        <p className="text-lg font-semibold text-white">{room?.member_count || 0}명</p>
                     </div>
                     <div>
                         <p className="text-sm text-gray-400">만료 시간</p>
                         <p className="text-lg font-semibold text-white">
-                            {new Date(room.expires_at).toLocaleString()}
+                            {room?.expires_at ? new Date(room.expires_at).toLocaleString() : 'N/A'}
                         </p>
                     </div>
                 </div>
@@ -88,23 +88,23 @@ export default function RoomDetail() {
                     <h3 className="text-lg font-bold text-white">최근 대화 기록</h3>
                 </div>
                 <div className="p-4 max-h-[500px] overflow-y-auto space-y-4">
-                    {messages.length === 0 ? (
+                    {!messages || messages.length === 0 ? (
                         <p className="text-center text-gray-500">대화 내용이 없습니다.</p>
                     ) : (
                         messages.map((msg) => (
-                            <div key={msg.id} className="flex flex-col space-y-1">
+                            <div key={msg?.id || Math.random()} className="flex flex-col space-y-1">
                                 <div className="flex items-baseline space-x-2">
-                                    <span className="text-sm font-bold text-blue-400">{msg.nickname}</span>
+                                    <span className="text-sm font-bold text-blue-400">{msg?.nickname || 'Unknown'}</span>
                                     <span className="text-xs text-gray-500">
-                                        {new Date(msg.created_at).toLocaleTimeString()}
+                                        {msg?.created_at ? new Date(msg.created_at).toLocaleTimeString() : ''}
                                     </span>
                                 </div>
                                 <div className="bg-gray-700/50 p-3 rounded-lg text-gray-200">
-                                    {msg.type === 'text' && msg.content}
-                                    {msg.type === 'image' && (
+                                    {msg?.type === 'text' && (msg?.content || '')}
+                                    {msg?.type === 'image' && msg?.image_url && (
                                         <img src={msg.image_url} alt="Uploaded" className="max-w-xs rounded" />
                                     )}
-                                    {msg.type === 'emoji' && <span className="text-2xl">{msg.content}</span>}
+                                    {msg?.type === 'emoji' && <span className="text-2xl">{msg?.content}</span>}
                                 </div>
                             </div>
                         ))

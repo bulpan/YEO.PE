@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">YEO.PE</string>
+    <!-- BLE UUIDs -->
+    <string name="ble_service_uuid">00001E00-0000-1000-8000-00805F9B34FB</string>
+    <string name="ble_characteristic_uuid">00001E01-0000-1000-8000-00805F9B34FB</string>
+    <string name="default_notification_channel_id">fcm_default_channel</string>
+</resources>

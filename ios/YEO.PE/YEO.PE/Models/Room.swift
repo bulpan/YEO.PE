@@ -14,13 +14,15 @@ struct Room: Codable, Identifiable, Hashable, Equatable {
     let creatorId: String?
     let creatorNickname: String?
     let creatorNicknameMask: String?
+    let creatorProfileImageUrl: String?
     let inviteeNickname: String?
     let inviteeNicknameMask: String?
+    let inviteeProfileImageUrl: String?
     let metadata: RoomMetadata?
     
     enum CodingKeys: String, CodingKey {
         case id, roomId, name, memberCount, isActive, unreadCount, lastMessage, createdAt
-        case creatorId, creatorNickname, creatorNicknameMask, inviteeNickname, inviteeNicknameMask, metadata
+        case creatorId, creatorNickname, creatorNicknameMask, creatorProfileImageUrl, inviteeNickname, inviteeNicknameMask, inviteeProfileImageUrl, metadata
     }
     
     // Helper to use either id or roomId
@@ -44,6 +46,30 @@ struct Room: Codable, Identifiable, Hashable, Equatable {
         }
         
         return name
+    }
+    
+    // Dynamic Profile Image URL
+    var displayProfileImageUrl: String? {
+        guard let currentUserId = TokenManager.shared.userId else { return nil }
+        
+        // Check if it's a 1:1 room (has inviteeId)
+        if let metadata = metadata, let inviteeId = metadata.inviteeId {
+            if currentUserId == creatorId {
+                // I am the creator, show invitee's image
+                return inviteeProfileImageUrl
+            } else if currentUserId == inviteeId {
+                // I am the invitee, show creator's image
+                return creatorProfileImageUrl
+            }
+        }
+        
+        // Default: If I am NOT the creator, show creator's image (for normal rooms)
+        // If I AM the creator, show... placeholder? or invitee? (but normal rooms might have many members)
+        if currentUserId != creatorId {
+            return creatorProfileImageUrl
+        }
+        
+        return nil 
     }
     
     init(from decoder: Decoder) throws {
@@ -76,8 +102,10 @@ struct Room: Codable, Identifiable, Hashable, Equatable {
         creatorId = try container.decodeIfPresent(String.self, forKey: .creatorId)
         creatorNickname = try container.decodeIfPresent(String.self, forKey: .creatorNickname)
         creatorNicknameMask = try container.decodeIfPresent(String.self, forKey: .creatorNicknameMask)
+        creatorProfileImageUrl = try container.decodeIfPresent(String.self, forKey: .creatorProfileImageUrl)
         inviteeNickname = try container.decodeIfPresent(String.self, forKey: .inviteeNickname)
         inviteeNicknameMask = try container.decodeIfPresent(String.self, forKey: .inviteeNicknameMask)
+        inviteeProfileImageUrl = try container.decodeIfPresent(String.self, forKey: .inviteeProfileImageUrl)
         metadata = try container.decodeIfPresent(RoomMetadata.self, forKey: .metadata)
         
         // Defaults for server-fetched messages
@@ -101,8 +129,10 @@ struct Room: Codable, Identifiable, Hashable, Equatable {
         try container.encodeIfPresent(creatorId, forKey: .creatorId)
         try container.encodeIfPresent(creatorNickname, forKey: .creatorNickname)
         try container.encodeIfPresent(creatorNicknameMask, forKey: .creatorNicknameMask)
+        try container.encodeIfPresent(creatorProfileImageUrl, forKey: .creatorProfileImageUrl)
         try container.encodeIfPresent(inviteeNickname, forKey: .inviteeNickname)
         try container.encodeIfPresent(inviteeNicknameMask, forKey: .inviteeNicknameMask)
+        try container.encodeIfPresent(inviteeProfileImageUrl, forKey: .inviteeProfileImageUrl)
         try container.encodeIfPresent(metadata, forKey: .metadata)
     }
 }

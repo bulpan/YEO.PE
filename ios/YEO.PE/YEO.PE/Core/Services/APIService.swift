@@ -115,6 +115,9 @@ class APIService {
     }
     
     func registerFCMToken(token: String?) {
+        // Guard: Only register if logged in
+        guard TokenManager.shared.isLoggedIn else { return }
+
         // If token is nil, try to get from UserDefaults or just return
         // Use TokenManager if available, otherwise fallback to direct UserDefaults
         let savedToken = TokenManager.shared.fcmToken ?? UserDefaults.standard.string(forKey: "fcmToken")

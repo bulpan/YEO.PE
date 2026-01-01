@@ -31,6 +31,15 @@ class ChatViewModel: ObservableObject {
         guard let targetUser = targetUser else { return true } 
         return members.contains(where: { $0.id == targetUser.id })
     }
+
+    var displayTitle: String {
+        // 1:1 Logic: Prefer Target User's nickname
+        if let target = targetUser {
+            return target.nicknameMask ?? target.nickname ?? "Unknown"
+        }
+        // Fallback to room name
+        return room.displayName
+    }
     
     private var socketManager = SocketManager.shared
     private var cancellables = Set<AnyCancellable>()

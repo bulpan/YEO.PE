@@ -8,6 +8,8 @@ export default function Layout({ children }) {
         { name: 'Dashboard', path: '/' },
         { name: 'Rooms', path: '/rooms' },
         { name: 'Users', path: '/users' },
+        { name: 'Reports', path: '/reports' },
+        { name: 'Push Logs', path: '/push-logs' },
         { name: 'Server Console', path: '/logs' },
     ];
 

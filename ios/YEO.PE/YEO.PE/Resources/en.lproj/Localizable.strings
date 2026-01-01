@@ -116,6 +116,24 @@
 "off" = "Off";
 "activity_based" = "Activity Based";
 
+// Onboarding v2
+"onboarding_1_title_v2" = "Find people within signal range";
+"onboarding_1_desc_v2" = "Connect with people who are actually close enough to share a signal, not just nearby on a map. Turn on your radar to see who's around you right now.";
+
+"onboarding_2_title_v2" = "Say hello anonymously";
+"onboarding_2_desc_v2" = "No need to reveal your real identity. Chat freely with a random nickname and share your honest thoughts without any pressure.";
+
+"onboarding_3_title_v2" = "Chats evaporate in 24 hours";
+"onboarding_3_desc_v2" = "All rooms and messages disappear without a trace after 24 hours. Focus on the conversation in the moment without worrying about records.";
+"start_app" = "Start YEO.PE";
+"next" = "Next";
+"skip" = "Skip";
+
+// Language Restart
+"language_restart_title" = "Restart Required";
+"language_restart_message" = "The app needs to restart to apply language changes. Do you want to exit now?";
+"exit_app" = "Exit App";
+
 // MainView Filters
 "all" = "All";
 "ios" = "iOS";
@@ -149,3 +167,7 @@
 "report_other" = "Other";
 "blocked_users_title" = "Blocked Users";
 "block_policy_info" = "Blocked users are tracked by their unique device ID. Even if they change their nickname, the block remains effective. Re-installing the app may reset this.";
+
+// Compliance
+"i_agree_to_terms" = "I agree to the Terms of Service and Privacy Policy";
+"terms_required_alert" = "You must agree to the Terms of Service and Privacy Policy to continue.";

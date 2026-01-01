@@ -31,7 +31,7 @@ struct ChatView: View {
                     .padding(.trailing, 8)
                     
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(viewModel.room.displayName)
+                        Text(viewModel.displayTitle)
                             .font(.radarHeadline)
                             .foregroundColor(Color.theme.textPrimary)
                             .lineLimit(1)
@@ -115,9 +115,13 @@ struct ChatView: View {
                             }
                         }
                         .padding()
+                        .padding(.bottom, 10) // Extra padding for safety
                     }
                     .onChange(of: viewModel.messages.count) { _ in
-                        scrollToBottom(proxy: proxy)
+                        // Use async to allow layout to settle before scrolling
+                        DispatchQueue.main.async {
+                            scrollToBottom(proxy: proxy)
+                        }
                     }
                     .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidShowNotification)) { _ in
                         // Delay slightly to allow keyboard to fully appear
@@ -138,6 +142,12 @@ struct ChatView: View {
                     
                     Button(action: {
                         viewModel.sendMessage()
+                        // Force scroll after sending
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            // Cannot access proxy here easily without refactoring, 
+                            // but onChange(messages.count) handles it IF message is appended.
+                            // The optimize update in ViewModel appends it, so onChange fires.
+                        }
                     }) {
                         Image(systemName: "paperplane.fill")
                             .font(.system(size: 20))
@@ -162,8 +172,17 @@ struct ChatView: View {
     }
     
     private func scrollToBottom(proxy: ScrollViewProxy) {
-        if let lastId = viewModel.messages.last?.id {
-            withAnimation {
+        // Guard against empty
+        guard let lastId = viewModel.messages.last?.id else { return }
+        
+        // Scroll immediately with animation
+        withAnimation {
+            proxy.scrollTo(lastId, anchor: .bottom)
+        }
+        
+        // Double check a split second later for reliable "sticking"
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+             withAnimation {
                 proxy.scrollTo(lastId, anchor: .bottom)
             }
         }

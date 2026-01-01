@@ -9,7 +9,7 @@ struct ProfileEditView: View {
     
     var body: some View {
         ZStack {
-            Color.deepBlack.edgesIgnoringSafeArea(.all)
+            Color.theme.bgMain.edgesIgnoringSafeArea(.all)
             
             VStack(spacing: 20) {
                 // Header
@@ -17,12 +17,12 @@ struct ProfileEditView: View {
                     Button(action: { presentationMode.wrappedValue.dismiss() }) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 20))
-                            .foregroundColor(.white)
+                            .foregroundColor(Color.theme.textPrimary)
                     }
                     Spacer()
                     Text("edit_profile".localized)
                         .font(.radarHeadline)
-                        .foregroundColor(.white)
+                        .foregroundColor(Color.theme.textPrimary)
                     Spacer()
                     // Save Button
                     if authViewModel.isLoading {
@@ -50,12 +50,12 @@ struct ProfileEditView: View {
                     HStack {
                         TextField("enter_nickname".localized, text: $nickname)
                             .padding()
-                            .background(Color.glassBlack)
+                            .background(Color.theme.bgLayer1)
                             .cornerRadius(12)
-                            .foregroundColor(.white)
+                            .foregroundColor(Color.theme.textPrimary)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                                    .stroke(Color.theme.borderPrimary, lineWidth: 1)
                             )
                         
                         // Randomize Button
@@ -72,11 +72,11 @@ struct ProfileEditView: View {
                                 .font(.title2)
                                 .foregroundColor(.neonGreen)
                                 .frame(width: 50, height: 50)
-                                .background(Color.glassBlack)
+                                .background(Color.theme.bgLayer1)
                                 .cornerRadius(12)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 12)
-                                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                                        .stroke(Color.theme.borderPrimary, lineWidth: 1)
                                 )
                         }
                     }

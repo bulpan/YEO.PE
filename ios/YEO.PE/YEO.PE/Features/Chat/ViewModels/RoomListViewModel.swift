@@ -69,6 +69,7 @@ class RoomListViewModel: ObservableObject {
         }
     }
     func fetchNearbyRooms() {
+        guard TokenManager.shared.isLoggedIn else { return }
         isLoading = true
         APIService.shared.request("/rooms/nearby") { (result: Result<RoomListResponse, Error>) in
             DispatchQueue.main.async {
@@ -84,6 +85,7 @@ class RoomListViewModel: ObservableObject {
     }
     
     func fetchMyRooms() {
+        guard TokenManager.shared.isLoggedIn else { return }
         APIService.shared.request("/rooms/my") { (result: Result<RoomListResponse, Error>) in
             DispatchQueue.main.async {
                 switch result {
@@ -123,7 +125,9 @@ class RoomListViewModel: ObservableObject {
     func createOneOnOneRoom(with user: User, completion: @escaping (Room?) -> Void) {
         // Naming convention: "Chat with [Nickname]" (Server might mask this later)
         // Naming convention: "Chat with [Nickname]"
-        let displayName = user.nickname ?? user.nicknameMask ?? "User"
+        // Naming convention: "Chat with [Nickname]"
+        // Fix: Use mask first to avoid showing raw nickname initially
+        let displayName = user.nicknameMask ?? user.nickname ?? "User"
         let roomName = "Chat with \(displayName)"
         let body: [String: Any] = [
             "name": roomName,

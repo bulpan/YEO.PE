@@ -24,6 +24,8 @@ struct MainView: View {
     @State private var notificationMessage = ""
     @State private var highlightedUserId: String? // For finding users logic
     @State private var notificationTargetUserId: String? // Store pending target
+    @State private var keyboardHeight: CGFloat = 0 // Track keyboard height
+    @FocusState private var isInputFocused: Bool // Added FocusState
     
     var totalUnreadCount: Int {
         roomViewModel.myRooms
@@ -34,10 +36,25 @@ struct MainView: View {
     private func sendQuickQuestion() {
         guard authViewModel.isLoggedIn else { return }
         
+        isInputFocused = false // Dismiss keyboard
         showQuickQuestionInput = false
         withAnimation {
             isBoosting = true
         }
+
+// ... inside body ...
+
+                             TextEditor(text: $quickQuestionText)
+                                 .focused($isInputFocused) // Attach FocusState
+                                 .frame(height: 60)
+                                 .scrollContentBackground(.hidden)
+                                 .padding(8)
+                                 .background(Color.theme.bgLayer2)
+                                 .cornerRadius(8)
+                                 .foregroundColor(Color.theme.textPrimary)
+                                 .accentColor(Color.theme.accentPrimary)
+                                 .foregroundColor(Color.theme.textPrimary)
+                                 .accentColor(Color.theme.accentPrimary)
         
         let visibleUIDs = bleManager.discoveredUsers.compactMap { $0.uid }
         APIService.shared.sendQuickQuestion(uids: visibleUIDs, content: quickQuestionText) { result in
@@ -64,117 +81,9 @@ struct MainView: View {
     }
     
     var body: some View {
-        ZStack {
-            // Background
-            Color.theme.bgMain.edgesIgnoringSafeArea(.all)
+        ZStack { // Root ZStack: Respects Safe Area by default
             
-            // Notification Banner
-            if showNotificationBanner {
-                VStack {
-                    HStack {
-                        Image(systemName: "message.fill")
-                            .foregroundColor(ThemeManager.shared.isDarkMode ? .neonGreen : .white)
-                        Text(notificationMessage)
-                            .font(.radarBody)
-                            .foregroundColor(ThemeManager.shared.isDarkMode ? .white : .white)
-                            .lineLimit(1)
-                        Spacer()
-                    }
-                    .padding()
-                    .background(Color.theme.bgLayer2)
-                    .cornerRadius(12)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.theme.borderPrimary, lineWidth: 1)
-                    )
-                    .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
-                    .padding(.horizontal)
-                    .padding(.top, 50) // Adjust for safe area
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                    .zIndex(100)
-                    .onTapGesture {
-                        withAnimation { showNotificationBanner = false }
-                        
-                        // Handle "User Discovered" highlight logic
-                        if let targetId = notificationTargetUserId {
-                             // Reset sheets
-                             showProfileSheet = false
-                             showSettingsSheet = false
-                             showProfileSheet = false
-                             showSettingsSheet = false
-                             showRoomList = false
-                             showLoginSheet = false
-                             showLoginSheet = false
-                             
-                             // Highlight
-                             highlightedUserId = targetId
-                             
-                             // Remove highlight after 5 seconds
-                             DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-                                 if highlightedUserId == targetId {
-                                     highlightedUserId = nil
-                                 }
-                             }
-                             
-                             notificationTargetUserId = nil // Clear
-                        } else {
-                            // Default: Open Room List
-                            showRoomList = true
-                        }
-                    }
-                    Spacer()
-                }
-                .zIndex(100)
-            }
-            
-            // Radar Animation
-            RadarPulseView(
-                nearbyUsers: bleManager.discoveredUsers,
-                nearbyRooms: filteredNearbyRooms,
-                activeChatUserIds: activeChatUserIds,
-                highlightedUserId: highlightedUserId,
-                onUserTap: { user in
-                    if authViewModel.isLoggedIn {
-                        selectedTargetUser = user
-                        withAnimation {
-                            showChatAlert = true
-                        }
-                    } else {
-                        showLoginSheet = true
-                    }
-                },
-                onRoomTap: { room in
-                    if authViewModel.isLoggedIn {
-                        self.selectedRoom = room
-                        self.roomViewModel.markAsRead(roomId: room.id)
-                        self.roomViewModel.fetchMyRooms()
-                    } else {
-                        showLoginSheet = true
-                    }
-                }
-            )
-            
-            // Hidden Navigation Link for Radar interactions
-            NavigationLink(
-                destination: selectedRoom != nil ? ChatView(room: selectedRoom!, targetUser: selectedTargetUser, currentUser: authViewModel.currentUser) : nil,
-                isActive: Binding(
-                    get: { selectedRoom != nil },
-                    set: { isPresenting in
-                        if let roomId = selectedRoom?.id {
-                            print("🚪 ChatView dismissed for \(roomId), marking as read locally")
-                            roomViewModel.markAsRead(roomId: roomId)
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                roomViewModel.fetchMyRooms()
-                            }
-                        }
-                        selectedRoom = nil
-                    }
-                )
-            ) {
-                EmptyView()
-            }
-            
-            // Overlay Controls
+            // 1. Controls Content (VStack) - Naturally constrained to Safe Area
             VStack {
                 // Top Bar
                 HStack {
@@ -270,8 +179,8 @@ struct MainView: View {
                                 .frame(width: 60, height: 60)
                             
                             Image(systemName: "antenna.radiowaves.left.and.right")
-                                .font(.system(size: 24))
-                                .foregroundColor(.neonGreen)
+                            .font(.system(size: 24))
+                            .foregroundColor(.neonGreen)
                         }
                     }
                     .shadow(color: .neonGreen.opacity(0.4), radius: 10)
@@ -294,225 +203,238 @@ struct MainView: View {
                         .foregroundColor(.textPrimary)
                     }
                 }
-
-                .padding(.horizontal, 30)
+                .padding(.horizontal, 30) // Keeps buttons from edge (Horizontal only)
                 .padding(.vertical, 20)
                 .glassmorphism(cornerRadius: 30)
                 .padding(.horizontal)
                 .padding(.bottom, 10)
             }
+            .zIndex(1) // Ensure controls are above background
             
-            // Connection Alert Overlay (Match)
+            // 2. Notification Banner
+            if showNotificationBanner {
+                 VStack {
+                     HStack {
+                         Image(systemName: "message.fill")
+                             .foregroundColor(ThemeManager.shared.isDarkMode ? .neonGreen : .white)
+                         Text(notificationMessage)
+                             .font(.radarBody)
+                             .foregroundColor(ThemeManager.shared.isDarkMode ? .white : .white)
+                             .lineLimit(1)
+                         Spacer()
+                     }
+                     .padding()
+                     .background(Color.theme.bgLayer2)
+                     .cornerRadius(12)
+                     .overlay(
+                         RoundedRectangle(cornerRadius: 12)
+                             .stroke(Color.theme.borderPrimary, lineWidth: 1)
+                     )
+                     .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
+                     .padding(.horizontal)
+                     // No specific top padding needed if ZStack respects safe area, it sits at top.
+                     .transition(.move(edge: .top).combined(with: .opacity))
+                     .zIndex(100)
+                     .onTapGesture {
+                         withAnimation { showNotificationBanner = false }
+                         if let targetId = notificationTargetUserId {
+                              showProfileSheet = false; showSettingsSheet = false; showRoomList = false; showLoginSheet = false
+                              highlightedUserId = targetId
+                              DispatchQueue.main.asyncAfter(deadline: .now() + 5) { if highlightedUserId == targetId { highlightedUserId = nil } }
+                              notificationTargetUserId = nil
+                         } else {
+                             showRoomList = true
+                         }
+                     }
+                     Spacer()
+                 }
+            }
+            
+            // 3. Alerts (Full Screen Overlays)
             if showConnectionAlert {
                 ConnectionAlertView(
                     matchedUser: matchedUser,
                     title: "signal_matched".localized,
                     message: "signal_matched_message".localized,
                     confirmText: "connect".localized,
-                    onAccept: {
-                        withAnimation { showConnectionAlert = false }
-                    },
-                    onIgnore: {
-                        withAnimation { showConnectionAlert = false }
-                    }
+                    onAccept: { withAnimation { showConnectionAlert = false } },
+                    onIgnore: { withAnimation { showConnectionAlert = false } }
                 )
-                .transition(.opacity)
-                .zIndex(1)
+                .zIndex(101)
             }
             
-            // Chat Request Alert Overlay
-            if showChatAlert, let targetUser = selectedTargetUser {
-                // Determine Display Name based on MaskID setting
-                let displayName = targetUser.displayName
-                
-                ConnectionAlertView(
-                    matchedUser: displayName,
-                    title: "start_chat_title".localized,
-                    message: "start_chat_message".localized,
-                    confirmText: "start".localized,
-                    onAccept: {
-                        withAnimation { showChatAlert = false }
-                        roomViewModel.createOneOnOneRoom(with: targetUser) { room in
-                            if let room = room {
-                                DispatchQueue.main.async {
-                                    self.selectedRoom = room
-                                }
-                            }
-                        }
-                    },
-                    onIgnore: {
-                        withAnimation { showChatAlert = false }
-                        selectedTargetUser = nil
-                    }
-                )
-                .transition(.opacity)
-                .zIndex(1)
-            }
-            
-            // Quick Question Input Overlay
             if showQuickQuestionInput {
-                ZStack {
-                    // Dimmed Background
-                    Color.black.opacity(0.6).edgesIgnoringSafeArea(.all)
-                        .onTapGesture {
-                            showQuickQuestionInput = false
-                        }
-                    
-                    VStack {
-                        Spacer()
-                        
-                        // Card Content
-                        VStack(spacing: 12) {
-                            HStack {
-                                Text("quick_question".localized)
-                                    .font(.subheadline)
-                                    .foregroundColor(Color.theme.accentPrimary)
-                                Spacer()
-                            }
-                            
-                            TextEditor(text: $quickQuestionText)
-                                .frame(height: 60)
-                                .scrollContentBackground(.hidden) // Cleaner
-                                .padding(8)
-                                .background(Color.theme.bgLayer2)
-                                .cornerRadius(8)
-                                .foregroundColor(Color.theme.textPrimary)
-                                .accentColor(Color.theme.accentPrimary)
-                            
-                            HStack {
-                                Spacer()
-                                Button(action: {
-                                    sendQuickQuestion()
-                                }) {
-                                    Image(systemName: "paperplane.fill")
-                                        .font(.system(size: 16))
-                                        .foregroundColor(ThemeManager.shared.isDarkMode ? .black : .white)
-                                        .padding(10)
-                                        .background(Color.theme.accentPrimary)
-                                        .clipShape(Circle())
-                                }
-                                .disabled(quickQuestionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                                .opacity(quickQuestionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1.0)
-                            }
-                        }
-                        .padding(16)
-                        .background(Color.theme.bgLayer1)
-                        .cornerRadius(20)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(Color.theme.borderPrimary, lineWidth: 0.5)
-                        )
-                        .padding(.horizontal, 20)
-                        // Adjust bottom padding to be above tab bar area but not floating too high
-                        .padding(.bottom, 100)
+                 ZStack {
+                     Color.black.opacity(0.6).edgesIgnoringSafeArea(.all)
+                         .onTapGesture { showQuickQuestionInput = false }
+                     VStack {
+                         Spacer()
+                         VStack(spacing: 12) {
+                             HStack {
+                                 Text("quick_question".localized).font(.subheadline).foregroundColor(Color.theme.accentPrimary); Spacer()
+                             }
+                             TextEditor(text: $quickQuestionText)
+                                 .frame(height: 60)
+                                 .scrollContentBackground(.hidden)
+                                 .padding(8)
+                                 .background(Color.theme.bgLayer2)
+                                 .cornerRadius(8)
+                                 .foregroundColor(Color.theme.textPrimary)
+                                 .accentColor(Color.theme.accentPrimary)
+                             HStack {
+                                 Spacer()
+                                 Button(action: { sendQuickQuestion() }) {
+                                     Image(systemName: "paperplane.fill")
+                                         .font(.system(size: 16))
+                                         .foregroundColor(ThemeManager.shared.isDarkMode ? .black : .white)
+                                         .padding(10)
+                                         .background(Color.theme.accentPrimary)
+                                         .clipShape(Circle())
+                                 }
+                                 .disabled(quickQuestionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                                 .opacity(quickQuestionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1.0)
+                             }
+                         }
+                         .padding(16)
+                         .background(Color.theme.bgLayer1)
+                         .cornerRadius(20)
+                         .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.theme.borderPrimary, lineWidth: 0.5))
+                         .padding(.horizontal, 20)
+                         .padding(.bottom, keyboardHeight > 0 ? keyboardHeight + 20 : 100) // Added buffer
+                     }
+                 }
+                 .zIndex(102)
+                 .edgesIgnoringSafeArea(.bottom) // Allow extending to bottom
+                 // Keyboard Observation
+                 .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { notification in
+                     if let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
+                         withAnimation(.easeOut(duration: 0.25)) {
+                             self.keyboardHeight = keyboardFrame.height
+                         }
+                     }
+                 }
+                 .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+                     withAnimation(.easeOut(duration: 0.25)) {
+                         self.keyboardHeight = 0
+                     }
+                 }
+                 .task {
+                     // Ensure focus triggers after view is fully presented
+                     // Using task ensuring it runs on main actor context if needed (SwiftUI handles view updates)
+                     try? await Task.sleep(nanoseconds: 600_000_000) // 0.6s
+                     self.isInputFocused = true
+                 }
+                 }
+
+            
+            // Invisible Nav Link
+            NavigationLink(
+                destination: selectedRoom != nil ? ChatView(room: selectedRoom!, targetUser: selectedTargetUser, currentUser: authViewModel.currentUser) : nil,
+                isActive: Binding(
+                    get: { selectedRoom != nil },
+                    set: { _ in
+                        if let roomId = selectedRoom?.id { roomViewModel.markAsRead(roomId: roomId); DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { roomViewModel.fetchMyRooms() } }
+                        selectedRoom = nil
                     }
-                }
-                .transition(.opacity) // check: "remove animation" -> opacity is simple. 
-                .zIndex(2)
+                )
+            ) { EmptyView() }
+            
+        } // End Root ZStack
+        // Moves RadarPulseView + Background Color into the .background() modifier of Root ZStack
+        // This keeps the ZStack within Safe Area, but Background expands to fill screen.
+        .background(
+            ZStack {
+                Color.theme.bgMain
+                
+                RadarPulseView(
+                    nearbyUsers: bleManager.discoveredUsers,
+                    nearbyRooms: filteredNearbyRooms,
+                    activeChatUserIds: activeChatUserIds,
+                    highlightedUserId: highlightedUserId,
+                    onUserTap: { user in
+                        if authViewModel.isLoggedIn {
+                             let existingRoom = roomViewModel.myRooms.first { room in
+                                guard let inviteeId = room.metadata?.inviteeId else { return false }
+                                if room.creatorId == authViewModel.currentUser?.id { return inviteeId == user.id } 
+                                else { return room.creatorId == user.id }
+                             }
+                             if let existing = existingRoom {
+                                 self.selectedRoom = existing
+                                 self.roomViewModel.markAsRead(roomId: existing.id)
+                                 self.roomViewModel.fetchMyRooms()
+                             } else {
+                                 roomViewModel.createOneOnOneRoom(with: user) { room in
+                                     if let room = room { DispatchQueue.main.async { self.selectedRoom = room } }
+                                 }
+                             }
+                        } else { showLoginSheet = true }
+                    },
+                    onRoomTap: { room in
+                        if authViewModel.isLoggedIn {
+                            self.selectedRoom = room
+                            self.roomViewModel.markAsRead(roomId: room.id)
+                            self.roomViewModel.fetchMyRooms()
+                        } else { showLoginSheet = true }
+                    }
+                )
+                .id("Radar-\(bleManager.discoveredUsers.count)-\(bleManager.discoveredUsers.map { $0.id }.joined())") // FORCE Refresh on change
             }
-        }
+            .edgesIgnoringSafeArea(.all) // <--- Only Background ignores Safe Area
+        )
         .sheet(isPresented: $showLoginSheet) {
-            LoginView(viewModel: authViewModel)
-                .environmentObject(themeManager)
+            LoginView(viewModel: authViewModel).environmentObject(themeManager)
         }
         .sheet(isPresented: $showProfileSheet) {
-            ProfileView(viewModel: authViewModel)
-                .environmentObject(themeManager)
+            ProfileView(viewModel: authViewModel).environmentObject(themeManager)
         }
         .sheet(isPresented: $showSettingsSheet) {
-            SettingsView(authViewModel: authViewModel)
-                .environmentObject(themeManager)
-        }
-        .sheet(isPresented: $showSettingsSheet) {
-            SettingsView(authViewModel: authViewModel)
-                .environmentObject(themeManager)
+            SettingsView(authViewModel: authViewModel).environmentObject(themeManager)
         }
         .alert(isPresented: $authViewModel.showIdentityRegeneratedAlert) {
             Alert(
                 title: Text("identity_regenerated".localized),
                 message: Text("identity_regenerated_desc".localized),
-                primaryButton: .default(Text("settings".localized)) {
-                    showSettingsSheet = true
-                },
+                primaryButton: .default(Text("settings".localized)) { showSettingsSheet = true },
                 secondaryButton: .cancel(Text("ok".localized))
             )
         }
-        // Room List via Navigation Push (Full Screen)
         .background(
-            NavigationLink(destination: RoomListView(viewModel: roomViewModel).environmentObject(themeManager), isActive: $showRoomList) {
-                EmptyView()
-            }
+             NavigationLink(destination: RoomListView(viewModel: roomViewModel).environmentObject(themeManager), isActive: $showRoomList) { EmptyView() }
         )
-        // Removed .id(themeManager.isDarkMode) to prevent full rebuild
         .onAppear {
             roomViewModel.fetchNearbyRooms()
             roomViewModel.fetchMyRooms()
             bleManager.start()
             
-            // Listen for new messages for global notifications & unread count
             SocketManager.shared.on("new-message") { data, ack in
                 guard let messageData = data.first as? [String: Any],
                       let roomId = messageData["roomId"] as? String,
                       let content = messageData["content"] as? String,
                       let nickname = messageData["nickname"] as? String ?? messageData["nicknameMask"] as? String else { return }
                 
-                // Filter 1: Don't count own messages
-                if let msgUserId = messageData["userId"] as? String,
-                   let currentUserId = authViewModel.currentUser?.id,
-                   msgUserId == currentUserId {
-                    return
-                }
+                if let msgUserId = messageData["userId"] as? String, let currentUserId = authViewModel.currentUser?.id, msgUserId == currentUserId { return }
                 
-                // If we are NOT in this room, show notification and refresh list
                 if self.selectedRoom?.uniqueId != roomId {
                     self.roomViewModel.incrementUnreadCount(roomId: roomId)
-                    // REMOVED: self.roomViewModel.fetchMyRooms() to prevent race condition overwriting local +1
-                    
                     DispatchQueue.main.async {
                         let bannerMessage = "\(nickname): \(content)"
                         APIService.shared.debugMessageSubject.send(bannerMessage)
                         self.notificationMessage = bannerMessage
-                        withAnimation {
-                            // self.showNotificationBanner = true // Disabled by user request
-                        }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                            withAnimation {
-                                self.showNotificationBanner = false
-                            }
-                        }
+                        // Banner disabled by request
                     }
                 } else {
                     self.roomViewModel.markAsRead(roomId: roomId)
                 }
-            } // <-- close first socket handler properly
+            }
             
-            // [Ghost User Fix] Listen for User Left events
-
-            // Listen for Global Notification Tap (if implemented via UNUserNotificationCenter)
-            // Or a NotificationCenter broadcast for "HighlightUser"
             NotificationCenter.default.addObserver(forName: NSNotification.Name("HighlightUser"), object: nil, queue: .main) { notification in
                 if let userId = notification.userInfo?["userId"] as? String {
-                     // Dismiss all sheets
-                     showProfileSheet = false
-                     showSettingsSheet = false
-                     showProfileSheet = false
-                     showSettingsSheet = false
-                     showRoomList = false
-                     showLoginSheet = false
-                     showLoginSheet = false
-                     
-                     // Highlight
+                     showProfileSheet = false; showSettingsSheet = false; showRoomList = false; showLoginSheet = false
                      highlightedUserId = userId
-                     
-                     // Auto-clear
-                     DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
-                         if highlightedUserId == userId {
-                             highlightedUserId = nil
-                         }
-                     }
+                     DispatchQueue.main.asyncAfter(deadline: .now() + 10) { if highlightedUserId == userId { highlightedUserId = nil } }
                 }
             }
-        } // <-- close onAppear
+        }
         .onDisappear {
             bleManager.stop()
         }
@@ -520,9 +442,7 @@ struct MainView: View {
             guard let roomId = roomId else { return }
             print("🔗 MainView received deep link to room: \(roomId)")
             roomViewModel.fetchRoom(id: roomId) { room in
-                if let room = room {
-                    self.selectedRoom = room
-                }
+                if let room = room { self.selectedRoom = room }
             }
         }
         .navigationBarTitle("")
@@ -535,11 +455,8 @@ struct MainView: View {
         for room in roomViewModel.myRooms {
             if room.isActive == true {
                 if let inviteeId = room.metadata?.inviteeId {
-                    if room.creatorId == currentUserId {
-                        ids.insert(inviteeId)
-                    } else if inviteeId == currentUserId, let creatorId = room.creatorId {
-                        ids.insert(creatorId)
-                    }
+                    if room.creatorId == currentUserId { ids.insert(inviteeId) } 
+                    else if inviteeId == currentUserId, let creatorId = room.creatorId { ids.insert(creatorId) }
                 }
             }
         }
@@ -551,12 +468,8 @@ struct MainView: View {
         let myJoinedRoomIds = Set(roomViewModel.myRooms.map { $0.id })
         
         return rooms.filter { (room: Room) -> Bool in
-            if myJoinedRoomIds.contains(room.id) {
-                return false
-            }
-            let isCreatorNearby = bleManager.discoveredUsers.contains { user in
-                user.id == room.creatorId
-            }
+            if myJoinedRoomIds.contains(room.id) { return false }
+            let isCreatorNearby = bleManager.discoveredUsers.contains { user in user.id == room.creatorId }
             return isCreatorNearby
         }
     }
@@ -569,13 +482,9 @@ struct BubbleShape: Shape {
 
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        
-        // Define bubble area (minus tail)
         let bubbleRect = CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: rect.height - tailSize.height)
-        
         path.addRoundedRect(in: bubbleRect, cornerSize: CGSize(width: cornerRadius, height: cornerRadius))
         
-        // Add Tail
         let tailStart = CGPoint(x: rect.midX - tailSize.width / 2, y: bubbleRect.maxY)
         let tailTip = CGPoint(x: rect.midX, y: rect.maxY)
         let tailEnd = CGPoint(x: rect.midX + tailSize.width / 2, y: bubbleRect.maxY)
@@ -584,7 +493,6 @@ struct BubbleShape: Shape {
         path.addLine(to: tailTip)
         path.addLine(to: tailEnd)
         
-        // Manual draw for correct stroke
         return manualPath(in: rect)
     }
     

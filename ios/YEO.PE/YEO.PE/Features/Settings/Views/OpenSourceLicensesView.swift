@@ -20,7 +20,7 @@ struct OpenSourceLicensesView: View {
     
     var body: some View {
         ZStack {
-            Color.deepBlack.edgesIgnoringSafeArea(.all)
+            Color.theme.bgMain.edgesIgnoringSafeArea(.all)
             
             VStack {
                 // Header
@@ -28,12 +28,12 @@ struct OpenSourceLicensesView: View {
                     Button(action: { presentationMode.wrappedValue.dismiss() }) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundColor(Color.theme.textPrimary)
                     }
                     Spacer()
                     Text("open_source_licenses".localized)
                         .font(.headline)
-                        .foregroundColor(.white)
+                        .foregroundColor(Color.theme.textPrimary)
                     Spacer()
                     Spacer().frame(width: 20)
                 }
@@ -45,7 +45,7 @@ struct OpenSourceLicensesView: View {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text(license.name)
                                     .font(.system(size: 18, weight: .bold))
-                                    .foregroundColor(.white)
+                                    .foregroundColor(Color.theme.textPrimary)
                                 
                                 Text(license.copyright)
                                     .font(.caption)
@@ -64,7 +64,7 @@ struct OpenSourceLicensesView: View {
                             }
                             .padding()
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.white.opacity(0.05))
+                            .background(Color.theme.bgLayer1)
                             .cornerRadius(12)
                         }
                     }

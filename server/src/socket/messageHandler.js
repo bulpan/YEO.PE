@@ -67,7 +67,7 @@ const messageHandler = (socket, io) => {
 
       // 푸시 알림 전송 (백그라운드에서 비동기 처리)
       // WebSocket에 연결되지 않은 사용자에게만 전송
-      logger.info(`[PushDebug] Calling sendMessageNotification for room ${roomId}`);
+      logger.info(`[PushTrace] Calling sendMessageNotification for room ${roomId}`);
       pushService.sendMessageNotification(
         roomId,
         userId,
@@ -76,9 +76,9 @@ const messageHandler = (socket, io) => {
         message.type,
         io // Socket.io 인스턴스 전달 (연결 상태 확인용)
       ).then(result => {
-        logger.info(`[PushDebug] sendMessageNotification completed: ${JSON.stringify(result)}`);
+        logger.info(`[PushTrace] sendMessageNotification completed: ${JSON.stringify(result)}`);
       }).catch(err => {
-        logger.error('[PushDebug] 푸시 알림 전송 실패:', err);
+        logger.error('[PushSummary] 푸시 알림 전송 실패 (Handler):', err);
       });
 
       logger.info(`메시지 전송 (WebSocket): ${message.messageId} in room ${roomId}`);

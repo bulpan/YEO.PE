@@ -121,6 +121,24 @@
 "off" = "끄기";
 "activity_based" = "활동 기반";
 
+// Onboarding v2
+"onboarding_1_title_v2" = "신호가 닿는 거리의 사람들을 찾아보세요";
+"onboarding_1_desc_v2" = "위치 기반이 아닌, 실제로 신호가 닿는 아주 가까운 곳의 사람들과 연결됩니다. 지금 내 주변에 누가 있는지 레이더를 켜보세요.";
+
+"onboarding_2_title_v2" = "익명으로 가볍게 인사하세요";
+"onboarding_2_desc_v2" = "현실의 나를 밝힐 필요 없이, 랜덤 닉네임으로 자유롭게 대화하세요. 부담 없이 솔직한 이야기를 나눌 수 있습니다.";
+
+"onboarding_3_title_v2" = "대화는 24시간 뒤 증발합니다";
+"onboarding_3_desc_v2" = "모든 채팅방과 메시지는 24시간이 지나면 흔적 없이 사라집니다. 기록 걱정 없이 지금 이 순간의 대화에만 집중해보세요.";
+"start_app" = "YEO.PE 시작하기";
+"next" = "다음";
+"skip" = "건너뛰기";
+
+// Language Restart
+"language_restart_title" = "재시작 필요";
+"language_restart_message" = "언어 설정을 적용하려면 앱을 재시작해야 합니다. 지금 종료하시겠습니까?";
+"exit_app" = "앱 종료";
+
 // MainView Filters
 "all" = "전체";
 "ios" = "iOS";
@@ -156,3 +174,7 @@
 "report_other" = "기타";
 "blocked_users_title" = "차단 관리";
 "block_policy_info" = "차단은 앱 설치 시 발급된 고유 ID를 기준으로 동작합니다. 상대방이 닉네임을 변경해도 차단은 유지되지만, 앱을 재설치할 경우 해제될 수 있습니다. 한 번 차단하면 해제할 수 없습니다.";
+
+// Compliance
+"i_agree_to_terms" = "서비스 이용약관 및 개인정보 처리방침에 동의합니다";
+"terms_required_alert" = "서비스를 이용하려면 약관 및 개인정보 처리방침에 동의해야 합니다.";

@@ -302,6 +302,7 @@ struct ProfileView: View {
                                 .foregroundColor(Color.theme.signalRed.opacity(0.8))
                         }
                     }
+                    .padding(.horizontal, 16) // Added padding to match Grid's extra spacing
                 }
                 .padding(.vertical, 18) // Reduced to 60% of 30
                 .padding(.horizontal, 30)
