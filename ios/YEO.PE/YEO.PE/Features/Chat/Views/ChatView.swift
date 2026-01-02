@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 struct ChatView: View {
     @Environment(\.presentationMode) var presentationMode
@@ -12,6 +13,8 @@ struct ChatView: View {
     @State private var reportTargetUser: User?
     @State private var showMenu = false
     @State private var showLeaveConfirmation = false
+    @State private var showImagePicker = false
+    @State private var inputImage: UIImage?
     
     var body: some View {
         ZStack {
@@ -95,19 +98,25 @@ struct ChatView: View {
                         onBlock: {
                             viewModel.blockUser(userId: user.id) { success in
                                 if success {
-                                    // If handling 1:1 specifically, might want to exit?
-                                    // For now, blocking simply removes them locally and prevents future messages.
+                                    // Handle block success if needed
                                 }
                             }
                         }
                     )
+                }
+                .sheet(isPresented: $showImagePicker) {
+                    ImagePicker(sourceType: .photoLibrary) { image in
+                        self.inputImage = image
+                        viewModel.uploadImage(image)
+                    }
                 }
                 
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 12) {
                             ForEach(viewModel.messages) { message in
-                                let sender = viewModel.members.first(where: { $0.id == message.userId })
+                                let sender = viewModel.members.first(where: { $0.id == message.userId }) 
+                                             ?? (viewModel.targetUser?.id == message.userId ? viewModel.targetUser : nil)
                                 MessageRow(message: message, sender: sender, onAvatarTap: { tappedUser in
                                     reportTargetUser = tappedUser
                                 })
@@ -115,16 +124,14 @@ struct ChatView: View {
                             }
                         }
                         .padding()
-                        .padding(.bottom, 10) // Extra padding for safety
+                        .padding(.bottom, 10)
                     }
                     .onChange(of: viewModel.messages.count) { _ in
-                        // Use async to allow layout to settle before scrolling
                         DispatchQueue.main.async {
                             scrollToBottom(proxy: proxy)
                         }
                     }
                     .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidShowNotification)) { _ in
-                        // Delay slightly to allow keyboard to fully appear
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                             scrollToBottom(proxy: proxy)
                         }
@@ -140,20 +147,27 @@ struct ChatView: View {
                         .foregroundColor(.textPrimary)
                         .accentColor(.neonGreen)
                     
+                    // Image Picker Button
+                    Button(action: {
+                        showImagePicker = true
+                    }) {
+                        Image(systemName: "photo")
+                            .font(.system(size: 20))
+                            .foregroundColor(Color.theme.textSecondary)
+                            .padding(10)
+                    }
+                    
                     Button(action: {
                         viewModel.sendMessage()
-                        // Force scroll after sending
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            // Cannot access proxy here easily without refactoring, 
-                            // but onChange(messages.count) handles it IF message is appended.
-                            // The optimize update in ViewModel appends it, so onChange fires.
+                            // Scroll handled by onChange
                         }
                     }) {
                         Image(systemName: "paperplane.fill")
                             .font(.system(size: 20))
-                            .foregroundColor(ThemeManager.shared.isDarkMode ? .black : .white) // Black on Green, White on DarkGray
+                            .foregroundColor(ThemeManager.shared.isDarkMode ? .black : .white)
                             .padding(10)
-                            .background(Color.neonGreen) // LightMode: DarkGray, DarkMode: NeonGreen
+                            .background(Color.neonGreen)
                             .clipShape(Circle())
                     }
                 }
@@ -161,7 +175,7 @@ struct ChatView: View {
                 .background(Color.glassBlack)
             }
         }
-        .navigationBarHidden(true) // Hide default nav bar for custom header
+        .navigationBarHidden(true)
         .onAppear {
             viewModel.joinRoom()
         }
@@ -172,15 +186,12 @@ struct ChatView: View {
     }
     
     private func scrollToBottom(proxy: ScrollViewProxy) {
-        // Guard against empty
         guard let lastId = viewModel.messages.last?.id else { return }
         
-        // Scroll immediately with animation
         withAnimation {
             proxy.scrollTo(lastId, anchor: .bottom)
         }
         
-        // Double check a split second later for reliable "sticking"
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
              withAnimation {
                 proxy.scrollTo(lastId, anchor: .bottom)
@@ -200,36 +211,26 @@ struct MessageRow: View {
     }
     
     var shouldMask: Bool {
-        // If sender is known, respect their setting. Default to true (Masked) if generic preference?
-        // User said: "If I set it to mask... show masked. If unset... show real."
-        // App default is true.
         return sender?.settings?.maskId ?? false
     }
     
     var body: some View {
         if message.type == "system" {
             if isMe {
-                // Hide "I joined" or "I left" system messages for the user themselves
                 EmptyView()
             } else {
                 HStack {
                     Spacer()
-                    // Privacy Fix: Replace nickname with mask if preferred
-                    // Privacy Fix & Localization
                     let displayContent: String = {
                         let original = message.content ?? ""
                         let displayName = shouldMask ? (message.nicknameMask ?? (message.nickname ?? "Unknown")) : (message.nickname ?? "Unknown")
                         
-                        // Check for known server patterns
                         if original.contains("joined the room") {
-                            // Try to extract name if variable, but since we have known nickname/mask, we can just reconstruct.
-                            // Assuming the message is just "{Name} joined the room"
                             return String(format: "sys_joined_room".localized, displayName)
                         } else if original.contains("messages have evaporated") {
                             return String(format: "sys_msg_evaporated".localized, displayName)
                         }
                         
-                        // Fallback: If no pattern matches, at least try to mask the name in the original string
                         if shouldMask, let nickname = message.nickname, let mask = message.nicknameMask {
                             return original.replacingOccurrences(of: nickname, with: mask)
                         }
@@ -248,12 +249,10 @@ struct MessageRow: View {
                 if isMe { Spacer() }
                 
                 if !isMe {
-                    // Avatar Placeholder
                     Button(action: {
                         if let user = sender {
                             onAvatarTap?(user)
                         } else {
-                            // Create a temporary User object from message info if sender is missing
                             let tempUser = User(
                                 id: message.userId,
                                 email: "",
@@ -286,15 +285,13 @@ struct MessageRow: View {
                     }
                     
                     HStack(alignment: .bottom, spacing: 4) {
-                        if isMe {
-                            if message.localStatus == .sending {
-                                ProgressView()
-                                    .scaleEffect(0.7)
-                                    .frame(width: 15, height: 15)
-                            }
+                        if isMe, message.localStatus == .sending {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                                .frame(width: 15, height: 15)
                         }
                         
-                        Text(shouldMask ? (message.content ?? "") : (message.content ?? "")) // Content usually doesn't need masking unless it mentions name? Message content is message content.
+                        Text(message.content ?? "")
                             .font(.radarBody)
                             .padding(12)
                             .background(
@@ -305,7 +302,7 @@ struct MessageRow: View {
                             .foregroundColor(
                                 isMe ? 
                                     (ThemeManager.shared.isDarkMode ? .black : .textPrimary) 
-                                    : (ThemeManager.shared.isDarkMode ? .white : .black) // Force black in Light Mode for other
+                                    : (ThemeManager.shared.isDarkMode ? .white : .black)
                             )
                             .cornerRadius(16)
                             .opacity(message.localStatus == .sending ? 0.7 : 1.0)
@@ -313,11 +310,19 @@ struct MessageRow: View {
                                 RoundedRectangle(cornerRadius: 16)
                                     .stroke(Color.textPrimary.opacity(0.1), lineWidth: isMe ? 0 : 1)
                             )
+                        
+                        if let imageUrl = message.imageUrl, let url = URL(string: AppConfig.baseURL + imageUrl) {
+                            CachedAsyncImage(url: url)
+                                .frame(maxWidth: 200, maxHeight: 200)
+                                .aspectRatio(contentMode: .fill)
+                                .cornerRadius(12)
+                        }
                     }
                 }
                 
                 if !isMe { Spacer() }
             }
+            .frame(maxWidth: .infinity, alignment: isMe ? .trailing : .leading)
         }
     }
 }

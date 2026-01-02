@@ -32,12 +32,22 @@ class ServerConfig: ObservableObject {
     private let defaultLocalIP = "192.168.219.167"
     
     private init() {
-        let envString = UserDefaults.standard.string(forKey: "serverEnvironment") ?? ServerEnvironment.production.rawValue
-        self.environment = ServerEnvironment(rawValue: envString) ?? .production
+        // 1. Try to load saved preference
+        let savedEnvString = UserDefaults.standard.string(forKey: "serverEnvironment")
         
-        // Prioritize Generated Config (Build Time IP) -> UserDefaults -> Hardcoded Default
+        if let savedEnvString = savedEnvString, let savedEnv = ServerEnvironment(rawValue: savedEnvString) {
+            self.environment = savedEnv
+        } else {
+            // 2. Default if no preference (First Launch)
+            #if DEBUG
+            self.environment = .local
+            #else
+            self.environment = .production
+            #endif
+        }
+        
+        // 3. Setup Local IP (Always load generated for Debug convenience, or saved for Release)
         #if DEBUG
-        self.environment = .local // Force Local in Debug builds (Optional: user preference)
         self.localIP = GeneratedConfig.localIP
         #else
         self.localIP = UserDefaults.standard.string(forKey: "localServerIP") ?? defaultLocalIP

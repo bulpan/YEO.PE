@@ -275,7 +275,7 @@ class AuthViewModel: ObservableObject {
         }
     }
     
-    func deleteAccount() {
+    func deleteAccount(completion: ((Bool) -> Void)? = nil) {
         isLoading = true
         APIService.shared.deleteAccount { [weak self] result in
             DispatchQueue.main.async {
@@ -283,8 +283,10 @@ class AuthViewModel: ObservableObject {
                 switch result {
                 case .success:
                     self?.logout()
+                    completion?(true)
                 case .failure(let error):
                     self?.errorMessage = error.localizedDescription
+                    completion?(false)
                 }
             }
         }

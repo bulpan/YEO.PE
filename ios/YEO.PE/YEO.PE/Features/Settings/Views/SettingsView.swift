@@ -21,6 +21,8 @@ struct SettingsView: View {
     @State private var showBlockedUsers = false
     @State private var showPushPermissionAlert = false
     @State private var showOpenSource = false
+    @State private var showDeleteConfirmation = false
+    @State private var showLogoutConfirmation = false
     
     // Language Restart
     @State private var showRestartAlert = false
@@ -55,6 +57,9 @@ struct SettingsView: View {
                         notificationSection
                         messageSection
                         privacySection
+                        messageSection
+                        privacySection
+                        accountSection
                         developerSection
                         legalSection
                     }
@@ -108,6 +113,20 @@ struct SettingsView: View {
                 }
             )
         }
+        .alert(isPresented: $showDeleteConfirmation) {
+            Alert(
+                title: Text("delete_confirm_title".localized),
+                message: Text("delete_confirm_message".localized),
+                primaryButton: .destructive(Text("delete".localized)) {
+                    authViewModel.deleteAccount { success in
+                        if success {
+                            // Exit App or Reset? Usually authViewModel handles logout state
+                        }
+                    }
+                },
+                secondaryButton: .cancel()
+            )
+        }
         // Immediate Saving
         .onChange(of: pushNotificationsEnabled) { _ in saveSettings() }
         .onChange(of: messageRetention) { _ in saveSettings() }
@@ -148,22 +167,10 @@ struct SettingsView: View {
                 HStack {
                     ZStack {
                         if let url = authViewModel.currentUser?.fullProfileFileURL {
-                            AsyncImage(url: url) { phase in
-                                switch phase {
-                                case .empty:
-                                    ProgressView().frame(width: 50, height: 50)
-                                case .success(let image):
-                                    image.resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                        .frame(width: 50, height: 50)
-                                        .clipShape(Circle())
-                                        .overlay(Circle().stroke(Color.theme.accentPrimary, lineWidth: 1))
-                                case .failure:
-                                    fallbackProfileImage
-                                @unknown default:
-                                    fallbackProfileImage
-                                }
-                            }
+                            CachedAsyncImage(url: url)
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 100, height: 100)
+                                .clipShape(Circle())
                         } else {
                             fallbackProfileImage
                         }
@@ -389,6 +396,30 @@ struct SettingsView: View {
         .padding(.horizontal)
     }
     
+    var accountSection: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            Text("account".localized)
+                .font(.radarCaption)
+                .foregroundColor(Color.theme.textSecondary)
+                .padding(.leading, 4)
+            
+            Button(action: { showDeleteConfirmation = true }) {
+                HStack {
+                    Text("delete_account".localized)
+                        .foregroundColor(.red)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.gray)
+                }
+                .padding()
+                .background(Color.theme.bgLayer1)
+            }
+            .cornerRadius(12)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.theme.borderSubtle, lineWidth: 1))
+        }
+        .padding(.horizontal)
+    }
+
     var developerSection: some View {
         VStack(alignment: .leading, spacing: 15) {
             Text("developer_settings".localized)

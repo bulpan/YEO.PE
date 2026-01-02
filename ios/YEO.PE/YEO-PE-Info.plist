@@ -35,6 +35,7 @@
 		<string>bluetooth-peripheral</string>
 		<string>processing</string>
 		<string>nearby-interaction</string>
+		<string>remote-notification</string>
 	</array>
     <key>FirebaseInAppMessagingAutomaticDataCollectionEnabled</key>
     <false/>

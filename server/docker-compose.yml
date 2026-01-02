@@ -26,7 +26,6 @@ services:
     volumes:
       - ./uploads:/usr/src/app/public/uploads
       - ./src:/usr/src/app/src
-      - ./public:/usr/src/app/public
 
       - ./logs:/usr/src/app/logs
     networks:

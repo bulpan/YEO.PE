@@ -95,15 +95,31 @@ struct RadarPulseView: View {
             }
         }
         .onAppear {
-            isPulsing = true
+            restartAnimation()
+        }
+        .onDisappear {
+            stopAnimation()
         }
         .onChange(of: scenePhase) { newPhase in
             if newPhase == .active {
-                isPulsing = true
+                restartAnimation()
             } else {
-                isPulsing = false
+                stopAnimation()
             }
         }
+    }
+    
+    private func restartAnimation() {
+        isPulsing = false
+        // Slight delay to ensure clean state reset before starting
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            isPulsing = true
+        }
+    }
+    
+    private func stopAnimation() {
+        isPulsing = false
+
     }
 }
 
@@ -129,17 +145,10 @@ struct RadarUserNode: View {
             // 1. User Bubble (Avatar)
             ZStack {
                 if let url = user.fullProfileFileURL {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: 50, height: 50)
-                                .clipShape(Circle())
-                        default:
-                            PlaceholderAvatar(isGuest: user.isGuest, isDarkMode: ThemeManager.shared.isDarkMode)
-                        }
-                    }
+                    CachedAsyncImage(url: url)
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 50, height: 50)
+                        .clipShape(Circle())
                 } else {
                     PlaceholderAvatar(isGuest: user.isGuest, isDarkMode: ThemeManager.shared.isDarkMode)
                 }
@@ -173,7 +182,11 @@ struct RadarUserNode: View {
         )
         .animation(.spring(response: 0.6, dampingFraction: 0.7), value: user.distance)
         .onAppear {
-            baseAngle = Double.random(in: 0...(2 * .pi))
+            // Only randomize if not already set (stability check)
+            if baseAngle == 0.0 {
+                baseAngle = Double.random(in: 0...(2 * .pi))
+            }
+            
             if isHighlighted || isChatting {
                 withAnimation(Animation.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
                     pulseScale = 1.1

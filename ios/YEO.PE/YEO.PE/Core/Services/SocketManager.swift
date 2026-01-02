@@ -54,21 +54,18 @@ class SocketManager: ObservableObject {
             }
         }
         
-        // Listen for new messages globally for Local Notifications
+        // Listen for new messages globally for Local Notifications - REMOVED to avoid duplicate pushes
+        // Server sends Push Notification, so we don't need Local Notification here.
+        /*
         socket?.on("new-message") { [weak self] data, ack in
             guard let self = self else { return }
             
             // Check if app is in background
             if UIApplication.shared.applicationState == .background || UIApplication.shared.applicationState == .inactive {
-                if let messageData = data.first as? [String: Any],
-                   let content = messageData["content"] as? String,
-                   let nicknameMask = messageData["nicknameMask"] as? String,
-                   let roomId = messageData["roomId"] as? String {
-                    
-                    self.scheduleLocalNotification(title: nicknameMask, body: content, roomId: roomId)
-                }
+                 // Logic Removed
             }
         }
+        */
         
         socket?.connect()
     }
@@ -111,13 +108,18 @@ class SocketManager: ObservableObject {
         socket?.emit("exit-room", ["roomId": roomId])
     }
     
-    func sendMessage(roomId: String, content: String) {
-        let data: [String: Any] = [
+    func sendMessage(roomId: String, content: String, type: String = "text", imageUrl: String? = nil) {
+        var data: [String: Any] = [
             "roomId": roomId,
-            "type": "text",
+            "type": type,
             "content": content
         ]
-        print("🔌 SocketManager: Emitting send-message to \(roomId)")
+        
+        if let imageUrl = imageUrl {
+            data["imageUrl"] = imageUrl
+        }
+        
+        print("🔌 SocketManager: Emitting send-message to \(roomId), type: \(type)")
         socket?.emit("send-message", data)
     }
     

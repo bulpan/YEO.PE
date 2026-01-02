@@ -223,22 +223,20 @@ class ChatViewModel: ObservableObject {
         }
     }
 
-    func sendMessage() {
-        guard !newMessageText.isEmpty else { return }
+    func sendMessage(type: String = "text", content: String? = nil, imageUrl: String? = nil) {
+        let finalContent = content ?? newMessageText
+        guard !finalContent.isEmpty || imageUrl != nil else { return }
         
-        let content = newMessageText
-        newMessageText = "" // Clear input immediately
+        // Reset input if it's a text message being cleaned up
+        if type == "text" && content == nil {
+            newMessageText = ""
+        }
         
-        socketManager.sendMessage(roomId: room.uniqueId, content: content)
+        socketManager.sendMessage(roomId: room.uniqueId, content: finalContent, type: type, imageUrl: imageUrl)
         
-        // Optimistic Update: Append message locally immediately
+        // Optimistic Update
         let tempId = UUID().uuidString
         let myId = currentUser?.id ?? TokenManager.shared.userId ?? ""
-        
-        // Debug
-        if myId.isEmpty {
-             print("⚠️ Warning: sending message with empty userId. currentUser is nil and TokenManager empty.")
-        }
         
         let optimisticMessage = Message(
             messageId: tempId,
@@ -246,9 +244,9 @@ class ChatViewModel: ObservableObject {
             userId: myId,
             nickname: currentUser?.nickname,
             nicknameMask: currentUser?.nicknameMask,
-            type: "text",
-            content: content,
-            imageUrl: nil,
+            type: type,
+            content: finalContent,
+            imageUrl: imageUrl,
             createdAt: ISO8601DateFormatter().string(from: Date()),
             localStatus: .sending
         )
@@ -257,11 +255,26 @@ class ChatViewModel: ObservableObject {
             self.messages.append(optimisticMessage)
         }
         
-        // Stop typing immediately when sending
         if isTyping {
             isTyping = false
             typingTimer?.invalidate()
             socketManager.sendTypingEnd(roomId: room.uniqueId)
+        }
+    }
+    
+    func uploadImage(_ image: UIImage) {
+        isLoading = true
+        APIService.shared.uploadImage(image: image) { [weak self] result in
+            DispatchQueue.main.async {
+                self?.isLoading = false
+                switch result {
+                case .success(let url):
+                    self?.sendMessage(type: "image", content: "사진을 보냈습니다.", imageUrl: url)
+                case .failure(let error):
+                    print("❌ Image upload failed: \(error)")
+                    // Here we might want to show an error message in UI
+                }
+            }
         }
     }
     

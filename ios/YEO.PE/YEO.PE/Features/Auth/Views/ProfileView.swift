@@ -71,29 +71,10 @@ struct ProfileView: View {
                                     .animation(Animation.easeOut(duration: 2).repeatForever(autoreverses: false), value: isPulsing)
                                 
                                 if let url = viewModel.currentUser?.fullProfileFileURL {
-                                    AsyncImage(url: url) { phase in
-                                        switch phase {
-                                        case .empty:
-                                            ProgressView()
-                                                .frame(width: 100, height: 100)
-                                        case .success(let image):
-                                            image.resizable()
-                                                .aspectRatio(contentMode: .fill)
-                                                .frame(width: 100, height: 100)
-                                                .clipShape(Circle())
-                                        case .failure:
-                                            Circle()
-                                                .stroke(Color.neonGreen, lineWidth: 2)
-                                                .frame(width: 100, height: 100)
-                                                .overlay(
-                                                    Image(systemName: "person.fill")
-                                                        .font(.system(size: 40))
-                                                        .foregroundColor(.neonGreen)
-                                                )
-                                        @unknown default:
-                                            EmptyView()
-                                        }
-                                    }
+                                    CachedAsyncImage(url: url)
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: 100, height: 100)
+                                        .clipShape(Circle())
                                 } else {
                                     Circle()
                                         .stroke(Color.neonGreen, lineWidth: 2)
@@ -122,7 +103,9 @@ struct ProfileView: View {
                         .frame(width: 140, height: 140) // Click area
                         .onAppear { isPulsing = true }
                         .sheet(isPresented: $showImagePicker) {
-                            ImagePicker(image: $selectedImage)
+                            ImagePicker(sourceType: .photoLibrary, allowsEditing: true) { image in
+                                self.selectedImage = image
+                            }
                         }
                         .onChange(of: selectedImage) { newImage in
                             if let image = newImage {
@@ -486,39 +469,4 @@ extension Color {
     }
 }
 
-struct ImagePicker: UIViewControllerRepresentable {
-    @Binding var image: UIImage?
-    @Environment(\.presentationMode) private var presentationMode
- 
-    func makeUIViewController(context: UIViewControllerRepresentableContext<ImagePicker>) -> UIImagePickerController {
-        let picker = UIImagePickerController()
-        picker.delegate = context.coordinator
-        picker.allowsEditing = true 
-        return picker
-    }
- 
-    func updateUIViewController(_ uiViewController: UIImagePickerController, context: UIViewControllerRepresentableContext<ImagePicker>) {
-    }
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
- 
-    class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
-        let parent: ImagePicker
- 
-        init(_ parent: ImagePicker) {
-            self.parent = parent
-        }
- 
-        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
-            if let editedImage = info[.editedImage] as? UIImage {
-                parent.image = editedImage
-            } else if let originalImage = info[.originalImage] as? UIImage {
-                parent.image = originalImage
-            }
- 
-            parent.presentationMode.wrappedValue.dismiss()
-        }
-    }
-}
+

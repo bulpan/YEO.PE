@@ -158,14 +158,18 @@ const processNearbyUser = async ({ userIds, userCount }) => {
         })
         .map(r => r.id);
 
-    // Redis Rate Limit (Per User)
+    // Redis Rate Limit (Per User) - Atomic Fix
     const finalTargets = [];
     for (const uid of validUserIds) {
         const lastKey = `push:nearby_user:${uid}`;
-        const lastTime = await redis.get(lastKey);
-        if (!lastTime || (Date.now() - parseInt(lastTime) > 60000)) {
+        // Use SET NX to atomically check and set
+        // If set returns 'OK' (truthy), it means we acquired the lock/limit.
+        // We set expiration to 60 seconds (matching the original 60000ms logic roughly, though original kept key for 300s).
+        // Let's use 60s to strictly enforce "once per minute".
+        const acquired = await redis.set(lastKey, String(Date.now()), 'EX', 60, 'NX');
+
+        if (acquired) {
             finalTargets.push(uid);
-            await redis.set(lastKey, String(Date.now()), 'EX', 300);
         }
     }
 

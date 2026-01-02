@@ -18,7 +18,6 @@ rsync -avz --delete \
     --exclude '.DS_Store' \
     --exclude 'coverage' \
     --exclude 'tests/simulation' \
-    --exclude 'nginx/ssl' \
     server/ \
     $USER@$SERVER_IP:$REMOTE_DIR/server/
 

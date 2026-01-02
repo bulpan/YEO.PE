@@ -56,3 +56,9 @@ coverage/
 
 # iOS Secrets
 ios/YEO.PE/YEO.PE/GoogleService-Info.plist
+
+# Xcode User State
+*.xcuserstate
+
+# Heap Dumps
+*.hprof
