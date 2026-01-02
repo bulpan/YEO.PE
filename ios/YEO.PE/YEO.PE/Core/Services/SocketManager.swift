@@ -54,18 +54,21 @@ class SocketManager: ObservableObject {
             }
         }
         
-        // Listen for new messages globally for Local Notifications - REMOVED to avoid duplicate pushes
-        // Server sends Push Notification, so we don't need Local Notification here.
-        /*
+        // Listen for new messages globally for Local Notifications
         socket?.on("new-message") { [weak self] data, ack in
             guard let self = self else { return }
             
             // Check if app is in background
             if UIApplication.shared.applicationState == .background || UIApplication.shared.applicationState == .inactive {
-                 // Logic Removed
+                if let messageData = data.first as? [String: Any],
+                   let content = messageData["content"] as? String,
+                   let nicknameMask = messageData["nicknameMask"] as? String, /* use nicknameMask as title */
+                   let roomId = messageData["roomId"] as? String {
+                    
+                    self.scheduleLocalNotification(title: nicknameMask, body: content, roomId: roomId)
+                }
             }
         }
-        */
         
         socket?.connect()
     }
