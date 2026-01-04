@@ -597,7 +597,14 @@ const getUserRooms = async (userId) => {
      LEFT JOIN yeope_schema.users u_creator ON r.creator_id = u_creator.id
      LEFT JOIN yeope_schema.users u_invitee ON r.metadata->>'inviteeId' = u_invitee.id::text
      WHERE (rm.user_id IS NOT NULL AND r.expires_at > NOW())
-        OR (r.metadata->>'inviteeId' = $1::text AND r.expires_at > NOW())
+        OR (
+          r.metadata->>'inviteeId' = $1::text 
+          AND r.expires_at > NOW()
+          AND NOT EXISTS (
+            SELECT 1 FROM yeope_schema.room_members 
+            WHERE room_id = r.id AND user_id = $1
+          )
+        )
      ORDER BY last_seen_at DESC`,
     [userId]
   );
