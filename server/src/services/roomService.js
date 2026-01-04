@@ -375,8 +375,8 @@ const joinRoom = async (userId, roomId) => {
 
       await client.query(updateQuery, params);
       // 시스템 메시지 추가 (참여 알림)
-      const userRes = await client.query('SELECT nickname_mask FROM yeope_schema.users WHERE id = $1', [userId]);
-      const nickname = userRes.rows[0]?.nickname_mask || 'Anonymous';
+      const userRes = await client.query('SELECT nickname, nickname_mask FROM yeope_schema.users WHERE id = $1', [userId]);
+      const nickname = userRes.rows[0]?.nickname_mask || userRes.rows[0]?.nickname || 'Unknown';
       const systemContent = `${nickname} joined the room.`;
 
       const msgResult = await client.query(
@@ -441,8 +441,8 @@ const leaveRoom = async (userId, roomId) => {
   // 트랜잭션으로 방 나가기 처리
   const transactionResult = await transaction(async (client) => {
     // 1. 사용자 닉네임 조회 (시스템 메시지용)
-    const userRes = await client.query('SELECT nickname_mask FROM yeope_schema.users WHERE id = $1', [userId]);
-    const nickname = userRes.rows[0]?.nickname_mask || 'Anonymous';
+    const userRes = await client.query('SELECT nickname, nickname_mask FROM yeope_schema.users WHERE id = $1', [userId]);
+    const nickname = userRes.rows[0]?.nickname_mask || userRes.rows[0]?.nickname || 'Unknown';
 
     // 2. 사용자의 모든 메시지 삭제 (Evaporation)
     await client.query(
