@@ -146,19 +146,62 @@ router.get('/rooms/:id', async (req, res, next) => {
 router.delete('/rooms/:id', async (req, res, next) => {
     try {
         const { id } = req.params;
-        // UUID verification logic might be needed if id is room_id string
-        const result = await pool.query('DELETE FROM yeope_schema.rooms WHERE id = $1 OR room_id = $1 RETURNING id', [id]);
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
-        if (result.rowCount === 0) {
-            return res.status(404).json({ error: 'Room not found' });
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            let roomUuid;
+
+            if (isUUID) {
+                // If it is a UUID, check both id and room_id
+                const roomRes = await client.query('SELECT id FROM yeope_schema.rooms WHERE id = $1 OR room_id = $1', [id]);
+                if (roomRes.rows.length === 0) {
+                    // Double check strict room_id text match just in case
+                    const roomRes2 = await client.query('SELECT id FROM yeope_schema.rooms WHERE room_id = $1', [id]);
+                    if (roomRes2.rows.length > 0) {
+                        roomUuid = roomRes2.rows[0].id;
+                    } else {
+                        await client.query('ROLLBACK');
+                        return res.status(404).json({ error: 'Room not found' });
+                    }
+                } else {
+                    roomUuid = roomRes.rows[0].id;
+                }
+            } else {
+                // Not a UUID, must be a room_id string (legacy support if any non-UUID room_ids exist, which shouldn't happen but safe to check)
+                const roomRes = await client.query('SELECT id FROM yeope_schema.rooms WHERE room_id = $1', [id]);
+                if (roomRes.rows.length === 0) {
+                    await client.query('ROLLBACK');
+                    return res.status(404).json({ error: 'Room not found' });
+                }
+                roomUuid = roomRes.rows[0].id;
+            }
+
+            console.log(`[Admin] Deleting Room UUID: ${roomUuid}`);
+
+            // 1. Delete Dependencies (Manual Cascade)
+            await client.query('DELETE FROM yeope_schema.messages WHERE room_id = $1', [roomUuid]);
+            await client.query('DELETE FROM yeope_schema.room_members WHERE room_id = $1', [roomUuid]);
+
+            // 2. Delete Room
+            await client.query('DELETE FROM yeope_schema.rooms WHERE id = $1', [roomUuid]);
+
+            await client.query('COMMIT');
+
+            // 3. Force disconnect socket room
+            const io = req.app.get('io');
+            io.to(roomUuid).emit('room_deleted', { message: 'Admin deleted this room' });
+
+            res.json({ success: true, deletedId: roomUuid });
+        } catch (err) {
+            await client.query('ROLLBACK');
+            console.error('[Admin] Room Delete Error:', err);
+            throw err;
+        } finally {
+            client.release();
         }
-
-        // Force disconnect socket room (optional, but good for immediate effect)
-        const io = req.app.get('io');
-        const roomId = result.rows[0].id; // This is the internal UUID
-        io.to(roomId).emit('room_deleted', { message: 'Admin deleted this room' });
-
-        res.json({ success: true, deletedId: roomId });
     } catch (error) {
         next(error);
     }
