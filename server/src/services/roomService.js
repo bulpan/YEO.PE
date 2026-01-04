@@ -490,27 +490,33 @@ const leaveRoom = async (userId, roomId) => {
       [room.id, userId]
     );
 
-    // 5. 멤버 수 감소
-    await client.query(
-      `UPDATE yeope_schema.rooms 
-       SET member_count = GREATEST(member_count - 1, 0) 
-       WHERE id = $1`,
+    // 5. 실제 남은 멤버 수 계산 (Self-Healing)
+    const activeMemberRes = await client.query(
+      `SELECT COUNT(*)::int as count FROM yeope_schema.room_members 
+       WHERE room_id = $1 AND left_at IS NULL`,
       [room.id]
     );
+    const activeCount = activeMemberRes.rows[0].count;
 
-    // 6. 멤버가 0명이면 방 종료 (만료 처리)
-    const countRes = await client.query('SELECT member_count FROM yeope_schema.rooms WHERE id = $1', [room.id]);
-    if (countRes.rows[0].member_count === 0) {
+    // 6. 멤버 수 업데이트
+    await client.query(
+      `UPDATE yeope_schema.rooms 
+       SET member_count = $1 
+       WHERE id = $2`,
+      [activeCount, room.id]
+    );
+
+    // 7. 멤버가 0명이면 방 종료 (만료 처리)
+    if (activeCount === 0) {
       await client.query(
         `UPDATE yeope_schema.rooms 
-               SET is_active = false, expires_at = NOW() 
-               WHERE id = $1`,
+         SET is_active = false, expires_at = NOW() 
+         WHERE id = $1`,
         [room.id]
       );
       logger.info(`멤버가 0명이라 방 종료: ${room.room_id}`);
     } else {
-      // 방장이 나갔더라도 방은 유지 (남은 멤버들이 "나갔음"을 확인해야 하므로)
-      logger.info(`사용자 ${userId} 퇴장. 남은 멤버 존재.`);
+      logger.info(`사용자 ${userId} 퇴장. 남은 멤버: ${activeCount}명`);
     }
 
     // Return system message for socket broadcast
