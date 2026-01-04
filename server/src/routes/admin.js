@@ -155,19 +155,20 @@ router.delete('/rooms/:id', async (req, res, next) => {
             let roomUuid;
 
             if (isUUID) {
-                // If it is a UUID, check both id and room_id
-                const roomRes = await client.query('SELECT id FROM yeope_schema.rooms WHERE id = $1 OR room_id = $1', [id]);
-                if (roomRes.rows.length === 0) {
-                    // Double check strict room_id text match just in case
-                    const roomRes2 = await client.query('SELECT id FROM yeope_schema.rooms WHERE room_id = $1', [id]);
+                // Check by UUID (id column)
+                const roomRes = await client.query('SELECT id FROM yeope_schema.rooms WHERE id = $1', [id]);
+                if (roomRes.rows.length > 0) {
+                    roomUuid = roomRes.rows[0].id;
+                } else {
+                    // Fallback: Check by room_id (varchar) even if input looks like UUID
+                    // Explicitly cast strict text to avoid ambiguity
+                    const roomRes2 = await client.query('SELECT id FROM yeope_schema.rooms WHERE room_id = $1::text', [id]);
                     if (roomRes2.rows.length > 0) {
                         roomUuid = roomRes2.rows[0].id;
                     } else {
                         await client.query('ROLLBACK');
                         return res.status(404).json({ error: 'Room not found' });
                     }
-                } else {
-                    roomUuid = roomRes.rows[0].id;
                 }
             } else {
                 // Not a UUID, must be a room_id string (legacy support if any non-UUID room_ids exist, which shouldn't happen but safe to check)
