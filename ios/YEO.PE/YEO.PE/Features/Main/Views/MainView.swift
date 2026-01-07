@@ -210,6 +210,7 @@ struct MainView: View {
                 .padding(.bottom, 10)
             }
             .zIndex(1) // Ensure controls are above background
+            .ignoresSafeArea(.keyboard, edges: .bottom) // Prevent bar from rising with keyboard
             
             // 2. Notification Banner
             if showNotificationBanner {
@@ -274,6 +275,7 @@ struct MainView: View {
                                  Text("quick_question".localized).font(.subheadline).foregroundColor(Color.theme.accentPrimary); Spacer()
                              }
                              TextEditor(text: $quickQuestionText)
+                                 .focused($isInputFocused) // Attach FocusState for auto-keyboard
                                  .frame(height: 60)
                                  .scrollContentBackground(.hidden)
                                  .padding(8)
@@ -320,8 +322,7 @@ struct MainView: View {
                  }
                  .task {
                      // Ensure focus triggers after view is fully presented
-                     // Using task ensuring it runs on main actor context if needed (SwiftUI handles view updates)
-                     try? await Task.sleep(nanoseconds: 600_000_000) // 0.6s
+                     try? await Task.sleep(nanoseconds: 150_000_000) // 0.15s (reduced from 0.6s)
                      self.isInputFocused = true
                  }
                  }
@@ -329,12 +330,13 @@ struct MainView: View {
             
             // Invisible Nav Link
             NavigationLink(
-                destination: selectedRoom != nil ? ChatView(room: selectedRoom!, targetUser: selectedTargetUser, currentUser: authViewModel.currentUser) : nil,
+                destination: (selectedRoom != nil || selectedTargetUser != nil) ? ChatView(room: selectedRoom, targetUser: selectedTargetUser, currentUser: authViewModel.currentUser) : nil,
                 isActive: Binding(
-                    get: { selectedRoom != nil },
+                    get: { selectedRoom != nil || selectedTargetUser != nil },
                     set: { _ in
                         if let roomId = selectedRoom?.id { roomViewModel.markAsRead(roomId: roomId); DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { roomViewModel.fetchMyRooms() } }
                         selectedRoom = nil
+                        selectedTargetUser = nil
                     }
                 )
             ) { EmptyView() }
@@ -358,20 +360,23 @@ struct MainView: View {
                                 if room.creatorId == authViewModel.currentUser?.id { return inviteeId == user.id } 
                                 else { return room.creatorId == user.id }
                              }
+                             
                              if let existing = existingRoom {
                                  self.selectedRoom = existing
+                                 self.selectedTargetUser = user
                                  self.roomViewModel.markAsRead(roomId: existing.id)
                                  self.roomViewModel.fetchMyRooms()
                              } else {
-                                 roomViewModel.createOneOnOneRoom(with: user) { room in
-                                     if let room = room { DispatchQueue.main.async { self.selectedRoom = room } }
-                                 }
+                                 // Lazy Creation: Just set target user, don't create room yet
+                                 self.selectedTargetUser = user
+                                 self.selectedRoom = nil
                              }
                         } else { showLoginSheet = true }
                     },
                     onRoomTap: { room in
                         if authViewModel.isLoggedIn {
                             self.selectedRoom = room
+                            self.selectedTargetUser = nil // Clear target user if opening existing room directly (optional, but safe)
                             self.roomViewModel.markAsRead(roomId: room.id)
                             self.roomViewModel.fetchMyRooms()
                         } else { showLoginSheet = true }

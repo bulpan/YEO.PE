@@ -36,6 +36,9 @@
 // ProfileView
 "logout" = "로그아웃";
 "user" = "사용자";
+"edit_nickname" = "닉네임 수정";
+"nickname" = "닉네임";
+"nickname_hint" = "이 닉네임은 다른 사용자에게 표시됩니다.";
 
 // SettingsView
 "settings" = "설정";
@@ -98,7 +101,7 @@
 "terms_of_service" = "이용약관";
 "privacy_policy" = "개인정보 처리방침";
 "legal" = "법률 및 라이선스";
-"ghost_mode_tooltip" = "내 신호를 켜서 주변 사람들이 나를 발견할 수 있게 합니다.";
+"ghost_mode_tooltip" = "고스트모드는 상대방이 내신호를 찾을수 없습니다.";
 "radar_alert_tooltip" = "주변에 새로운 사람이나 대화방이 감지되면 알림을 받습니다.";
 "new_mask_tooltip" = "새로운 익명 ID와 아바타를 무작위로 생성합니다.";
 "retention_tooltip" = "대화 내용이 자동으로 삭제되기 전까지 유지되는 시간입니다.";
@@ -113,6 +116,11 @@
 "random_nickname_desc" = "익명 여행을 위한 새로운 ID가 생성되었습니다.";
 "keep_it" = "그냥 쓰기";
 "change_nickname" = "변경하기";
+
+// New Mask Confirmation Alert
+"new_mask_confirm_title" = "새 가면으로 변경";
+"new_mask_confirm_message" = "새가면을 누르면 지금까지 모든 채팅방에서 나가고 닉네임/프로필사진도 리셋되서 새사람이 됩니다.";
+"dont_show_again" = "다시안보기";
 
 // Settings Options
 "6_hours" = "6시간";
@@ -178,3 +186,9 @@
 // Compliance
 "i_agree_to_terms" = "서비스 이용약관 및 개인정보 처리방침에 동의합니다";
 "terms_required_alert" = "서비스를 이용하려면 약관 및 개인정보 처리방침에 동의해야 합니다.";
+
+// Social Login Account Display
+"apple_login_account" = "애플 로그인 계정";
+"google_login_account" = "구글 로그인 계정";
+"kakao_login_account" = "카카오톡 로그인 계정";
+"naver_login_account" = "네이버 로그인 계정";

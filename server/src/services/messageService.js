@@ -111,7 +111,7 @@ const getMessages = async (roomId, options = {}) => {
   }
 
   let queryText = `
-    SELECT m.*, u.nickname, u.nickname_mask
+    SELECT m.*, u.nickname, u.nickname_mask, u.profile_image_url
     FROM yeope_schema.messages m
     JOIN yeope_schema.users u ON m.user_id = u.id
     WHERE m.room_id = $1 AND m.is_deleted = false
@@ -137,6 +137,7 @@ const getMessages = async (roomId, options = {}) => {
     userId: msg.user_id,
     nickname: msg.nickname_mask || msg.nickname,
     nicknameMask: msg.nickname_mask,
+    userProfileImage: msg.profile_image_url, // Add profile image
     type: msg.type,
     content: msg.content,
     imageUrl: msg.image_url,

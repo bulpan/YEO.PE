@@ -1,12 +1,13 @@
 import SwiftUI
 import Combine
+import UserNotifications
 
 struct ChatView: View {
     @Environment(\.presentationMode) var presentationMode
     @StateObject private var viewModel: ChatViewModel
     @ObservedObject private var themeManager = ThemeManager.shared
     
-    init(room: Room, targetUser: User? = nil, currentUser: User? = nil) {
+    init(room: Room? = nil, targetUser: User? = nil, currentUser: User? = nil) {
         _viewModel = StateObject(wrappedValue: ChatViewModel(room: room, targetUser: targetUser, currentUser: currentUser))
     }
     
@@ -32,6 +33,24 @@ struct ChatView: View {
                             .foregroundColor(Color.theme.accentPrimary)
                     }
                     .padding(.trailing, 8)
+                    
+                    // Profile Avatar
+                    if let profilePath = viewModel.displayProfileImageUrl, !profilePath.isEmpty, let url = getHeaderProfileUrl(from: profilePath) {
+                        CachedAsyncImage(url: url)
+                            .frame(width: 36, height: 36)
+                            .clipShape(Circle())
+                            .padding(.trailing, 8)
+                    } else {
+                        Circle()
+                            .fill(Color.theme.accentPrimary.opacity(0.1))
+                            .frame(width: 36, height: 36)
+                            .overlay(
+                                Text(String(viewModel.displayTitle.prefix(1)))
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundColor(Color.theme.accentPrimary)
+                            )
+                            .padding(.trailing, 8)
+                    }
                     
                     VStack(alignment: .leading, spacing: 2) {
                         Text(viewModel.displayTitle)
@@ -126,6 +145,9 @@ struct ChatView: View {
                         .padding()
                         .padding(.bottom, 10)
                     }
+                    .onTapGesture {
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    }
                     .onChange(of: viewModel.messages.count) { _ in
                         DispatchQueue.main.async {
                             scrollToBottom(proxy: proxy)
@@ -178,6 +200,8 @@ struct ChatView: View {
         .navigationBarHidden(true)
         .onAppear {
             viewModel.joinRoom()
+            // Clear app icon badge when entering chat
+            UNUserNotificationCenter.current().setBadgeCount(0)
         }
         .onDisappear {
             viewModel.updatePresence()
@@ -198,6 +222,15 @@ struct ChatView: View {
             }
         }
     }
+    
+    private func getHeaderProfileUrl(from path: String) -> URL? {
+        var baseUrl = AppConfig.baseURL
+        if baseUrl.hasPrefix("ws://") { baseUrl = baseUrl.replacingOccurrences(of: "ws://", with: "http://") }
+        else if baseUrl.hasPrefix("wss://") { baseUrl = baseUrl.replacingOccurrences(of: "wss://", with: "https://") }
+        
+        let fullUrl = path.hasPrefix("http") ? path : "\(baseUrl)\(path)"
+        return URL(string: fullUrl)
+    }
 }
 
 struct MessageRow: View {
@@ -212,6 +245,44 @@ struct MessageRow: View {
     
     var shouldMask: Bool {
         return sender?.settings?.maskId ?? false
+    }
+    
+    // Time Formatter
+    private var formattedTime: String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        
+        if let date = formatter.date(from: message.createdAt) {
+            let displayFormatter = DateFormatter()
+            displayFormatter.dateFormat = "HH:mm:ss"
+            return displayFormatter.string(from: date)
+        }
+        
+        // Fallback for standard ISO without fractional
+        formatter.formatOptions = [.withInternetDateTime]
+        if let date = formatter.date(from: message.createdAt) {
+            let displayFormatter = DateFormatter()
+            displayFormatter.dateFormat = "HH:mm:ss"
+            return displayFormatter.string(from: date)
+        }
+        
+        return ""
+    }
+    
+    var fallbackAvatar: some View {
+        Circle()
+            .fill(Color.mysteryViolet)
+            .frame(width: 30, height: 30)
+            .overlay(Text(String((shouldMask ? (message.nicknameMask ?? "?") : (message.nickname ?? "?")).prefix(1))).font(.caption).foregroundColor(.white))
+    }
+    
+    private func getProfileUrl(from path: String) -> URL? {
+        var baseUrl = AppConfig.baseURL
+        if baseUrl.hasPrefix("ws://") { baseUrl = baseUrl.replacingOccurrences(of: "ws://", with: "http://") }
+        else if baseUrl.hasPrefix("wss://") { baseUrl = baseUrl.replacingOccurrences(of: "wss://", with: "https://") }
+        
+        let fullUrl = path.hasPrefix("http") ? path : "\(baseUrl)\(path)"
+        return URL(string: fullUrl)
     }
     
     var body: some View {
@@ -246,34 +317,46 @@ struct MessageRow: View {
             }
         } else {
             HStack(alignment: .bottom, spacing: 8) {
-                if isMe { Spacer() }
+                if isMe {
+                    Spacer()
+                    // Time for sent message (Left of bubble)
+                    Text(formattedTime)
+                        .font(.caption2)
+                        .foregroundColor(.textSecondary)
+                        .padding(.bottom, 2)
+                }
                 
                 if !isMe {
                     Button(action: {
                         if let user = sender {
                             onAvatarTap?(user)
                         } else {
+                            // Temp user fallback
                             let tempUser = User(
                                 id: message.userId,
-                                email: "",
                                 nickname: message.nickname ?? "Unknown",
                                 nicknameMask: message.nicknameMask,
-                                nickname_mask: nil,
-                                settings: nil,
-                                createdAt: nil,
-                                lastLoginAt: nil,
-                                distance: nil,
-                                hasActiveRoom: false,
-                                roomId: nil,
-                                roomName: nil
+                                profileImageUrl: message.userProfileImage
                             )
                             onAvatarTap?(tempUser)
                         }
                     }) {
-                        Circle()
-                            .fill(Color.mysteryViolet)
-                            .frame(width: 30, height: 30)
-                            .overlay(Text(String((shouldMask ? (message.nicknameMask ?? "?") : (message.nickname ?? "?")).prefix(1))).font(.caption).foregroundColor(.white))
+                        // Profile Image Logic
+                        // 1. Try Message's embedded profile image (Fastest)
+                        if let profilePath = message.userProfileImage, !profilePath.isEmpty, let url = getProfileUrl(from: profilePath) {
+                            CachedAsyncImage(url: url)
+                                .frame(width: 30, height: 30)
+                                .clipShape(Circle())
+                        }
+                        // 2. Try Sender object (if available)
+                        else if let user = sender, let profileUrl = user.fullProfileFileURL {
+                            CachedAsyncImage(url: profileUrl)
+                                .frame(width: 30, height: 30)
+                                .clipShape(Circle())
+                        } else {
+                            // 3. Fallback Initials
+                            fallbackAvatar
+                        }
                     }
                 }
                 
@@ -320,7 +403,14 @@ struct MessageRow: View {
                     }
                 }
                 
-                if !isMe { Spacer() }
+                if !isMe {
+                    // Time for received message (Right of bubble)
+                    Text(formattedTime)
+                        .font(.caption2)
+                        .foregroundColor(.textSecondary)
+                        .padding(.bottom, 2)
+                    Spacer()
+                }
             }
             .frame(maxWidth: .infinity, alignment: isMe ? .trailing : .leading)
         }

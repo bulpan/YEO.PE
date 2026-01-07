@@ -19,18 +19,32 @@ struct SettingsView: View {
     @State private var showTerms = false
     @State private var showPrivacy = false
     @State private var showBlockedUsers = false
-    @State private var showPushPermissionAlert = false
     @State private var showOpenSource = false
-    @State private var showDeleteConfirmation = false
     @State private var showLogoutConfirmation = false
     
-    // Language Restart
-    @State private var showRestartAlert = false
+    // Alert Type for Single Alert Pattern
+    enum AlertType: Identifiable {
+        case pushPermission
+        case languageRestart
+        case deleteAccount
+        
+        var id: Int {
+            switch self {
+            case .pushPermission: return 0
+            case .languageRestart: return 1
+            case .deleteAccount: return 2
+            }
+        }
+    }
+    @State private var activeAlert: AlertType?
+    
+    // Language Restart\n
     @State private var pendingLanguage: Language?
     
     // Server Config
     @State private var selectedEnvironment: ServerEnvironment = .production
     @State private var tempLocalIP: String = ""
+    @State private var selectedLanguage: Language = LanguageManager.shared.currentLanguage
     
     init(authViewModel: AuthViewModel) {
         self.authViewModel = authViewModel
@@ -41,6 +55,7 @@ struct SettingsView: View {
         
         _selectedEnvironment = State(initialValue: ServerConfig.shared.environment)
         _tempLocalIP = State(initialValue: ServerConfig.shared.localIP)
+        _selectedLanguage = State(initialValue: LanguageManager.shared.currentLanguage)
     }
     
     var body: some View {
@@ -52,16 +67,13 @@ struct SettingsView: View {
                 
                 ScrollView {
                     VStack(spacing: 20) {
-                        profileSection
                         uiSection
                         notificationSection
                         messageSection
                         privacySection
-                        messageSection
-                        privacySection
-                        accountSection
                         developerSection
                         legalSection
+                        accountSection // 맨 아래로 이동
                     }
                     .padding(.bottom, 30)
                 }
@@ -85,47 +97,45 @@ struct SettingsView: View {
         .sheet(isPresented: $showOpenSource) {
             OpenSourceLicensesView()
         }
-        .alert(isPresented: $showPushPermissionAlert) {
-            Alert(
-                title: Text("permission_denied".localized),
-                message: Text("push_permission_desc".localized),
-                primaryButton: .default(Text("open_settings".localized), action: {
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                        UIApplication.shared.open(url)
-                    }
-                }),
-                secondaryButton: .cancel()
-            )
-        }
-        .alert(isPresented: $showRestartAlert) {
-            Alert(
-                title: Text("language_restart_title".localized),
-                message: Text("language_restart_message".localized),
-                primaryButton: .destructive(Text("exit_app".localized)) {
-                    if let lang = pendingLanguage {
-                        languageManager.currentLanguage = lang
-                        // Force Exit
-                        exit(0)
-                    }
-                },
-                secondaryButton: .cancel(Text("cancel".localized)) {
-                    pendingLanguage = nil
-                }
-            )
-        }
-        .alert(isPresented: $showDeleteConfirmation) {
-            Alert(
-                title: Text("delete_confirm_title".localized),
-                message: Text("delete_confirm_message".localized),
-                primaryButton: .destructive(Text("delete".localized)) {
-                    authViewModel.deleteAccount { success in
-                        if success {
-                            // Exit App or Reset? Usually authViewModel handles logout state
+        .alert(item: $activeAlert) { alertType in
+            switch alertType {
+            case .pushPermission:
+                return Alert(
+                    title: Text("permission_denied".localized),
+                    message: Text("push_permission_desc".localized),
+                    primaryButton: .default(Text("open_settings".localized), action: {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
                         }
+                    }),
+                    secondaryButton: .cancel()
+                )
+            case .languageRestart:
+                return Alert(
+                    title: Text("language_restart_title".localized),
+                    message: Text("language_restart_message".localized),
+                    primaryButton: .destructive(Text("exit_app".localized)) {
+                        if let lang = pendingLanguage {
+                            languageManager.currentLanguage = lang
+                            exit(0)
+                        }
+                    },
+                    secondaryButton: .cancel(Text("cancel".localized)) {
+                        pendingLanguage = nil
                     }
-                },
-                secondaryButton: .cancel()
-            )
+                )
+            case .deleteAccount:
+                return Alert(
+                    title: Text("delete_confirm_title".localized),
+                    message: Text("delete_confirm_message".localized),
+                    primaryButton: .destructive(Text("delete".localized)) {
+                        authViewModel.deleteAccount { success in
+                            // Handle result
+                        }
+                    },
+                    secondaryButton: .cancel()
+                )
+            }
         }
         // Immediate Saving
         .onChange(of: pushNotificationsEnabled) { _ in saveSettings() }
@@ -216,15 +226,15 @@ struct SettingsView: View {
     
     func friendlyEmail(_ email: String) -> String {
         if email.hasPrefix("apple_") {
-            return "애플 계정 사용중" // Apple Account Used
+            return "apple_login_account".localized // Apple Login Account
         } else if email.hasPrefix("google_") {
-            return "구글 계정 사용중" // Google Account Used
+            return "google_login_account".localized // Google Login Account
         } else if email.hasPrefix("kakao_") {
-            return "카카오톡 계정 사용중" // KakaoTalk Account Used
-        } else if email.hasPrefix("naver_") { // Just in case
-            return "네이버 계정 사용중"
+            return "kakao_login_account".localized // KakaoTalk Login Account
+        } else if email.hasPrefix("naver_") {
+            return "naver_login_account".localized // Naver Login Account
         }
-        return email
+        return email // Direct registration: show original ID
     }
     
 
@@ -260,21 +270,19 @@ struct SettingsView: View {
                     .foregroundColor(Color.theme.textPrimary)
                 Spacer()
                 // ... (existing language picker code)
-                Picker("language".localized, selection: Binding(
-                    get: { languageManager.currentLanguage },
-                    set: { newLang in
-                        if newLang != languageManager.currentLanguage {
-                            pendingLanguage = newLang
-                            showRestartAlert = true
-                        }
-                    }
-                )) {
+                Picker("language".localized, selection: $selectedLanguage) {
                     ForEach(Language.allCases, id: \.self) { language in
                         Text(language.displayName).tag(language)
                     }
                 }
                 .pickerStyle(MenuPickerStyle())
                 .accentColor(Color.theme.accentPrimary)
+                .onChange(of: selectedLanguage) { newLang in
+                    if newLang != languageManager.currentLanguage {
+                        pendingLanguage = newLang
+                        activeAlert = .languageRestart
+                    }
+                }
             }
             .padding()
             .background(Color.theme.bgLayer1)
@@ -304,7 +312,7 @@ struct SettingsView: View {
                                     pushNotificationsEnabled = true
                                 } else {
                                     pushNotificationsEnabled = false
-                                    showPushPermissionAlert = true
+                                    activeAlert = .pushPermission
                                 }
                             }
                         } else {
@@ -403,7 +411,7 @@ struct SettingsView: View {
                 .foregroundColor(Color.theme.textSecondary)
                 .padding(.leading, 4)
             
-            Button(action: { showDeleteConfirmation = true }) {
+            Button(action: { activeAlert = .deleteAccount }) {
                 HStack {
                     Text("delete_account".localized)
                         .foregroundColor(.red)
@@ -469,22 +477,21 @@ struct SettingsView: View {
                 .foregroundColor(Color.theme.textSecondary)
                 .padding(.leading, 4)
             
-            HStack(spacing: 0) {
-                Button(action: { showTerms = true }) {
-                    HStack {
-                        Text("terms_of_service".localized)
-                            .foregroundColor(Color.theme.textPrimary)
-                        Spacer()
-                        Image(systemName: "chevron.right").foregroundColor(.gray)
-                    }
-                    .padding()
-                    .background(Color.theme.bgLayer1)
+            // 이용약관
+            Button(action: { showTerms = true }) {
+                HStack {
+                    Text("terms_of_service".localized)
+                        .foregroundColor(Color.theme.textPrimary)
+                    Spacer()
+                    Image(systemName: "chevron.right").foregroundColor(.gray)
                 }
+                .padding()
+                .background(Color.theme.bgLayer1)
             }
             .cornerRadius(12)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.theme.borderSubtle, lineWidth: 1))
             
-            Divider().background(Color.theme.borderSubtle)
-            
+            // 개인정보 처리방침
             Button(action: { showPrivacy = true }) {
                 HStack {
                     Text("privacy_policy".localized)
@@ -498,8 +505,7 @@ struct SettingsView: View {
             .cornerRadius(12)
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.theme.borderSubtle, lineWidth: 1))
             
-            Divider().background(Color.theme.borderSubtle)
-            
+            // 오픈소스 라이센스
             Button(action: { showOpenSource = true }) {
                 HStack {
                     Text("open_source_licenses".localized)

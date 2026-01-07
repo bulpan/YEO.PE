@@ -153,6 +153,7 @@ struct Message: Codable, Identifiable {
     let userId: String
     let nickname: String?
     let nicknameMask: String?
+    let userProfileImage: String? // Added field
     let type: String // text, image
     let content: String?
     let imageUrl: String?

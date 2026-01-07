@@ -35,6 +35,9 @@
 // ProfileView
 "logout" = "LOGOUT";
 "user" = "User";
+"edit_nickname" = "Edit Nickname";
+"nickname" = "Nickname";
+"nickname_hint" = "This nickname is visible to other users.";
 
 // SettingsView
 "settings" = "Settings";
@@ -171,3 +174,9 @@
 // Compliance
 "i_agree_to_terms" = "I agree to the Terms of Service and Privacy Policy";
 "terms_required_alert" = "You must agree to the Terms of Service and Privacy Policy to continue.";
+
+// Social Login Account Display
+"apple_login_account" = "Apple Login Account";
+"google_login_account" = "Google Login Account";
+"kakao_login_account" = "KakaoTalk Login Account";
+"naver_login_account" = "Naver Login Account";

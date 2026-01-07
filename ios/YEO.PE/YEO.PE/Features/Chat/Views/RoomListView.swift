@@ -16,21 +16,28 @@ struct RoomListView: View {
                 if viewModel.myRooms.isEmpty {
                     Text("no_active_rooms".localized)
                         .foregroundColor(.gray)
+                        .listRowSeparator(.hidden)
                 } else {
                     ForEach(viewModel.myRooms) { room in
                         Button(action: {
-                            // Logic: Creator cannot enter inactive room
                             if let currentUserId = authViewModel.userId,
                                room.isActive == false,
                                room.creatorId == currentUserId {
-                                // Do nothing (disabled)
                             } else {
                                 selectedRoom = room
                             }
                         }) {
-                            RoomRow(room: room, currentUserId: authViewModel.userId)
+                            VStack(spacing: 0) {
+                                RoomRow(room: room, currentUserId: authViewModel.userId)
+                                    .padding(.vertical, 6) // Reduced height (approx 80% of original 8+8=16 padding? actually simply reducing wrapper padding)
+                                    
+                                Divider() // Full width separator
+                                    .background(Color.theme.borderPrimary)
+                            }
                         }
-                        .listRowBackground(Color.theme.bgLayer1) // Cell background
+                        .listRowInsets(EdgeInsets()) // Remove default insets for full width
+                        .listRowSeparator(.hidden) // Hide default
+                        .listRowBackground(Color.theme.bgLayer1)
                         .disabled(authViewModel.userId == room.creatorId && room.isActive == false)
                     }
                 }
@@ -176,6 +183,26 @@ struct RoomRow: View {
         return room.isActive == false && currentUserId == room.creatorId
     }
     
+    var fallbackAvatar: some View {
+        Circle()
+            .fill(Color.theme.accentPrimary.opacity(0.1))
+            .frame(width: 50, height: 50)
+            .overlay(
+                Text(String(room.displayName.prefix(1)))
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(Color.theme.accentPrimary)
+            )
+    }
+
+    private func getProfileUrl(from path: String) -> URL? {
+        var baseUrl = AppConfig.baseURL
+        if baseUrl.hasPrefix("ws://") { baseUrl = baseUrl.replacingOccurrences(of: "ws://", with: "http://") }
+        else if baseUrl.hasPrefix("wss://") { baseUrl = baseUrl.replacingOccurrences(of: "wss://", with: "https://") }
+        
+        let fullUrl = path.hasPrefix("http") ? path : "\(baseUrl)\(path)"
+        return URL(string: fullUrl)
+    }
+    
     var body: some View {
         HStack {
             // Icon / Avatar Area
@@ -204,17 +231,18 @@ struct RoomRow: View {
                         )
                 } else {
                     // General / Active Room
-                    Circle()
-                        .fill(Color.theme.accentPrimary.opacity(0.1))
-                        .frame(width: 50, height: 50)
-                        .overlay(
-                            Text(String(room.displayName.prefix(1)))
-                                .font(.system(size: 20, weight: .bold))
-                                .foregroundColor(Color.theme.accentPrimary)
-                        )
+                    // General / Active Room
+                    if let profilePath = room.displayProfileImageUrl, !profilePath.isEmpty, let url = getProfileUrl(from: profilePath) {
+                         CachedAsyncImage(url: url)
+                             .frame(width: 50, height: 50)
+                             .clipShape(Circle())
+                    } else {
+                        fallbackAvatar
+                    }
                 }
             }
             .padding(.trailing, 8)
+            .padding(.leading, 16) // Add leading padding since we removed listRowInsets
             
             // Content
             VStack(alignment: .leading, spacing: 4) {
@@ -264,7 +292,8 @@ struct RoomRow: View {
                     .clipShape(Circle())
             }
         }
-        .padding(.vertical, 8)
+        //.padding(.vertical, 4) // Handled by wrapper
+        .padding(.trailing, 16) // Add trailing padding since we removed listRowInsets
         .opacity(isWaitingForResponse ? 0.6 : 1.0)
     }
 }

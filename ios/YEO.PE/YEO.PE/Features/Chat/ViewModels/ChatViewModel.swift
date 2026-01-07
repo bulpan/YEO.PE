@@ -23,7 +23,7 @@ class ChatViewModel: ObservableObject {
     private var typingTimer: Timer?
     private var isTyping = false
     
-    let room: Room
+    @Published var room: Room? // Optional for lazy creation
     let targetUser: User?
     let currentUser: User?
     
@@ -37,14 +37,23 @@ class ChatViewModel: ObservableObject {
         if let target = targetUser {
             return target.nicknameMask ?? target.nickname ?? "Unknown"
         }
-        // Fallback to room name
-        return room.displayName
+        // Fallback to room name if room exists, else "New Chat"
+        return room?.displayName ?? "New Chat"
+    }
+    
+    var displayProfileImageUrl: String? {
+        // 1. Try room's displayProfileImageUrl (from room list data)
+        if let url = room?.displayProfileImageUrl, !url.isEmpty {
+            return url
+        }
+        // 2. Fallback to targetUser's profile image
+        return targetUser?.profileImageUrl
     }
     
     private var socketManager = SocketManager.shared
     private var cancellables = Set<AnyCancellable>()
     
-    init(room: Room, targetUser: User? = nil, currentUser: User? = nil) {
+    init(room: Room? = nil, targetUser: User? = nil, currentUser: User? = nil) {
         self.room = room
         self.targetUser = targetUser
         self.currentUser = currentUser
@@ -62,6 +71,7 @@ class ChatViewModel: ObservableObject {
     private var listenerUUIDs: [String: UUID] = [:]
 
     func joinRoom() {
+        guard let room = room else { return } // Do nothing if room not created
         print("🎬 ChatViewModel: joinRoom called for \(room.uniqueId)")
         
         // 1. Join via API
@@ -89,8 +99,10 @@ class ChatViewModel: ObservableObject {
             .sink { [weak self] isConnected in
                 if isConnected {
                     print("🔄 Socket Connected - Rejoining Room & Syncing")
-                    self?.socketManager.joinRoom(roomId: self?.room.uniqueId ?? "")
-                    self?.fetchMessages() // Sync messages on reconnect
+                    if let roomId = self?.room?.uniqueId {
+                        self?.socketManager.joinRoom(roomId: roomId)
+                        self?.fetchMessages() // Sync messages on reconnect
+                    }
                 }
             }
             .store(in: &cancellables)
@@ -123,17 +135,21 @@ class ChatViewModel: ObservableObject {
                 let message = try JSONDecoder().decode(Message.self, from: jsonData)
                 
                 DispatchQueue.main.async {
-                    if let index = self.messages.firstIndex(where: { $0.id == message.id }) { return }
+                    // Deduplication: Check if message with same ID already exists
+                    if self.messages.contains(where: { $0.id == message.id }) { return }
                     
                     let currentUserId = self.currentUser?.id ?? TokenManager.shared.userId ?? ""
                     let isFromMe = (message.userId.caseInsensitiveCompare(currentUserId) == .orderedSame)
                     
-                    if message.type == "system" && isFromMe { return }
+                    // Filter out my own system messages if received via socket to prevent duplicates if handled locally (though normally we want them)
+                    // Actually, for "User joined", if I join, I get it via socket.
+                    // The duplication usually happens if multiple events fire or local optimistic update conflicts.
+                    // This ID check should solve 90% of cases.
                     
                     if isFromMe {
                         if let optimisticIndex = self.messages.firstIndex(where: { 
                             let optUserMatch = ($0.userId.caseInsensitiveCompare(currentUserId) == .orderedSame)
-                            return optUserMatch && $0.localStatus == .sending 
+                            return optUserMatch && $0.localStatus == .sending && $0.content == message.content
                         }) {
                             var realMessage = message
                             realMessage.localStatus = .sent
@@ -194,6 +210,7 @@ class ChatViewModel: ObservableObject {
     }
     
     func fetchMessages() {
+        guard let room = room else { return }
         isLoading = true
         APIService.shared.request("/rooms/\(room.uniqueId)/messages") { (result: Result<MessageListResponse, Error>) in
             DispatchQueue.main.async {
@@ -209,6 +226,11 @@ class ChatViewModel: ObservableObject {
     }
     
     func fetchMembers() {
+        guard let room = room else { 
+            // If no room, members is just [targetUser] + [me]
+             if let target = targetUser, let me = currentUser { self.members = [me, target] }
+             return 
+        }
         APIService.shared.request("/rooms/\(room.uniqueId)/members") { (result: Result<[String: [User]], Error>) in
             DispatchQueue.main.async {
                 switch result {
@@ -227,6 +249,15 @@ class ChatViewModel: ObservableObject {
         let finalContent = content ?? newMessageText
         guard !finalContent.isEmpty || imageUrl != nil else { return }
         
+        // 1. Lazy Creation: If room doesn't exist, create it first
+        if room == nil {
+            guard let target = targetUser else { return }
+            createRoomAndSend(targetUser: target, type: type, content: finalContent, imageUrl: imageUrl)
+            return
+        }
+        
+        guard let room = room else { return }
+        
         // Reset input if it's a text message being cleaned up
         if type == "text" && content == nil {
             newMessageText = ""
@@ -244,6 +275,7 @@ class ChatViewModel: ObservableObject {
             userId: myId,
             nickname: currentUser?.nickname,
             nicknameMask: currentUser?.nicknameMask,
+            userProfileImage: currentUser?.profileImageUrl, // Optimistic profile image
             type: type,
             content: finalContent,
             imageUrl: imageUrl,
@@ -259,6 +291,46 @@ class ChatViewModel: ObservableObject {
             isTyping = false
             typingTimer?.invalidate()
             socketManager.sendTypingEnd(roomId: room.uniqueId)
+        }
+    }
+    
+    private func createRoomAndSend(targetUser: User, type: String, content: String, imageUrl: String?) {
+        isLoading = true
+        // Create 1:1 Room
+        let body: [String: Any] = [
+            "name": targetUser.nickname ?? "Chat",
+            "category": "private", // or general? usually private for 1:1 implies logic
+            "inviteeId": targetUser.id
+        ]
+        
+        APIService.shared.request("/rooms", method: "POST", body: body) { [weak self] (result: Result<Room, Error>) in
+            guard let self = self else { return }
+            DispatchQueue.main.async {
+                self.isLoading = false
+                switch result {
+                case .success(let newRoom):
+                    print("✅ Lazy Room Created: \(newRoom.id)")
+                    self.room = newRoom
+                    // Now join and send
+                    self.joinRoom() // Connect socket
+                    
+                    // Small delay to ensure socket join? Actually joinRoom handles connection.
+                    // But sendMessage requires socket joined.
+                    // We can optimistically wait or retry.
+                    // For now, call sendMessage again which will hit the 'room exists' path.
+                    // But we need to handle the 'text cleared' logic carefully.
+                    
+                    // If text was passed explicitly (image case), pass it.
+                    // If it was from newMessageText, pass it.
+                    
+                    // We need to clear text input HERE if it was text, because the recursive call will clear it.
+                    // Actually, let's just recursively call.
+                    self.sendMessage(type: type, content: content, imageUrl: imageUrl)
+                    
+                case .failure(let error):
+                    print("❌ Failed to create room: \(error)")
+                }
+            }
         }
     }
     
@@ -280,6 +352,7 @@ class ChatViewModel: ObservableObject {
     
     func handleTextInput(_ text: String) {
         newMessageText = text
+        guard let room = room else { return } // No typing events if no room yet
         
         guard !text.isEmpty else {
             // Text cleared -> Stop typing immediately
@@ -302,13 +375,16 @@ class ChatViewModel: ObservableObject {
         typingTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [weak self] _ in
             guard let self = self else { return }
             self.isTyping = false
-            self.socketManager.sendTypingEnd(roomId: self.room.uniqueId)
+             if let roomId = self.room?.uniqueId {
+                 self.socketManager.sendTypingEnd(roomId: roomId)
+             }
         }
     }
     
     private var isExiting = false // Flag to prevent re-join on exit
 
     func exitRoom(completion: @escaping (Bool) -> Void) {
+        guard let room = room else { completion(true); return }
         isLoading = true
         isExiting = true // Set flag to prevent updatePresence from re-joining
         
@@ -374,6 +450,7 @@ class ChatViewModel: ObservableObject {
     }
     
     func updatePresence() {
+        guard let room = room else { return }
         // Prevent re-joining if we are exiting the room
         guard !isExiting else {
             print("🛑 updatePresence skipped because isExiting=true")

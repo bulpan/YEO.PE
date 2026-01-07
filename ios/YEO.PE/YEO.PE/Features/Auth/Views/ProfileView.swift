@@ -15,7 +15,24 @@ struct ProfileView: View {
     @State private var showImagePicker = false
     @State private var selectedImage: UIImage?
     
+    // Nickname Edit
+    @State private var showNicknameEdit = false
+    @State private var newNickname = ""
+    
     // Computed Properties for Settings
+    private func friendlyEmail(_ email: String) -> String {
+        if email.hasPrefix("apple_") {
+            return "apple_login_account".localized // Apple Login Account
+        } else if email.hasPrefix("google_") {
+            return "google_login_account".localized // Google Login Account
+        } else if email.hasPrefix("kakao_") {
+            return "kakao_login_account".localized // KakaoTalk Login Account
+        } else if email.hasPrefix("naver_") {
+            return "naver_login_account".localized // Naver Login Account
+        }
+        return email // Direct registration: show original ID
+    }
+    
     private var bleVisibleBinding: Binding<Bool> {
         Binding(
             get: { viewModel.currentUser?.settings?.bleVisible ?? true },
@@ -70,7 +87,14 @@ struct ProfileView: View {
                                     .opacity(isPulsing ? 0 : 1)
                                     .animation(Animation.easeOut(duration: 2).repeatForever(autoreverses: false), value: isPulsing)
                                 
-                                if let url = viewModel.currentUser?.fullProfileFileURL {
+                                // Show locally selected image first (immediate feedback)
+                                if let localImage = selectedImage {
+                                    Image(uiImage: localImage)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: 100, height: 100)
+                                        .clipShape(Circle())
+                                } else if let url = viewModel.currentUser?.fullProfileFileURL {
                                     CachedAsyncImage(url: url)
                                         .aspectRatio(contentMode: .fill)
                                         .frame(width: 100, height: 100)
@@ -120,6 +144,16 @@ struct ProfileView: View {
                                     .font(.system(size: 28, weight: .black, design: .rounded))
                                     .foregroundColor(.textPrimary)
                                 
+                                // Nickname Edit Button
+                                Button(action: {
+                                    newNickname = viewModel.currentUser?.nickname ?? ""
+                                    showNicknameEdit = true
+                                }) {
+                                    Image(systemName: "pencil.circle.fill")
+                                        .font(.system(size: 20))
+                                        .foregroundColor(.neonGreen)
+                                }
+                                
                                 Button(action: { activeTooltip = "identity_info_tooltip" }) {
                                     Image(systemName: "info.circle.fill")
                                         .font(.system(size: 20))
@@ -129,7 +163,7 @@ struct ProfileView: View {
                             
                             // Email Display
                             if let email = viewModel.currentUser?.email {
-                                Text(email)
+                                Text(friendlyEmail(email))
                                     .font(.caption)
                                     .foregroundColor(.gray)
                             }
@@ -373,6 +407,21 @@ struct ProfileView: View {
                     )
                 }
         )
+        .sheet(isPresented: $showNicknameEdit) {
+            NicknameEditSheet(
+                nickname: $newNickname,
+                onSave: { newName in
+                    viewModel.updateProfile(nickname: newName) { success in
+                        if success {
+                            showNicknameEdit = false
+                        }
+                    }
+                },
+                onCancel: {
+                    showNicknameEdit = false
+                }
+            )
+        }
         .onAppear {
             viewModel.fetchProfile()
         }
@@ -469,4 +518,53 @@ extension Color {
     }
 }
 
+// MARK: - Nickname Edit Sheet
+struct NicknameEditSheet: View {
+    @Binding var nickname: String
+    var onSave: (String) -> Void
+    var onCancel: () -> Void
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                Color.theme.bgMain.edgesIgnoringSafeArea(.all)
+                
+                VStack(spacing: 20) {
+                    Text("edit_nickname".localized)
+                        .font(.headline)
+                        .foregroundColor(Color.theme.textPrimary)
+                    
+                    TextField("nickname".localized, text: $nickname)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .padding(.horizontal)
+                    
+                    Text("nickname_hint".localized)
+                        .font(.caption)
+                        .foregroundColor(Color.theme.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                    
+                    Spacer()
+                }
+                .padding(.top, 30)
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("cancel".localized) {
+                        onCancel()
+                    }
+                    .foregroundColor(Color.theme.textSecondary)
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("save".localized) {
+                        onSave(nickname)
+                    }
+                    .foregroundColor(Color.theme.accentPrimary)
+                    .disabled(nickname.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+        }
+    }
+}
 

@@ -60,10 +60,10 @@ router.post('/ble/scan', authenticate, async (req, res, next) => {
 
         const users = await bleService.getUsersByUIDs(uids);
 
-        // 30m 이내 사용자만 필터링
+        // 50m 이내 사용자만 필터링 (기존 30m에서 확장)
         const nearbyUsers = users.filter(user => {
             if (user.distance === null) return false;
-            return user.distance <= 30;
+            return user.distance <= 50;
         });
 
         // 주변 사용자 발견 알림 전송 (새로운 사용자가 발견된 경우)

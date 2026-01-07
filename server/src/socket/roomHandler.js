@@ -22,8 +22,9 @@ const roomHandler = (socket, io) => {
         return socket.emit('error', { message: 'roomId가 필요합니다' });
       }
 
-      // 방 참여 처리
-      const result = await roomService.joinRoom(userId, roomId);
+      // NOTE: We NO LONGER call roomService.joinRoom() here.
+      // The API /rooms/:roomId/join already handles DB operations (member insert, system message).
+      // This socket handler ONLY joins the socket channel for real-time events.
 
       // Socket.io Room에 참여
       const roomName = `room:${roomId}`;
@@ -32,26 +33,16 @@ const roomHandler = (socket, io) => {
       // 방 정보 조회
       const room = await roomService.findRoomByRoomId(roomId, true);
 
-      // 사용자 정보 조회
-      const user = await userService.findUserById(userId);
-
       // 본인에게 방 참여 확인 전송
       socket.emit('room-joined', {
         roomId,
-        memberCount: room.member_count
+        memberCount: room?.member_count || 0
       });
 
-      // 다른 사용자들에게 사용자 참여 알림
-      if (!result.alreadyJoined) {
-        socket.to(roomName).emit('user-joined', {
-          roomId,
-          userId,
-          nicknameMask: user.nickname_mask,
-          memberCount: room.member_count
-        });
-      }
+      // NOTE: We do NOT emit 'user-joined' here anymore since the API already emits it.
+      // This prevents duplicate system messages.
 
-      logger.info(`사용자 ${userId}가 WebSocket으로 방 ${roomId}에 참여`);
+      logger.info(`사용자 ${userId}가 WebSocket으로 방 ${roomId} 채널에 참여 (DB join handled by API)`);
     } catch (error) {
       logger.error('join-room 에러:', error);
       socket.emit('error', {

@@ -549,7 +549,7 @@ const getRoomMembers = async (roomId) => {
   }
 
   const result = await query(
-    `SELECT rm.*, u.nickname_mask, u.nickname
+    `SELECT rm.*, u.nickname_mask, u.nickname, u.profile_image_url
      FROM yeope_schema.room_members rm
      JOIN yeope_schema.users u ON rm.user_id = u.id
      WHERE rm.room_id = $1 AND rm.left_at IS NULL
@@ -561,6 +561,7 @@ const getRoomMembers = async (roomId) => {
     userId: member.user_id,
     nickname: member.nickname_mask || member.nickname,
     nicknameMask: member.nickname_mask,
+    profileImageUrl: member.profile_image_url,
     role: member.role,
     joinedAt: member.joined_at,
     lastSeenAt: member.last_seen_at
