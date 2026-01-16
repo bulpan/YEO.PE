@@ -4,7 +4,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../middleware/auth');
+const { authenticate, optionalAuthenticate } = require('../middleware/auth');
 const bleService = require('../services/bleService');
 const { ValidationError } = require('../utils/errors');
 const logger = require('../utils/logger');
@@ -35,7 +35,7 @@ router.post('/ble/uid', authenticate, async (req, res, next) => {
  * UID 목록으로 사용자 정보 조회
  */
 // 3.5.0 Update: Guest Access for Radar
-const { authenticate, optionalAuthenticate } = require('../middleware/auth');
+
 
 /**
  * POST /api/users/ble/scan
