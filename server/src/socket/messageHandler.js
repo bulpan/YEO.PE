@@ -5,6 +5,7 @@
 const messageService = require('../services/messageService');
 const pushService = require('../services/pushService');
 const logger = require('../utils/logger');
+const contentFilter = require('../utils/contentFilter');
 
 /**
  * 메시지 관련 Socket 이벤트 처리
@@ -22,12 +23,18 @@ const messageHandler = (socket, io) => {
         return socket.emit('error', { message: 'roomId가 필요합니다' });
       }
 
+      // Content Filtering (Masking)
+      let filteredContent = content;
+      if (type === 'text' && content) {
+        filteredContent = contentFilter.maskBadWords(content);
+      }
+
       // 메시지 생성
       const message = await messageService.createMessage(
         userId,
         roomId,
         type,
-        content,
+        filteredContent, // Use filtered content
         imageUrl
       );
 

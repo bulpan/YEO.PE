@@ -58,7 +58,7 @@ router.post('/ble/scan', authenticate, async (req, res, next) => {
             }
         }
 
-        const users = await bleService.getUsersByUIDs(uids);
+        const users = await bleService.getUsersByUIDs(uids, userId);
 
         // 50m 이내 사용자만 필터링 (기존 30m에서 확장)
         const nearbyUsers = users.filter(user => {
@@ -218,6 +218,11 @@ router.post('/quick_question', authenticate, async (req, res, next) => {
             throw new ValidationError('질문 내용을 입력해주세요');
         }
 
+        const contentFilter = require('../utils/contentFilter');
+        if (contentFilter.hasBadWords(content)) {
+            return res.status(400).json({ message: '비적절한 단어가 포함되어 있습니다.' });
+        }
+
         // 쿨다운 체크 (Redis)
         const redis = require('../config/redis');
         const cooldownKey = `quick_question:${userId}`;
@@ -253,7 +258,7 @@ router.post('/quick_question', authenticate, async (req, res, next) => {
         const pushService = require('../services/pushService');
 
         // Target Users
-        const targetUsers = await bleService.getUsersByUIDs(uids.map(u => ({ uid: u })));
+        const targetUsers = await bleService.getUsersByUIDs(uids.map(u => ({ uid: u })), userId);
         const targetUserIds = targetUsers.map(u => u.id);
 
         logger.info(`[Debug] QuickQuestion Targets - UIDs: ${uids.join(', ')}, Found UserIds: ${targetUserIds.join(', ')}`);
@@ -308,7 +313,7 @@ router.post('/boost', authenticate, async (req, res, next) => {
         const bleService = require('../services/bleService');
         const pushService = require('../services/pushService');
 
-        const targetUsers = await bleService.getUsersByUIDs(uids.map(u => ({ uid: u })));
+        const targetUsers = await bleService.getUsersByUIDs(uids.map(u => ({ uid: u })), userId);
         const targetUserIds = targetUsers.map(u => u.id);
 
         if (targetUserIds.length > 0) {
@@ -411,6 +416,31 @@ router.post('/report', authenticate, async (req, res, next) => {
         logger.info(`사용자 신고: ${userId} -> ${targetUserId} (${reason})`);
 
         res.json({ success: true, message: '신고가 접수되었습니다.' });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * POST /api/users/appeal
+ * 구제 신청 (정지된 사용자도 접근 가능)
+ */
+const { authenticateIgnoreSuspension } = require('../middleware/auth');
+router.post('/appeal', authenticateIgnoreSuspension, async (req, res, next) => {
+    try {
+        const userId = req.user.userId;
+        const { reason } = req.body;
+
+        if (!reason) {
+            throw new ValidationError('신청 사유를 입력해주세요');
+        }
+
+        const userService = require('../services/userService');
+        await userService.createAppeal(userId, reason);
+
+        logger.info(`구제 신청: User ${userId} (${reason})`);
+
+        res.json({ success: true, message: '구제 신청이 접수되었습니다.' });
     } catch (error) {
         next(error);
     }

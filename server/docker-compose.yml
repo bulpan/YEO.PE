@@ -8,6 +8,8 @@ services:
     init: true
     ports:
       - "3000:3000"
+    env_file:
+      - .env
     environment:
       - NODE_ENV=production
       - PORT=3000
@@ -26,7 +28,6 @@ services:
     volumes:
       - ./uploads:/usr/src/app/public/uploads
       - ./src:/usr/src/app/src
-
       - ./logs:/usr/src/app/logs
     networks:
       - yeope-network

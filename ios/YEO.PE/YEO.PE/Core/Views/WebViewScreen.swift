@@ -3,11 +3,13 @@ import WebKit
 
 struct GenericWebView: UIViewRepresentable {
     let url: URL
+    let backgroundColor: UIColor
 
     func makeUIView(context: Context) -> WKWebView {
         let webView = WKWebView()
-        webView.backgroundColor = .black
-        webView.isOpaque = false
+        webView.backgroundColor = backgroundColor
+        webView.scrollView.backgroundColor = backgroundColor
+        webView.isOpaque = true
         return webView
     }
 
@@ -21,17 +23,21 @@ struct WebViewScreen: View {
     let urlString: String
     let title: String
     @Environment(\.presentationMode) var presentationMode
+    @ObservedObject var themeManager = ThemeManager.shared
 
     var body: some View {
         NavigationView {
             ZStack {
-                Color.deepBlack.edgesIgnoringSafeArea(.all)
+                themeManager.background.edgesIgnoringSafeArea(.all)
                 
                 if let url = URL(string: urlString) {
-                    GenericWebView(url: url)
+                    GenericWebView(
+                        url: url,
+                        backgroundColor: themeManager.isDarkMode ? .black : .white
+                    )
                 } else {
                     Text("Invalid URL")
-                        .foregroundColor(.white)
+                        .foregroundColor(themeManager.text)
                 }
             }
             .navigationBarTitle(title, displayMode: .inline)
@@ -39,7 +45,7 @@ struct WebViewScreen: View {
                 presentationMode.wrappedValue.dismiss()
             }) {
                 Image(systemName: "xmark")
-                    .foregroundColor(.neonGreen)
+                    .foregroundColor(themeManager.highlight)
             })
         }
     }

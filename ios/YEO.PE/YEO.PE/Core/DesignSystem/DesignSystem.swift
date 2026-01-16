@@ -57,6 +57,12 @@ struct YeoPeColors {
         ThemeManager.shared.isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1)
     }
     
+    // MARK: - Specific UI Colors
+    var iconBorder: Color {
+        // Light Mode: Bright Gray, Dark Mode: Dark Gray (Subtle border)
+        ThemeManager.shared.isDarkMode ? Color(white: 0.25) : Color(white: 0.8)
+    }
+    
     // MARK: Raw Colors (Legacy/Specific)
     var neonGreenRaw: Color { Color(radarHex: "00FF94") }
     var deepBlackRaw: Color { Color(radarHex: "050505") }

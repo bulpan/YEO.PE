@@ -421,7 +421,7 @@ const joinRoom = async (userId, roomId) => {
  * 방 나가기
  */
 const leaveRoom = async (userId, roomId) => {
-  const room = await findRoomByRoomId(roomId);
+  const room = await findRoomByRoomId(roomId, true);
 
   if (!room) {
     throw new NotFoundError('방을 찾을 수 없습니다');
@@ -435,7 +435,28 @@ const leaveRoom = async (userId, roomId) => {
   );
 
   if (member.rows.length === 0) {
-    throw new ValidationError('참여 중인 방이 아닙니다');
+    // 이미 방을 나갔거나, 참여하지 않은 상태
+    // 초대된 사용자(Invitee)인 경우, '거절' 처리를 위해 흔적을 남겨야 함 (getUserRooms에서 안 보이게)
+    const metadata = typeof room.metadata === 'string' ? JSON.parse(room.metadata) : room.metadata;
+    if (metadata && metadata.inviteeId === userId) {
+      try {
+        await query(
+          `INSERT INTO yeope_schema.room_members 
+                (room_id, user_id, role, last_seen_at, joined_at, left_at)
+                VALUES ($1, $2, 'member', NOW(), NOW(), NOW())`,
+          [room.id, userId]
+        );
+        logger.info(`초대된 사용자 ${userId}가 방 ${roomId} 초대를 거절함 (Ghost join/leave)`);
+      } catch (e) {
+        // Ignore unique constraint violation or other errors
+      }
+    }
+
+    // 에러를 던지지 않고 성공으로 처리 (Idempotency)
+    return {
+      roomId,
+      message: '방에서 나갔습니다 (이미 나감)'
+    };
   }
 
   // 트랜잭션으로 방 나가기 처리

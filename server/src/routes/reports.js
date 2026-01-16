@@ -47,11 +47,8 @@ router.post('/', authenticate, async (req, res, next) => {
             throw new ValidationError('자신을 신고할 수 없습니다.');
         }
 
-        await query(
-            `INSERT INTO yeope_schema.reports (reporter_id, reported_id, reason, details)
-             VALUES ($1, $2, $3, $4)`,
-            [reporterId, targetUserId, reason, details || '']
-        );
+        const userService = require('../services/userService');
+        await userService.reportUser(reporterId, targetUserId, reason, details);
 
         logger.warn(`🚨 신고 접수: User ${reporterId.substring(0, 8)} reported ${targetUserId.substring(0, 8)} (Reason: ${reason})`);
 

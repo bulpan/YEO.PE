@@ -7,6 +7,9 @@ import Logs from './pages/Logs';
 import PushLogs from './pages/PushLogs';
 import Reports from './pages/Reports';
 import Users from './pages/Users';
+import BlockedUsers from './pages/BlockedUsers';
+import Appeals from './pages/Appeals';
+import Settings from './pages/Settings';
 import Layout from './components/Layout';
 
 function PrivateRoute({ children }) {
@@ -44,6 +47,12 @@ export default function App() {
           </PrivateRoute>
         } />
 
+        <Route path="/blocks" element={
+          <PrivateRoute>
+            <BlockedUsers />
+          </PrivateRoute>
+        } />
+
         <Route path="/reports" element={
           <PrivateRoute>
             <Reports />
@@ -56,9 +65,21 @@ export default function App() {
           </PrivateRoute>
         } />
 
+        <Route path="/appeals" element={
+          <PrivateRoute>
+            <Appeals />
+          </PrivateRoute>
+        } />
+
         <Route path="/push-logs" element={
           <PrivateRoute>
             <PushLogs />
+          </PrivateRoute>
+        } />
+
+        <Route path="/settings" element={
+          <PrivateRoute>
+            <Settings />
           </PrivateRoute>
         } />
       </Routes>

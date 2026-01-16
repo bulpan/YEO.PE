@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 import UserNotifications
+import SensitiveContentAnalysis
 
 struct ChatView: View {
     @Environment(\.presentationMode) var presentationMode
@@ -16,6 +17,7 @@ struct ChatView: View {
     @State private var showLeaveConfirmation = false
     @State private var showImagePicker = false
     @State private var inputImage: UIImage?
+    @State private var showSensitiveContentAlert = false
     
     var body: some View {
         ZStack {
@@ -72,70 +74,23 @@ struct ChatView: View {
                     Spacer()
                     
                     // Menu Button
-                    Button(action: {
+                Button(action: {
                         showMenu = true
                     }) {
                         Image(systemName: "line.3.horizontal")
                             .font(.system(size: 24))
                             .foregroundColor(Color.theme.textPrimary)
                     }
-                    .actionSheet(isPresented: $showMenu) {
-                        ActionSheet(
-                            title: Text("chat_menu".localized),
-                            buttons: [
-                                .destructive(Text("leave_room".localized)) {
-                                    showLeaveConfirmation = true
-                                },
-                                .cancel()
-                            ]
-                        )
-                    }
                 }
                 .padding()
                 .background(Color.theme.bgLayer1)
-                .alert(isPresented: $showLeaveConfirmation) {
-                    Alert(
-                        title: Text("leave_room".localized),
-                        message: Text("leave_room_confirm".localized),
-                        primaryButton: .destructive(Text("leave".localized)) {
-                            viewModel.exitRoom { success in
-                                if success {
-                                    presentationMode.wrappedValue.dismiss()
-                                }
-                            }
-                        },
-                        secondaryButton: .cancel()
-                    )
-                }
-                .sheet(item: $reportTargetUser) { user in
-                    ReportSheet(
-                        targetUserId: user.id,
-                        targetUserNickname: user.nickname ?? "Unknown",
-                        onReport: { reason, details in
-                            viewModel.reportUser(userId: user.id, reason: reason, details: details) { _ in }
-                        },
-                        onBlock: {
-                            viewModel.blockUser(userId: user.id) { success in
-                                if success {
-                                    // Handle block success if needed
-                                }
-                            }
-                        }
-                    )
-                }
-                .sheet(isPresented: $showImagePicker) {
-                    ImagePicker(sourceType: .photoLibrary) { image in
-                        self.inputImage = image
-                        viewModel.uploadImage(image)
-                    }
-                }
                 
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 12) {
                             ForEach(viewModel.messages) { message in
                                 let sender = viewModel.members.first(where: { $0.id == message.userId }) 
-                                             ?? (viewModel.targetUser?.id == message.userId ? viewModel.targetUser : nil)
+                                ?? (viewModel.targetUser?.id == message.userId ? viewModel.targetUser : nil)
                                 MessageRow(message: message, sender: sender, onAvatarTap: { tappedUser in
                                     reportTargetUser = tappedUser
                                 })
@@ -162,12 +117,13 @@ struct ChatView: View {
                 
                 // Input Area
                 HStack(spacing: 12) {
-                    TextField("type_message".localized, text: $viewModel.newMessageText)
+                    TextField(viewModel.isTargetUserActive ? "type_message".localized : "user_has_left".localized, text: $viewModel.newMessageText)
                         .padding(12)
                         .background(Color.textPrimary.opacity(0.1))
                         .cornerRadius(20)
                         .foregroundColor(.textPrimary)
                         .accentColor(.neonGreen)
+                        .disabled(!viewModel.isTargetUserActive)
                     
                     // Image Picker Button
                     Button(action: {
@@ -178,6 +134,8 @@ struct ChatView: View {
                             .foregroundColor(Color.theme.textSecondary)
                             .padding(10)
                     }
+                    .disabled(!viewModel.isTargetUserActive)
+                    .opacity(viewModel.isTargetUserActive ? 1.0 : 0.5)
                     
                     Button(action: {
                         viewModel.sendMessage()
@@ -189,12 +147,85 @@ struct ChatView: View {
                             .font(.system(size: 20))
                             .foregroundColor(ThemeManager.shared.isDarkMode ? .black : .white)
                             .padding(10)
-                            .background(Color.neonGreen)
+                            .background(viewModel.isTargetUserActive ? Color.neonGreen : Color.gray)
                             .clipShape(Circle())
                     }
+                    .disabled(!viewModel.isTargetUserActive)
                 }
                 .padding()
                 .background(Color.glassBlack)
+                
+            }
+            
+            // Loading Overlay
+            if viewModel.isLoading {
+                Color.black.opacity(0.4)
+                    .edgesIgnoringSafeArea(.all)
+                ProgressView()
+                    .scaleEffect(1.5)
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+            }
+            
+            // Custom Confirmation Overlay (Replaces System Alert)
+            if showLeaveConfirmation {
+                Color.black.opacity(0.6)
+                    .edgesIgnoringSafeArea(.all)
+                    // High ZIndex to ensure it's on top of everything including NavBars
+                    .zIndex(998)
+                    .onTapGesture {
+                        withAnimation { showLeaveConfirmation = false }
+                    }
+                
+                VStack(spacing: 20) {
+                    Text("leave_room".localized)
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    
+                    Text("leave_room_confirm".localized)
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                        .multilineTextAlignment(.center)
+                    
+                    HStack(spacing: 20) {
+                        Button(action: {
+                            NSLog("🚫 [ChatView] Custom Overlay Cancel tapped")
+                            withAnimation { showLeaveConfirmation = false }
+                        }) {
+                            Text("cancel".localized)
+                                .foregroundColor(.white)
+                                .padding(.vertical, 10)
+                                .padding(.horizontal, 20)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color.gray, lineWidth: 1)
+                                )
+                        }
+                        
+                        Button(action: {
+                            NSLog("🚀 [ChatView] Custom Overlay Leave tapped")
+                            withAnimation { showLeaveConfirmation = false }
+                            viewModel.exitRoom { success in
+                                NSLog("👋 [ChatView] exitRoom completion: \(success)")
+                                if success {
+                                    presentationMode.wrappedValue.dismiss()
+                                }
+                            }
+                        }) {
+                            Text("leave".localized)
+                                .foregroundColor(.white)
+                                .padding(.vertical, 10)
+                                .padding(.horizontal, 20)
+                                .background(Color.red)
+                                .cornerRadius(8)
+                        }
+                    }
+                }
+                .padding(24)
+                .background(Color.theme.bgLayer1)
+                .cornerRadius(16)
+                .shadow(radius: 20)
+                .padding(.horizontal, 40)
+                .zIndex(999) // Strictly on top
             }
         }
         .navigationBarHidden(true)
@@ -204,8 +235,90 @@ struct ChatView: View {
             UNUserNotificationCenter.current().setBadgeCount(0)
         }
         .onDisappear {
-            viewModel.updatePresence()
             viewModel.leaveRoom()
+        }
+        // MARK: - Global ActionSheet & Sheets
+        .actionSheet(isPresented: $showMenu) {
+            ActionSheet(
+                title: Text("chat_menu".localized),
+                buttons: [
+                    .destructive(Text("leave_room".localized)) {
+                        NSLog("👆 [ChatView] Leave Room button tapped")
+                        // Show visible overlay immediately
+                        withAnimation {
+                            showLeaveConfirmation = true
+                        }
+                    },
+                    .cancel()
+                ]
+            )
+        }
+        .sheet(item: $reportTargetUser) { user in
+            ReportSheet(
+                targetUserId: user.id,
+                targetUserNickname: user.nickname ?? "Unknown",
+                onReport: { reason, details, completion in
+                    viewModel.reportUser(userId: user.id, reason: reason, details: details) { success in
+                        completion(success)
+                    }
+                },
+                onBlock: {
+                    viewModel.blockUser(userId: user.id) { success in
+                        if success {
+                            // Handle block success if needed
+                        }
+                    }
+                }
+            )
+        }
+        .sheet(isPresented: $showImagePicker) {
+            ImagePicker(sourceType: .photoLibrary) { image in
+                self.inputImage = image
+                
+                // IOS 17+ Sensitive Content Analysis
+                if #available(iOS 17.0, *) {
+                    Task {
+                        do {
+                            let analyzer = SCSensitivityAnalyzer()
+                            let policy = analyzer.analysisPolicy
+                            
+                            if policy == .disabled {
+                                viewModel.uploadImage(image) // Feature disabled by user/system
+                            } else {
+                                // Convert UIImage to CGImage for analysis
+                                if let cgImage = image.cgImage {
+                                    let analysis = try await analyzer.analyzeImage(cgImage)
+                                    
+                                    if analysis.isSensitive {
+                                        // Sensitive Content Detected!
+                                        DispatchQueue.main.async {
+                                            print("🚨 Sensitive Content Detected! Upload Blocked.")
+                                            showSensitiveContentAlert = true
+                                        }
+                                    } else {
+                                        viewModel.uploadImage(image)
+                                    }
+                                } else {
+                                    viewModel.uploadImage(image)
+                                }
+                            }
+                        } catch {
+                            print("Analysis failed: \(error)")
+                            viewModel.uploadImage(image) // Fail open or closed? Fail open for now to avoid bugs blocking legit users.
+                        }
+                    }
+                } else {
+                    // Fallback for older iOS
+                    viewModel.uploadImage(image)
+                }
+            }
+        }
+        .alert(isPresented: $showSensitiveContentAlert) {
+            Alert(
+                title: Text("blocked".localized),
+                message: Text("report_inappropriate".localized),
+                dismissButton: .default(Text("ok".localized))
+            )
         }
     }
     
@@ -217,7 +330,7 @@ struct ChatView: View {
         }
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-             withAnimation {
+            withAnimation {
                 proxy.scrollTo(lastId, anchor: .bottom)
             }
         }

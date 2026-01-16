@@ -84,6 +84,14 @@ router.post('/register', authenticate, async (req, res, next) => {
       logger.info(`푸시 토큰 등록: user ${userId}, platform ${platform}`);
     }
 
+    // [New] Log User Traffic (Daily Active Users / Session Start)
+    // We log visits here because this is called on MainView.onAppear
+    await query(
+      `INSERT INTO yeope_schema.login_logs (user_id, platform, ip_address)
+       VALUES ($1, $2, $3)`,
+      [userId, platform, req.ip]
+    );
+
     res.json({
       success: true,
       message: '푸시 토큰이 등록되었습니다'

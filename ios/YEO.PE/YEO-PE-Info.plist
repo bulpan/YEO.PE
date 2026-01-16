@@ -45,5 +45,12 @@
     <string>주변 사용자를 탐색하고 채팅방 신호를 감지하기 위해 블루투스 권한이 필요합니다.</string>
     <key>NSBluetoothPeripheralUsageDescription</key>
     <string>주변 사용자에게 내 신호를 공유하기 위해 블루투스 권한이 필요합니다.</string>
+    <key>UILaunchScreen</key>
+    <dict>
+        <key>UIImageName</key>
+        <string>SplashIcon</string>
+        <key>UIImageRespectsSafeAreaInsets</key>
+        <false/>
+    </dict>
 </dict>
 </plist>

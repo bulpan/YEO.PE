@@ -6,18 +6,18 @@ struct ReportView: View {
     let targetUser: User
     @Binding var isPresented: Bool
     
-    @State private var selectedReason = "Spam or Advertising"
+    @State private var selectedReason = "report_spam"
     @State private var details = ""
     @State private var isSubmitting = false
     @State private var showSuccessAlert = false
     @State private var errorMessage: String?
     
     let reasons = [
-        "Spam or Advertising",
-        "Harassment or Bullying",
-        "Inappropriate Content",
-        "Fake Account",
-        "Other"
+        "report_spam",
+        "report_abusive",
+        "report_inappropriate",
+        "report_fake",
+        "report_other"
     ]
     
     var body: some View {
@@ -29,7 +29,7 @@ struct ReportView: View {
                     Section(header: Text("reason".localized).foregroundColor(.gray)) {
                         Picker("select_reason".localized, selection: $selectedReason) {
                             ForEach(reasons, id: \.self) { reason in
-                                Text(reason).tag(reason)
+                                Text(reason.localized).tag(reason)
                             }
                         }
                         .pickerStyle(MenuPickerStyle())

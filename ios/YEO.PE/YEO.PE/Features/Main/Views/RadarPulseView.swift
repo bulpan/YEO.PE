@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct RadarPulseView: View {
-    @State private var isPulsing = false
+
     @State private var zoomLevel: CGFloat = 1.0
     @State private var lastZoomLevel: CGFloat = 1.0
     @Environment(\.scenePhase) var scenePhase
@@ -24,7 +24,7 @@ struct RadarPulseView: View {
                         .onChanged { value in
                             let delta = value / lastZoomLevel
                             lastZoomLevel = value
-                            zoomLevel = min(max(zoomLevel * delta, 0.5), 3.0)
+                            zoomLevel = min(max(zoomLevel * delta, 0.5), 2.0) // Max zoom: 2x
                         }
                         .onEnded { _ in
                             lastZoomLevel = 1.0
@@ -37,26 +37,21 @@ struct RadarPulseView: View {
                 .frame(width: 20, height: 20)
                 .shadow(color: .neonGreen, radius: 10)
             
-            // Pulse 1
-            Circle()
-                .stroke(Color.neonGreen.opacity(0.5), lineWidth: 1)
-                .frame(width: (isPulsing ? 500 : 20) * zoomLevel, height: (isPulsing ? 500 : 20) * zoomLevel)
-                .opacity(isPulsing ? 0 : 1)
-                .animation(isPulsing ? Animation.easeOut(duration: 3).repeatForever(autoreverses: false) : .default, value: isPulsing)
-            
-            // Pulse 2
-            Circle()
-                .stroke(Color.neonGreen.opacity(0.3), lineWidth: 1)
-                .frame(width: (isPulsing ? 500 : 20) * zoomLevel, height: (isPulsing ? 500 : 20) * zoomLevel)
-                .opacity(isPulsing ? 0 : 1)
-                .animation(isPulsing ? Animation.easeOut(duration: 3).repeatForever(autoreverses: false).delay(1) : .default, value: isPulsing)
-            
-            // Pulse 3
-            Circle()
-                .stroke(Color.neonGreen.opacity(0.1), lineWidth: 1)
-                .frame(width: (isPulsing ? 500 : 20) * zoomLevel, height: (isPulsing ? 500 : 20) * zoomLevel)
-                .opacity(isPulsing ? 0 : 1)
-                .animation(isPulsing ? Animation.easeOut(duration: 3).repeatForever(autoreverses: false).delay(2) : .default, value: isPulsing)
+            // Pulse Animation (TimelineView)
+            TimelineView(.animation) { context in
+                let time = context.date.timeIntervalSinceReferenceDate
+                
+                ForEach(0..<3) { index in
+                    let duration: Double = 3.0
+                    let offset = Double(index)
+                    // Calculate progress 0.0 to 1.0 based on current time
+                    let progress = (time + offset).truncatingRemainder(dividingBy: duration) / duration
+                    
+                    Circle()
+                        .stroke(Color.neonGreen.opacity(0.5 * (1.0 - progress)), lineWidth: 1)
+                        .frame(width: 20 + (480 * progress), height: 20 + (480 * progress))
+                }
+            }
             
             // Users
             ForEach(nearbyUsers) { user in
@@ -94,32 +89,6 @@ struct RadarPulseView: View {
                     .transition(.opacity.animation(.easeInOut))
             }
         }
-        .onAppear {
-            restartAnimation()
-        }
-        .onDisappear {
-            stopAnimation()
-        }
-        .onChange(of: scenePhase) { newPhase in
-            if newPhase == .active {
-                restartAnimation()
-            } else {
-                stopAnimation()
-            }
-        }
-    }
-    
-    private func restartAnimation() {
-        isPulsing = false
-        // Slight delay to ensure clean state reset before starting
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            isPulsing = true
-        }
-    }
-    
-    private func stopAnimation() {
-        isPulsing = false
-
     }
 }
 
@@ -159,8 +128,8 @@ struct RadarUserNode: View {
             .overlay(
                 Circle()
                     .stroke(
-                        isChatting ? Color.neonGreen : (user.isGuest ? Color.gray : Color.blue),
-                        lineWidth: isChatting ? 3 : 2
+                        isChatting ? Color.neonGreen : (user.isGuest ? Color.gray : Color.theme.iconBorder),
+                        lineWidth: isChatting ? 3 : 1
                     )
             )
             .shadow(color: isChatting ? .neonGreen.opacity(0.5) : Color.black.opacity(0.2), radius: 5)

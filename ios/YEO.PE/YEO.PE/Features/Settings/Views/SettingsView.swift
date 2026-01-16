@@ -42,8 +42,6 @@ struct SettingsView: View {
     @State private var pendingLanguage: Language?
     
     // Server Config
-    @State private var selectedEnvironment: ServerEnvironment = .production
-    @State private var tempLocalIP: String = ""
     @State private var selectedLanguage: Language = LanguageManager.shared.currentLanguage
     
     init(authViewModel: AuthViewModel) {
@@ -53,8 +51,6 @@ struct SettingsView: View {
         _roomExitCondition = State(initialValue: authViewModel.currentUser?.settings?.roomExitCondition ?? "24h")
         // Removed maskId
         
-        _selectedEnvironment = State(initialValue: ServerConfig.shared.environment)
-        _tempLocalIP = State(initialValue: ServerConfig.shared.localIP)
         _selectedLanguage = State(initialValue: LanguageManager.shared.currentLanguage)
     }
     
@@ -71,7 +67,6 @@ struct SettingsView: View {
                         notificationSection
                         messageSection
                         privacySection
-                        developerSection
                         legalSection
                         accountSection // 맨 아래로 이동
                     }
@@ -84,10 +79,10 @@ struct SettingsView: View {
             ProfileEditView(authViewModel: authViewModel)
         }
         .sheet(isPresented: $showTerms) {
-            WebViewScreen(urlString: "https://yeo.pe/terms", title: "terms_of_service".localized)
+            WebViewScreen(urlString: "https://yeop3.com/terms.html?theme=\(themeManager.isDarkMode ? "dark" : "light")", title: "terms_of_service".localized)
         }
         .sheet(isPresented: $showPrivacy) {
-            WebViewScreen(urlString: "https://yeo.pe/privacy", title: "privacy_policy".localized)
+            WebViewScreen(urlString: "https://yeop3.com/privacy.html?theme=\(themeManager.isDarkMode ? "dark" : "light")", title: "privacy_policy".localized)
         }
         .sheet(isPresented: $showBlockedUsers) {
             NavigationView {
@@ -142,8 +137,6 @@ struct SettingsView: View {
         .onChange(of: messageRetention) { _ in saveSettings() }
         .onChange(of: roomExitCondition) { _ in saveSettings() }
 
-        .onChange(of: selectedEnvironment) { _ in saveSettings() }
-        .onChange(of: tempLocalIP) { _ in saveSettings() }
     }
     
     // MARK: - Subviews
@@ -178,9 +171,9 @@ struct SettingsView: View {
                     ZStack {
                         if let url = authViewModel.currentUser?.fullProfileFileURL {
                             CachedAsyncImage(url: url)
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: 100, height: 100)
-                                .clipShape(Circle())
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 100, height: 100)
+                            .clipShape(Circle())
                         } else {
                             fallbackProfileImage
                         }
@@ -214,9 +207,9 @@ struct SettingsView: View {
     var fallbackProfileImage: some View {
         ZStack {
             Circle()
-                .fill(Color.theme.accentPrimary.opacity(0.1))
-                .frame(width: 50, height: 50)
-                .overlay(Circle().stroke(Color.theme.accentPrimary, lineWidth: 1))
+            .fill(Color.theme.accentPrimary.opacity(0.1))
+            .frame(width: 50, height: 50)
+            .overlay(Circle().stroke(Color.theme.accentPrimary, lineWidth: 1))
             
             Text(authViewModel.currentUser?.displayName.prefix(1).uppercased() ?? "?")
                 .font(.system(size: 20, weight: .bold))
@@ -427,48 +420,6 @@ struct SettingsView: View {
         }
         .padding(.horizontal)
     }
-
-    var developerSection: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            Text("developer_settings".localized)
-                .font(.radarCaption)
-                .foregroundColor(Color.theme.textSecondary)
-                .padding(.leading, 4)
-            
-            // Environment
-            HStack {
-                Text("environment".localized)
-                    .foregroundColor(Color.theme.textPrimary)
-                Spacer()
-                Picker("environment".localized, selection: $selectedEnvironment) {
-                    ForEach(ServerEnvironment.allCases, id: \.self) { env in
-                        Text(env.rawValue.capitalized).tag(env)
-                    }
-                }
-                .pickerStyle(SegmentedPickerStyle())
-                .frame(width: 200)
-            }
-            .padding()
-            .background(Color.theme.bgLayer1)
-            .cornerRadius(12)
-            
-            // Local IP
-            if selectedEnvironment == .local {
-                VStack(alignment: .leading) {
-                    Text("local_ip".localized)
-                        .foregroundColor(.gray)
-                        .font(.caption)
-                    TextField("192.168.x.x", text: $tempLocalIP)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .keyboardType(.numbersAndPunctuation)
-                }
-                .padding()
-                .background(Color.theme.bgLayer1)
-                .cornerRadius(12)
-            }
-        }
-        .padding(.horizontal)
-    }
     
     var legalSection: some View {
         VStack(alignment: .leading, spacing: 15) {
@@ -476,6 +427,7 @@ struct SettingsView: View {
                 .font(.radarCaption)
                 .foregroundColor(Color.theme.textSecondary)
                 .padding(.leading, 4)
+            
             
             // 이용약관
             Button(action: { showTerms = true }) {
@@ -539,12 +491,6 @@ struct SettingsView: View {
         settings.maskId = false // Disabled (Feature removed, default to unmasked)
         
         authViewModel.updateSettings(settings)
-        
-        // Save Server Config
-        ServerConfig.shared.setEnvironment(selectedEnvironment)
-        if selectedEnvironment == .local && !tempLocalIP.isEmpty {
-            ServerConfig.shared.setLocalIP(tempLocalIP)
-        }
     }
     
     func checkPushAuth(completion: @escaping (Bool) -> Void) {

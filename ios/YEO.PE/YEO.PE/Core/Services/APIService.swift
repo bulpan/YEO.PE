@@ -80,7 +80,62 @@ class APIService {
                 print("❌ API Error [\(httpResponse.statusCode)]: \(errorMessage)")
                 
                 // Map status codes to specific errors if needed
-                if httpResponse.statusCode == 401 {
+                if httpResponse.statusCode == 403 {
+                    // Check for Suspension
+                    if let data = data,
+                       let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                        
+                        if errorResponse.error.code == "USER_SUSPENDED" {
+                            var suspendedDate: Date? = nil
+                            var suspendedAtDate: Date? = nil
+                            let formatter = ISO8601DateFormatter()
+                            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                            
+                            if let dateStr = errorResponse.error.details?.suspendedUntil {
+                               suspendedDate = formatter.date(from: dateStr)
+                            }
+                            if let satStr = errorResponse.error.details?.suspendedAt {
+                                suspendedAtDate = formatter.date(from: satStr)
+                            }
+                            
+                                if let satStr = errorResponse.error.details?.suspendedAt {
+                                    suspendedAtDate = formatter.date(from: satStr)
+                                }
+                            
+                            DispatchQueue.main.async {
+                                NotificationCenter.default.post(name: .accountSuspended, object: nil, userInfo: [
+                                    "date": suspendedDate as Any, 
+                                    "date": suspendedDate as Any, 
+                                    "reason": (errorResponse.error.details?.reasonDict ?? errorResponse.error.details?.reasonString) as Any,
+                                    "suspendedAt": suspendedAtDate as Any
+                                ])
+                            }
+                            
+                            completion(.failure(APIError.serverError("Account Suspended")))
+                            return
+                        } else if errorResponse.error.code == "USER_BANNED" {
+                            let reason = (errorResponse.error.details?.reasonDict ?? errorResponse.error.details?.reasonString)
+                            var suspendedAtDate: Date? = nil
+                            let formatter = ISO8601DateFormatter()
+                            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                             
+                            if let satStr = errorResponse.error.details?.suspendedAt {
+                                suspendedAtDate = formatter.date(from: satStr)
+                            }
+                            
+                            DispatchQueue.main.async {
+                                NotificationCenter.default.post(name: .accountBanned, object: nil, userInfo: [
+                                    "reason": reason as Any,
+                                    "suspendedAt": suspendedAtDate as Any
+                                ])
+                            }
+                            completion(.failure(APIError.serverError("Account Banned")))
+                            return
+                        }
+                    }
+                    
+                    completion(.failure(APIError.unauthorized)) // Treat other 403 as auth/unauthorized
+                } else if httpResponse.statusCode == 401 {
                     completion(.failure(APIError.unauthorized))
                 } else {
                     completion(.failure(APIError.serverError(errorMessage)))
@@ -273,6 +328,15 @@ class APIService {
         }
         request("/reports", method: "POST", body: body, completion: completion)
     }
+    
+    func appealSuspension(reason: String, completion: @escaping (Result<StandardResponse, Error>) -> Void) {
+        let body = ["reason": reason]
+        request("/users/appeal", method: "POST", body: body, completion: completion)
+    }
+
+    func fetchAppConfig(completion: @escaping (Result<AppConfigResponse, Error>) -> Void) {
+        request("/config", method: "GET", completion: completion)
+    }
 }
 
 struct UserResponse: Decodable {
@@ -299,4 +363,65 @@ struct QuickQuestionResponse: Decodable {
 
 struct BlockedUsersResponse: Decodable {
     let blockedUsers: [User]
+}
+
+struct ErrorResponse: Decodable {
+    let error: ErrorObj
+}
+
+struct ErrorObj: Decodable {
+    let message: String
+    let code: String?
+    let details: ErrorDetail?
+}
+
+// 1. Add suspendedAt to ErrorDetail struct
+struct ErrorDetail: Decodable {
+    let suspendedUntil: String?
+    let suspendedAt: String?
+    let reasonString: String?
+    let reasonDict: [String: String]?
+    
+    enum CodingKeys: String, CodingKey {
+        case suspendedUntil, suspendedAt, reason
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        suspendedUntil = try container.decodeIfPresent(String.self, forKey: .suspendedUntil)
+        suspendedAt = try container.decodeIfPresent(String.self, forKey: .suspendedAt)
+        
+        if let str = try? container.decode(String.self, forKey: .reason) {
+            reasonString = str
+            reasonDict = nil
+        } else if let dict = try? container.decode([String: String].self, forKey: .reason) {
+            reasonString = nil
+            reasonDict = dict
+        } else {
+            reasonString = nil
+            reasonDict = nil
+        }
+    }
+}
+
+struct AppConfigResponse: Decodable {
+    let notice: AppNotice
+}
+
+struct AppNotice: Decodable {
+    let active: Bool
+    let version: Int
+    let content: LocalizedContent
+}
+
+struct LocalizedContent: Decodable {
+    let ko: String
+    let en: String
+}
+
+// 2. Update USER_SUSPENDED and USER_BANNED handling in APIService.swift (conceptually - using replace logic below)
+
+extension Notification.Name {
+    static let accountSuspended = Notification.Name("accountSuspended")
+    static let accountBanned = Notification.Name("accountBanned")
 }

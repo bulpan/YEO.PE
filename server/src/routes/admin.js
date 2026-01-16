@@ -4,6 +4,7 @@ const { authenticateAdmin } = require('../middleware/adminAuth');
 const { generateAdminToken } = require('../config/auth');
 const { AuthenticationError } = require('../utils/errors');
 const { pool } = require('../config/database');
+const userService = require('../services/userService');
 const fs = require('fs');
 const path = require('path');
 
@@ -58,12 +59,87 @@ router.get('/stats', async (req, res, next) => {
     `);
         const messages24h = parseInt(messageCountQuery.rows[0].count);
 
+        // 5. Suspended Users Count
+        const suspendedCountQuery = await pool.query("SELECT COUNT(*) FROM yeope_schema.users WHERE status = 'suspended'");
+        const suspendedUsers = parseInt(suspendedCountQuery.rows[0].count);
+
         res.json({
             activeUsers,
             totalRooms,
             totalUsers,
-            messages24h
+            messages24h,
+            suspendedUsers
         });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * Traffic Stats (User Connections)
+ * GET /api/admin/stats/traffic
+ * query: period (day/week/month/3months), os (all/ios/android)
+ */
+router.get('/stats/traffic', async (req, res, next) => {
+    try {
+        const { period = 'week', os = 'all' } = req.query;
+        let interval = '7 days';
+
+        if (period === 'day') interval = '24 hours';
+        else if (period === 'month') interval = '30 days';
+        else if (period === '3months') interval = '90 days';
+
+        let osFilter = '';
+        const params = [];
+        if (os !== 'all') {
+            osFilter = 'AND platform = $1';
+            params.push(os);
+        }
+
+        const query = `
+            SELECT 
+                TO_CHAR(login_at, 'YYYY-MM-DD') as date,
+                COUNT(DISTINCT user_id) as count
+            FROM yeope_schema.login_logs
+            WHERE login_at > NOW() - INTERVAL '${interval}'
+            ${osFilter}
+            GROUP BY date
+            ORDER BY date ASC
+        `;
+
+        const result = await pool.query(query, params);
+        res.json({ period, os, data: result.rows });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * New Users Stats (App Installs Proxy)
+ * GET /api/admin/stats/users
+ * query: period (day/week/month/3months)
+ */
+router.get('/stats/users', async (req, res, next) => {
+    try {
+        const { period = 'week' } = req.query;
+        let interval = '7 days';
+
+        if (period === 'day') interval = '24 hours';
+        else if (period === 'month') interval = '30 days';
+        else if (period === '3months') interval = '90 days';
+
+        const query = `
+            SELECT 
+                TO_CHAR(created_at, 'YYYY-MM-DD') as date,
+                COUNT(id) as count
+            FROM yeope_schema.users
+            WHERE created_at > NOW() - INTERVAL '${interval}'
+            GROUP BY date
+            ORDER BY date ASC
+        `;
+
+        const result = await pool.query(query);
+        res.json({ period, data: result.rows });
     } catch (error) {
         next(error);
     }
@@ -229,13 +305,14 @@ router.get('/reports', async (req, res, next) => {
 });
 
 /**
- * Ban User
+ * Ban User (Deactivate)
  * POST /api/admin/users/:id/ban
  */
 router.post('/users/:id/ban', async (req, res, next) => {
     try {
         const { id } = req.params;
-        await pool.query('UPDATE yeope_schema.users SET is_active = false WHERE id = $1', [id]);
+        const { reason } = req.body;
+        await userService.banUser(id, reason);
         res.json({ success: true, message: 'User banned' });
     } catch (error) {
         next(error);
@@ -243,14 +320,29 @@ router.post('/users/:id/ban', async (req, res, next) => {
 });
 
 /**
- * Unban User
+ * Unban User (Activate)
  * POST /api/admin/users/:id/unblock
  */
 router.post('/users/:id/unblock', async (req, res, next) => {
     try {
         const { id } = req.params;
-        await pool.query('UPDATE yeope_schema.users SET is_active = true WHERE id = $1', [id]);
+        await userService.unbanUser(id);
         res.json({ success: true, message: 'User unbanned' });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * Suspend User (Temporary)
+ * POST /api/admin/users/:id/suspend
+ */
+router.post('/users/:id/suspend', async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { hours, reason } = req.body;
+        await userService.suspendUser(id, hours || 24, reason);
+        res.json({ success: true, message: `User suspended for ${hours}h` });
     } catch (error) {
         next(error);
     }
@@ -328,6 +420,137 @@ router.get('/logs', (req, res, next) => {
                 res.json({ logs: parsedLogs });
             }
         });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * Blocked Users List
+ * GET /api/admin/blocks
+ */
+router.get('/blocks', async (req, res, next) => {
+    try {
+        const result = await pool.query(`
+      SELECT 
+        b.blocker_id, b.blocked_id, b.created_at,
+        u1.nickname as blocker_nickname, u1.email as blocker_email, u1.nickname_mask as blocker_mask,
+        u2.nickname as blocked_nickname, u2.email as blocked_email, u2.nickname_mask as blocked_mask
+      FROM yeope_schema.blocked_users b
+      LEFT JOIN yeope_schema.users u1 ON b.blocker_id = u1.id
+      LEFT JOIN yeope_schema.users u2 ON b.blocked_id = u2.id
+      ORDER BY b.created_at DESC
+      LIMIT 100
+    `);
+        res.json(result.rows);
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * Unblock User (Admin Override)
+ * POST /api/admin/blocks/unblock
+ */
+router.post('/blocks/unblock', async (req, res, next) => {
+    try {
+        const { blockerId, blockedId } = req.body;
+
+        if (!blockerId || !blockedId) {
+            throw new AuthenticationError('Blocker ID and Blocked ID are required');
+        }
+
+        await pool.query(
+            'DELETE FROM yeope_schema.blocked_users WHERE blocker_id = $1 AND blocked_id = $2',
+            [blockerId, blockedId]
+        );
+
+        res.json({ success: true, message: 'User unblocked successfully' });
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.post('/users/:id/unsuspend', async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        await userService.unsuspendUser(id);
+        res.json({ success: true, message: 'User unsuspended successfully' });
+    } catch (error) {
+        next(error);
+    }
+});
+
+
+
+router.delete('/users/:id/reports', async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        await userService.clearReports(id);
+        res.json({ success: true, message: 'User reports cleared successfully' });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * GET /api/admin/appeals
+ * 구제 신청 목록 조회
+ */
+router.get('/appeals', async (req, res, next) => {
+    try {
+        const { status } = req.query;
+        const appeals = await userService.getAppeals(status || 'pending');
+        res.json(appeals);
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * POST /api/admin/appeals/:id/resolve
+ * 구제 신청 처리 (승인/거절)
+ */
+router.post('/appeals/:id/resolve', async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { status, adminComment } = req.body;
+
+        await userService.resolveAppeal(id, status, adminComment);
+        res.json({ success: true, message: `Appeal ${status}` });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * Global Settings (Get)
+ * GET /api/admin/settings
+ */
+router.get('/settings', async (req, res, next) => {
+    try {
+        const settingsService = require('../services/settingsService');
+        const settings = await settingsService.getAll();
+        res.json(settings);
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * Global Settings (Update)
+ * POST /api/admin/settings
+ */
+router.post('/settings', async (req, res, next) => {
+    try {
+        const settingsService = require('../services/settingsService');
+        const updates = req.body; // { key: value, ... }
+
+        for (const [key, value] of Object.entries(updates)) {
+            await settingsService.setValue(key, value);
+        }
+
+        res.json({ success: true, message: 'Settings updated' });
     } catch (error) {
         next(error);
     }

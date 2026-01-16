@@ -8,6 +8,7 @@ struct ProfileView: View {
     @State private var isPulsing = false
     @State private var showLogoutAlert = false
     @State private var showDeleteAlert = false
+    @State private var showNewMaskAlert = false
     
     @State private var activeTooltip: String? = nil
     
@@ -146,7 +147,7 @@ struct ProfileView: View {
                                 
                                 // Nickname Edit Button
                                 Button(action: {
-                                    newNickname = viewModel.currentUser?.nickname ?? ""
+                                    newNickname = viewModel.currentUser?.displayName ?? ""
                                     showNicknameEdit = true
                                 }) {
                                     Image(systemName: "pencil.circle.fill")
@@ -215,7 +216,7 @@ struct ProfileView: View {
                         
                         // Cell 3: Change Mask
                         Button(action: {
-                            viewModel.randomizeMask()
+                            showNewMaskAlert = true
                         }) {
                             ZStack(alignment: .bottomTrailing) {
                                 VStack(alignment: .leading, spacing: 12) {
@@ -354,7 +355,7 @@ struct ProfileView: View {
                             
                             Text(tooltip.localized)
                                 .font(.subheadline)
-                                .foregroundColor(.white)
+                                .foregroundColor(Color.theme.textPrimary)
                                 .fixedSize(horizontal: false, vertical: true)
                                 .lineSpacing(4)
                             
@@ -368,11 +369,11 @@ struct ProfileView: View {
                         }
                     }
                     .padding(24)
-                    .background(.ultraThinMaterial)
+                    .background(Color.theme.bgLayer2)
                     .cornerRadius(20)
                     .overlay(
                         RoundedRectangle(cornerRadius: 20)
-                            .stroke(Color.neonGreen.opacity(0.5), lineWidth: 1)
+                            .stroke(Color.theme.accentPrimary.opacity(0.5), lineWidth: 1)
                     )
                     .padding(40)
                 }
@@ -407,11 +408,27 @@ struct ProfileView: View {
                     )
                 }
         )
+        
+        // New Mask Alert
+        .background(
+            Color.clear
+                .alert(isPresented: $showNewMaskAlert) {
+                    Alert(
+                        title: Text("new_mask".localized),
+                        message: Text("new_mask_warning_message".localized),
+                        primaryButton: .destructive(Text("change_identity".localized)) {
+                            viewModel.randomizeMask()
+                        },
+                        secondaryButton: .cancel(Text("cancel".localized))
+                    )
+                }
+        )
         .sheet(isPresented: $showNicknameEdit) {
             NicknameEditSheet(
                 nickname: $newNickname,
                 onSave: { newName in
-                    viewModel.updateProfile(nickname: newName) { success in
+                    // Clear the mask so the new nickname takes precedence
+                    viewModel.updateProfile(nickname: newName, nicknameMask: "") { success in
                         if success {
                             showNicknameEdit = false
                         }

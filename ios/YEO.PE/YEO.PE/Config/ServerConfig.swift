@@ -39,11 +39,7 @@ class ServerConfig: ObservableObject {
             self.environment = savedEnv
         } else {
             // 2. Default if no preference (First Launch)
-            #if DEBUG
-            self.environment = .local
-            #else
             self.environment = .production
-            #endif
         }
         
         // 3. Setup Local IP (Always load generated for Debug convenience, or saved for Release)

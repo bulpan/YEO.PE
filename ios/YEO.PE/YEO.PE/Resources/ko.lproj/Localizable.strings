@@ -110,17 +110,20 @@
 "environment" = "환경";
 "local_ip" = "로컬 IP 주소";
 "open_source_licenses" = "오픈소스 라이선스";
+"identity_info_tooltip" = "닉네임을 설정하면 익명 가면(Anon#...)이 사라지고 나만의 닉네임으로 활동하게 됩니다. 언제든 변경할 수 있습니다.";
 
 // Random Nickname Dialog
 "random_nickname_title" = "새로운 가면 발급 완료!";
 "random_nickname_desc" = "익명 여행을 위한 새로운 ID가 생성되었습니다.";
 "keep_it" = "그냥 쓰기";
 "change_nickname" = "변경하기";
+"change_identity" = "적용하기";
 
 // New Mask Confirmation Alert
 "new_mask_confirm_title" = "새 가면으로 변경";
 "new_mask_confirm_message" = "새가면을 누르면 지금까지 모든 채팅방에서 나가고 닉네임/프로필사진도 리셋되서 새사람이 됩니다.";
-"dont_show_again" = "다시안보기";
+"new_mask_warning_message" = "새가면을 선택하면 모든 대화방에서 나가게 되며, 프로필 사진과 닉네임이 초기화됩니다.";
+"dont_show_again" = "다시 안보기";
 
 // Settings Options
 "6_hours" = "6시간";
@@ -174,21 +177,64 @@
 "blocked" = "차단됨";
 "blocked_msg" = "사용자가 차단되었습니다.";
 "report_reason" = "신고 사유";
+"select_reason" = "사유 선택";
+"reason" = "사유";
+"details_optional" = "상세 내용 (선택)";
+"submit_report" = "신고하기";
+"report_submitted" = "신고 완료";
+"report_submitted_desc" = "신고가 접수되었습니다. 검토 후 조치하겠습니다.";
+"ok" = "확인";
 "report_details" = "세부 내용 (선택)";
 "report_submit" = "신고 접수";
 "report_spam" = "스팸 / 부적절한 홍보";
 "report_abusive" = "욕설 / 비하 발언";
 "report_inappropriate" = "부적절한 콘텐츠";
+"report_fake" = "가짜 계정 / 사칭";
 "report_other" = "기타";
+"spam" = "스팸";
+"abusive" = "욕설";
+"inappropriate_content" = "부적절한 콘텐츠";
+"other" = "기타";
+"block" = "차단";
 "blocked_users_title" = "차단 관리";
 "block_policy_info" = "차단은 앱 설치 시 발급된 고유 ID를 기준으로 동작합니다. 상대방이 닉네임을 변경해도 차단은 유지되지만, 앱을 재설치할 경우 해제될 수 있습니다. 한 번 차단하면 해제할 수 없습니다.";
+
+// Zero Tolerance
+"terms_update_notice" = "이용약관 변경 안내";
+"terms_update_desc" = "더 안전한 커뮤니티를 위해 운영 정책이 강화되었습니다. 서비스를 계속 이용하려면 변경된 약관에 동의해야 합니다.";
+"i_agree_zero_tolerance" = "부적절한 콘텐츠(비방, 음란물 등) 게시 시 사전 통보 없이 즉시 영구 정지됨을 확인합니다.";
+"confirm_and_continue" = "동의하고 계속하기";
+"check_required" = "확인 필요";
+"please_read_terms_first" = "이용약관 및 개인정보 처리방침을 먼저 읽어보신 후 동의해주세요.";
 
 // Compliance
 "i_agree_to_terms" = "서비스 이용약관 및 개인정보 처리방침에 동의합니다";
 "terms_required_alert" = "서비스를 이용하려면 약관 및 개인정보 처리방침에 동의해야 합니다.";
+
+// Compliance
+"i_agree_to_terms" = "서비스 이용약관 및 개인정보 처리방침에 동의합니다";
+"terms_required_alert" = "서비스를 이용하려면 약관 및 개인정보 처리방침에 동의해야 합니다.";
+
+// Account Suspension
+"account_suspended_title" = "이용 정지 안내";
+"account_suspended_desc" = "다수의 신고가 접수되어 계정 이용이 일시적으로 제한되었습니다. 정해진 기간 동안 앱을 이용하실 수 없습니다.";
+"lift_date" = "제한 해제 일시:";
 
 // Social Login Account Display
 "apple_login_account" = "애플 로그인 계정";
 "google_login_account" = "구글 로그인 계정";
 "kakao_login_account" = "카카오톡 로그인 계정";
 "naver_login_account" = "네이버 로그인 계정";
+
+// Appeal
+"appeal_btn" = "구제 신청하기 (Appeal)";
+"appeal_title" = "구제 신청";
+"appeal_reason_hint" = "사유를 입력하세요 (예: 억울합니다)";
+"appeal_desc" = "계정이 정지되었습니다. 부당하다고 생각되시면 소명을 신청해주세요. 검토 후 처리됩니다.";
+"submit" = "제출";
+
+"account_banned_title" = "계정 비활성화 알림";
+"account_banned_desc" = "관리자에 의해 계정이 비활성화되었습니다. 더 이상 서비스를 이용하실 수 없습니다.";
+"confirm" = "확인";
+"notification" = "공지사항";
+"user_has_left" = "상대방이 대화방을 나갔습니다.";

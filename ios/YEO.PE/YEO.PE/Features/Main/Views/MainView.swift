@@ -27,6 +27,11 @@ struct MainView: View {
     @State private var keyboardHeight: CGFloat = 0 // Track keyboard height
     @FocusState private var isInputFocused: Bool // Added FocusState
     
+    // Notice Popup State
+    @State private var showNoticePopup = false
+    @State private var noticeContent: LocalizedContent?
+    @State private var noticeVersion: Int = 0
+    
     var totalUnreadCount: Int {
         roomViewModel.myRooms
             .filter { $0.isActive != false } // Only count active rooms
@@ -87,24 +92,6 @@ struct MainView: View {
             VStack {
                 // Top Bar
                 HStack {
-                    Text("signal_active".localized)
-                        .font(.radarData)
-                        .foregroundColor(ThemeManager.shared.isDarkMode ? .neonGreen : .structuralGray)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(ThemeManager.shared.isDarkMode ? Color.neonGreen.opacity(0.1) : Color.black.opacity(0.05))
-                        .cornerRadius(4)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 4)
-                                .stroke(ThemeManager.shared.isDarkMode ? Color.neonGreen.opacity(0.3) : Color.structuralGray, lineWidth: 1)
-                        )
-                    
-                    // Debug Toggle
-                    Toggle("Debug", isOn: $bleManager.isRawScanMode)
-                        .labelsHidden()
-                        .toggleStyle(SwitchToggleStyle(tint: .neonGreen))
-                        .scaleEffect(0.8)
-                    
                     Spacer()
                     
                     Button(action: {
@@ -341,6 +328,27 @@ struct MainView: View {
                 )
             ) { EmptyView() }
             
+            // 5. Notice Popup Overlay
+            if showNoticePopup, let content = noticeContent {
+                ZStack {
+                    Color.black.opacity(0.4)
+                        .edgesIgnoringSafeArea(.all)
+                        .onTapGesture {
+                            withAnimation { showNoticePopup = false }
+                        }
+                    
+                    VStack {
+                        Spacer()
+                        NoticePopupView(content: content, version: noticeVersion) {
+                            withAnimation { showNoticePopup = false }
+                        }
+                    }
+                    .edgesIgnoringSafeArea(.bottom)
+                }
+                .zIndex(200)
+                .transition(.opacity)
+            }
+            
         } // End Root ZStack
         // Moves RadarPulseView + Background Color into the .background() modifier of Root ZStack
         // This keeps the ZStack within Safe Area, but Background expands to fill screen.
@@ -409,7 +417,29 @@ struct MainView: View {
         .onAppear {
             roomViewModel.fetchNearbyRooms()
             roomViewModel.fetchMyRooms()
+            roomViewModel.fetchMyRooms()
             bleManager.start()
+            
+            // Check for Notices
+            APIService.shared.fetchAppConfig { result in
+                switch result {
+                case .success(let response):
+                    if response.notice.active {
+                        let lastSeen = UserDefaults.standard.integer(forKey: "lastSeenNoticeVersion")
+                        if response.notice.version > lastSeen {
+                            DispatchQueue.main.async {
+                                self.noticeContent = response.notice.content
+                                self.noticeVersion = response.notice.version
+                                withAnimation {
+                                    self.showNoticePopup = true
+                                }
+                            }
+                        }
+                    }
+                case .failure(let error):
+                    print("Config fetch failed: \(error)")
+                }
+            }
             
             SocketManager.shared.on("new-message") { data, ack in
                 guard let messageData = data.first as? [String: Any],

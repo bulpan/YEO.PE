@@ -48,6 +48,9 @@ class RoomListViewModel: ObservableObject {
         
         // Listen for Logout to clear data
         NotificationCenter.default.addObserver(self, selector: #selector(handleLogout), name: NSNotification.Name("UserDidLogout"), object: nil)
+        
+        // Listen for Identity Reset (New Mask)
+        NotificationCenter.default.addObserver(self, selector: #selector(handleLogout), name: NSNotification.Name("IdentityReset"), object: nil) // Reusing handleLogout as the effect is the same (clear rooms)
     }
     
     @objc private func handleLogout() {

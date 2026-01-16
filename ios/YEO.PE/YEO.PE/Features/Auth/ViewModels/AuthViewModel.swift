@@ -162,6 +162,11 @@ class AuthViewModel: ObservableObject {
         }
     }
     
+    // Alias for checking status (triggers 403 if suspended)
+    func checkUserStatus() {
+        fetchProfile()
+    }
+    
     func logout() {
         // [Logout Cleanup] Notify server first
         APIService.shared.request("/auth/logout", method: "POST") { [weak self] (result: Result<[String: String], Error>) in
@@ -268,6 +273,8 @@ class AuthViewModel: ObservableObject {
                 switch result {
                 case .success(let response):
                     self?.currentUser = response.user
+                    // Notify other ViewModels to reset state (e.g. RoomList)
+                    NotificationCenter.default.post(name: NSNotification.Name("IdentityReset"), object: nil)
                 case .failure(let error):
                     self?.errorMessage = error.localizedDescription
                 }

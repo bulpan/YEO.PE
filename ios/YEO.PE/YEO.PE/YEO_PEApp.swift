@@ -25,6 +25,10 @@ struct YEO_PEApp: App {
     @StateObject private var themeManager = ThemeManager.shared
     @State private var showSplash = true
     
+    // Terms Agreement Persistence
+    @AppStorage("hasAgreedToZeroTolerance") private var hasAgreedToZeroTolerance = false
+    @State private var showTermsAgreement = false
+    
     var body: some Scene {
         WindowGroup {
             ZStack {
@@ -37,6 +41,10 @@ struct YEO_PEApp: App {
                             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                                 withAnimation(.easeOut(duration: 0.5)) {
                                     showSplash = false
+                                }
+                                
+                                if !hasAgreedToZeroTolerance {
+                                    showTermsAgreement = true
                                 }
                             }
                         }
@@ -57,6 +65,13 @@ struct YEO_PEApp: App {
                             #if canImport(NaverThirdPartyLogin)
                             NaverThirdPartyLoginConnection.getSharedInstance().receiveAccessToken(url)
                             #endif
+                        }
+                        .fullScreenCover(isPresented: $showTermsAgreement) {
+                            TermsAgreementView(isPresented: $showTermsAgreement) {
+                                // On Confirm
+                                hasAgreedToZeroTolerance = true
+                                showTermsAgreement = false
+                            }
                         }
                 }
             }

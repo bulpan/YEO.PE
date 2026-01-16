@@ -3,8 +3,10 @@ import SwiftUI
 struct RegisterView: View {
     @ObservedObject var viewModel: AuthViewModel
     @Environment(\.presentationMode) var presentationMode
+    @ObservedObject private var themeManager = ThemeManager.shared
     
     @State private var agreedToTerms = false
+    @State private var agreedToZeroTolerance = false
     @State private var showTerms = false
     @State private var showPrivacy = false
     
@@ -48,17 +50,23 @@ struct RegisterView: View {
                 
                 // Terms Agreement
                 VStack(alignment: .leading, spacing: 8) {
-                    HStack(alignment: .top) {
-                        Button(action: { agreedToTerms.toggle() }) {
-                            Image(systemName: agreedToTerms ? "checkmark.square.fill" : "square")
-                                .foregroundColor(agreedToTerms ? .white : .gray) // White/Gray check
-                                .font(.system(size: 20))
-                        }
-                        
                         Text("i_agree_to_terms".localized)
                             .font(.caption)
                             .foregroundColor(.white)
                             .onTapGesture { agreedToTerms.toggle() }
+                    
+                    // Zero Tolerance Policy Agreement
+                    HStack(alignment: .top) {
+                        Button(action: { agreedToZeroTolerance.toggle() }) {
+                            Image(systemName: agreedToZeroTolerance ? "checkmark.square.fill" : "square")
+                                .foregroundColor(agreedToZeroTolerance ? .white : .gray)
+                                .font(.system(size: 20))
+                        }
+                        
+                        Text("i_agree_zero_tolerance".localized) // "I acknowledge that posting objectionable content will result in immediate permanent suspension."
+                            .font(.caption)
+                            .foregroundColor(.neonGreen) // Highlight this important policy
+                            .onTapGesture { agreedToZeroTolerance.toggle() }
                     }
                     
                     HStack(spacing: 16) {
@@ -82,7 +90,7 @@ struct RegisterView: View {
                 
                 Button(action: {
                     print("🔵 Register Button Tapped")
-                    if agreedToTerms {
+                    if agreedToTerms && agreedToZeroTolerance {
                         viewModel.register()
                     }
                 }) {
@@ -94,11 +102,11 @@ struct RegisterView: View {
                             .foregroundColor(.black)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(agreedToTerms ? Color.white : Color.gray)
+                            .background((agreedToTerms && agreedToZeroTolerance) ? Color.white : Color.gray)
                             .cornerRadius(8)
                     }
                 }
-                .disabled(viewModel.isLoading || !agreedToTerms)
+                .disabled(viewModel.isLoading || !agreedToTerms || !agreedToZeroTolerance)
                 
                 Button(action: {
                     presentationMode.wrappedValue.dismiss()
@@ -110,10 +118,10 @@ struct RegisterView: View {
             .padding()
         }
         .sheet(isPresented: $showTerms) {
-            WebViewScreen(urlString: "https://yeo.pe/terms", title: "terms_of_service".localized)
+            WebViewScreen(urlString: "https://yeop3.com/terms.html?theme=\(themeManager.isDarkMode ? "dark" : "light")", title: "terms_of_service".localized)
         }
         .sheet(isPresented: $showPrivacy) {
-            WebViewScreen(urlString: "https://yeo.pe/privacy", title: "privacy_policy".localized)
+            WebViewScreen(urlString: "https://yeop3.com/privacy.html?theme=\(themeManager.isDarkMode ? "dark" : "light")", title: "privacy_policy".localized)
         }
     }
 }

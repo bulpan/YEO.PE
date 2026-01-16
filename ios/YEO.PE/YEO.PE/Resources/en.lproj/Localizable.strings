@@ -105,12 +105,17 @@
 "environment" = "Environment";
 "local_ip" = "Local IP Address";
 "open_source_licenses" = "Open Source Licenses";
+"identity_info_tooltip" = "Setting a nickname replaces your anonymous mask (Anon#...) with your chosen name. You can change it at any time.";
 
 // Random Nickname Dialog
 "random_nickname_title" = "New Mask Generated!";
 "random_nickname_desc" = "A new ID for your anonymous journey has been generated.";
 "keep_it" = "Keep it";
 "change_nickname" = "Change";
+
+// New Mask Confirmation
+"new_mask_warning_message" = "Changing your mask will exit all rooms and reset your profile picture and nickname.";
+"change_identity" = "Apply";
 
 // Settings Options
 "6_hours" = "6 Hours";
@@ -162,21 +167,65 @@
 "blocked" = "Blocked";
 "blocked_msg" = "User blocked.";
 "report_reason" = "Reason for Reporting";
+"select_reason" = "Select Reason";
+"reason" = "Reason";
+"details_optional" = "Details (Optional)";
+"submit_report" = "Submit Report";
+"report_submitted" = "Report Submitted";
+"report_submitted_desc" = "Your report has been received and will be reviewed.";
+"ok" = "OK";
 "report_details" = "Details (Optional)";
 "report_submit" = "Submit Report";
 "report_spam" = "Spam";
 "report_abusive" = "Abusive Language";
 "report_inappropriate" = "Inappropriate Content";
+"report_fake" = "Fake Account";
 "report_other" = "Other";
+"spam" = "Spam";
+"abusive" = "Abusive";
+"inappropriate_content" = "Inappropriate Content";
+"other" = "Other";
+"block" = "Block";
 "blocked_users_title" = "Blocked Users";
 "block_policy_info" = "Blocked users are tracked by their unique device ID. Even if they change their nickname, the block remains effective. Re-installing the app may reset this.";
+
+// Zero Tolerance
+"terms_update_notice" = "Terms of Service Update";
+"terms_update_desc" = "We have updated our policies to ensure a safer community. Please review and agree to the new terms to continue.";
+"i_agree_zero_tolerance" = "I explicitly acknowledge that posting objectionable content (slander, obscenity, etc.) will result in immediate permanent suspension without prior notice.";
+"confirm_and_continue" = "Confirm & Continue";
+"check_required" = "Confirmation Required";
+"please_read_terms_first" = "Please view the Terms of Service and Privacy Policy before agreeing.";
 
 // Compliance
 "i_agree_to_terms" = "I agree to the Terms of Service and Privacy Policy";
 "terms_required_alert" = "You must agree to the Terms of Service and Privacy Policy to continue.";
+
+// Compliance
+"i_agree_to_terms" = "I agree to the Terms of Service and Privacy Policy";
+"terms_required_alert" = "You must agree to the Terms of Service and Privacy Policy to continue.";
+
+// Account Suspension
+"account_suspended_title" = "Account Suspended";
+"account_suspended_desc" = "Your account has been temporarily suspended due to multiple reports regarding your activity. Access is restricted during this period.";
+"lift_date" = "Suspension lifted on:";
 
 // Social Login Account Display
 "apple_login_account" = "Apple Login Account";
 "google_login_account" = "Google Login Account";
 "kakao_login_account" = "KakaoTalk Login Account";
 "naver_login_account" = "Naver Login Account";
+
+// Appeal
+"appeal_btn" = "Appeal Suspension";
+"appeal_title" = "Appeal Suspension";
+"appeal_reason_hint" = "Enter reason (e.g. Unfair ban)";
+"appeal_desc" = "Your account has been suspended. You can appeal if you believe this is a mistake.";
+"submit" = "Submit";
+
+"account_banned_title" = "Account Deactivated";
+"account_banned_desc" = "Your account has been deactivated by an administrator.";
+"confirm" = "Confirm";
+"notification" = "Notice";
+"notification" = "Notice";
+"user_has_left" = "User has left the chat.";

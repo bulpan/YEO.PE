@@ -3,13 +3,15 @@ import SwiftUI
 struct ReportSheet: View {
     let targetUserId: String // ID not User object to keep it simple
     let targetUserNickname: String
-    var onReport: (String, String?) -> Void // reason, details
+    var onReport: (String, String?, @escaping (Bool) -> Void) -> Void // updated signature
     var onBlock: () -> Void
     @Environment(\.presentationMode) var presentationMode
     
     @State private var selectedReason: String = "spam"
     @State private var details: String = ""
     @State private var showBlockConfirmation = false
+    @State private var isSubmitting = false
+    @State private var showSuccessAlert = false
     
     let reasons = [
         ("spam", "spam".localized),
@@ -38,13 +40,30 @@ struct ReportSheet: View {
                 
                 Section {
                     Button(action: {
-                        HapticManager.shared.success()
-                        onReport(selectedReason, details.isEmpty ? nil : details)
-                        presentationMode.wrappedValue.dismiss()
+                        isSubmitting = true
+                        onReport(selectedReason, details.isEmpty ? nil : details) { success in
+                            isSubmitting = false
+                            if success {
+                                HapticManager.shared.success()
+                                showSuccessAlert = true
+                            } else {
+                                // Optional: Show error
+                                HapticManager.shared.error()
+                            }
+                        }
                     }) {
-                        Text("report_submit".localized)
-                            .foregroundColor(.blue)
+                        if isSubmitting {
+                            HStack {
+                                Spacer()
+                                ProgressView()
+                                Spacer()
+                            }
+                        } else {
+                            Text("report_submit".localized)
+                                .foregroundColor(.blue)
+                        }
                     }
+                    .disabled(isSubmitting)
                 }
                 
                 Section {
@@ -72,6 +91,19 @@ struct ReportSheet: View {
                     secondaryButton: .cancel(Text("cancel".localized))
                 )
             }
+            // Success Alert (Attached to background to avoid conflict? Or straight on View)
+            .background(
+                Color.clear
+                    .alert(isPresented: $showSuccessAlert) {
+                        Alert(
+                            title: Text("report_submitted".localized),
+                            message: Text("report_submitted_desc".localized),
+                            dismissButton: .default(Text("ok".localized)) {
+                                presentationMode.wrappedValue.dismiss()
+                            }
+                        )
+                    }
+            )
         }
     }
 }

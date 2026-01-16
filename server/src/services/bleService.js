@@ -93,7 +93,7 @@ const getUserByUID = async (uid) => {
 /**
  * UID 목록으로 사용자 정보 조회
  */
-const getUsersByUIDs = async (uidList) => {
+const getUsersByUIDs = async (uidList, observerId = null) => {
     if (!uidList || uidList.length === 0) {
         return [];
     }
@@ -101,22 +101,43 @@ const getUsersByUIDs = async (uidList) => {
     const uids = uidList.map(item => item.uid);
     const placeholders = uids.map((_, index) => `$${index + 1}`).join(', ');
 
-    const result = await query(
-        `SELECT 
-       bu.uid,
-       u.id as user_id,
-       u.nickname,
-       u.nickname_mask,
-       u.profile_image_url,
-       bu.expires_at as uid_expires_at,
-       bu.is_active as is_ble_active
-     FROM yeope_schema.ble_uids bu
-     JOIN yeope_schema.users u ON bu.user_id = u.id
-     WHERE bu.uid IN (${placeholders})
-       AND bu.expires_at > NOW()
-       AND u.is_active = true`,
-        uids
-    );
+    // params array starts with UIDs
+    const params = [...uids];
+    let queryText = `
+        SELECT 
+           bu.uid,
+           u.id as user_id,
+           u.nickname,
+           u.nickname_mask,
+           u.profile_image_url,
+           bu.expires_at as uid_expires_at,
+           bu.is_active as is_ble_active
+         FROM yeope_schema.ble_uids bu
+         JOIN yeope_schema.users u ON bu.user_id = u.id
+         WHERE bu.uid IN (${placeholders})
+           AND bu.expires_at > NOW()
+           AND u.is_active = true
+           AND u.status != 'under_review'
+           AND (u.settings->>'bleVisible' IS DISTINCT FROM 'false')
+    `;
+
+    // Filter blocked users if observerId provided
+    if (observerId) {
+        // observerId is next param
+        const observerParamIdx = params.length + 1;
+        params.push(observerId);
+
+        queryText += `
+            AND u.id NOT IN (
+                SELECT blocked_id FROM yeope_schema.blocked_users WHERE blocker_id = $${observerParamIdx}
+            )
+            AND u.id NOT IN (
+                SELECT blocker_id FROM yeope_schema.blocked_users WHERE blocked_id = $${observerParamIdx}
+            )
+        `;
+    }
+
+    const result = await query(queryText, params);
 
     // UID 목록과 매칭하여 거리 정보 포함
     const users = result.rows.map(user => {

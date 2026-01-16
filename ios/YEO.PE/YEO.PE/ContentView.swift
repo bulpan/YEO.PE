@@ -9,6 +9,7 @@ struct ContentView: View {
     @State private var debugMessage: String?
     @State private var showToast = false
     @State private var showProfileEditSheet = false // Triggered by Toast
+    @State private var restrictionType: SuspensionView.RestrictionType? = nil // Unified Suspension/Ban Stated Check
     
     @Environment(\.scenePhase) var scenePhase
     
@@ -159,6 +160,46 @@ struct ContentView: View {
                 .transition(.opacity)
                 .zIndex(200) // Above everything
             }
+
+            // Suspension/Ban Overlay (Highest zIndex)
+            if let type = restrictionType {
+                SuspensionView(type: type)
+                    .zIndex(999)
+                    .transition(.opacity)
+            }
+        }
+        // Listen for Suspension Notification
+        .onReceive(NotificationCenter.default.publisher(for: .accountSuspended)) { notification in
+            if let date = notification.userInfo?["date"] as? Date {
+                let reasonAny = notification.userInfo?["reason"]
+                var reasonContainer: SuspensionView.ReasonContainer? = nil
+                
+                if let dict = reasonAny as? [String: String] {
+                    reasonContainer = .localized(dict)
+                } else if let str = reasonAny as? String {
+                    reasonContainer = .text(str)
+                }
+                
+                let suspendedAt = notification.userInfo?["suspendedAt"] as? Date
+                withAnimation {
+                    self.restrictionType = .suspended(date, reasonContainer, suspendedAt)
+                }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .accountBanned)) { notification in
+            let reasonAny = notification.userInfo?["reason"]
+            var reasonContainer: SuspensionView.ReasonContainer? = nil
+            
+            if let dict = reasonAny as? [String: String] {
+                reasonContainer = .localized(dict)
+            } else if let str = reasonAny as? String {
+                reasonContainer = .text(str)
+            }
+
+            let suspendedAt = notification.userInfo?["suspendedAt"] as? Date
+            withAnimation {
+                self.restrictionType = .banned(reasonContainer, suspendedAt)
+            }
         }
         .onReceive(APIService.shared.debugMessageSubject) { message in
             self.debugMessage = message
@@ -176,6 +217,7 @@ struct ContentView: View {
             case .active:
                 print("📱 App became active")
                 if authViewModel.isLoggedIn {
+                    authViewModel.checkUserStatus() // Force check suspension status
                     SocketManager.shared.connect()
                 }
             case .background:

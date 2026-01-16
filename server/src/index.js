@@ -24,7 +24,16 @@ const runMigration = async () => {
     { name: 'Profile Image', file: 'migration_add_profile_image.sql' },
     { name: 'BLE UIDs', file: 'migration_add_ble_uids.sql' },
     { name: 'Push Tokens', file: 'migration_add_push_tokens.sql' },
-    { name: 'Reports', file: 'migration_block_report.sql' }
+    { name: 'Reports', file: 'migration_block_report.sql' },
+    { name: 'Repair Reports', file: 'migration_repair_reports.sql' },
+    { name: 'User Status', file: 'migration_add_user_status.sql' },
+    { name: 'Login Logs', file: 'migration_add_login_logs.sql' },
+    { name: 'Allow NULL Nickname', file: 'migration_allow_null_nickname.sql' },
+    { name: 'Allow NULL Nickname Mask', file: 'migration_allow_null_nickname_mask.sql' },
+    { name: 'Appeals', file: 'migration_add_appeals.sql' },
+    { name: 'Suspension Reason', file: 'migration_add_suspension_reason.sql' },
+    { name: 'System Settings', file: 'migration_add_system_settings.sql' },
+    { name: 'Suspended At', file: 'migration_add_suspended_at.sql' }
   ];
 
   for (const m of migrations) {
@@ -133,6 +142,7 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/upload', require('./routes/upload'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/config', require('./routes/config'));
 
 // Firebase 초기화 (푸시 알림)
 const pushService = require('./services/pushService');

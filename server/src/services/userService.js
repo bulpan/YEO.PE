@@ -151,23 +151,27 @@ const updateUser = async (userId, data) => {
   }
 
   // 2. 닉네임 마스크(공개 ID) 업데이트
-  if (nicknameMask) {
-    if (nicknameMask.length < 2 || nicknameMask.length > 20) {
-      throw new ValidationError('공개 닉네임은 2자 이상 20자 이하여야 합니다');
+  if (nicknameMask !== undefined) {
+    if (nicknameMask === '' || nicknameMask === null) {
+      updates.push(`nickname_mask = NULL`);
+    } else {
+      if (nicknameMask.length < 2 || nicknameMask.length > 20) {
+        throw new ValidationError('공개 닉네임은 2자 이상 20자 이하여야 합니다');
+      }
+
+      // 중복 체크
+      const existing = await query(
+        'SELECT id FROM yeope_schema.users WHERE nickname_mask = $1',
+        [nicknameMask]
+      );
+
+      if (existing.rows.length > 0 && existing.rows[0].id !== userId) {
+        throw new ValidationError('이미 사용 중인 닉네임입니다');
+      }
+
+      updates.push(`nickname_mask = $${paramIndex++}`);
+      values.push(nicknameMask);
     }
-
-    // 중복 체크
-    const existing = await query(
-      'SELECT id FROM yeope_schema.users WHERE nickname_mask = $1',
-      [nicknameMask]
-    );
-
-    if (existing.rows.length > 0 && existing.rows[0].id !== userId) {
-      throw new ValidationError('이미 사용 중인 닉네임입니다');
-    }
-
-    updates.push(`nickname_mask = $${paramIndex++}`);
-    values.push(nicknameMask);
   }
 
   // 3. 프로필 이미지 업데이트
@@ -301,19 +305,44 @@ const deleteUser = async (userId) => {
 };
 
 /**
- * 닉네임 마스크 재생성 (랜덤)
+ * 닉네임 마스크 재생성 (랜덤) + 정보 초기화 + 방 나가기
  */
 const regenerateMask = async (userId) => {
-  // Generate random 4-char hex suffix
-  const randomSuffix = Math.floor(Math.random() * 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
-  const newMask = `Anon#${randomSuffix}`;
+  // 1. Leave All Rooms
+  const roomService = require('./roomService');
+  await roomService.leaveAllRooms(userId);
 
-  await query(
-    'UPDATE yeope_schema.users SET nickname_mask = $1 WHERE id = $2',
-    [newMask, userId]
-  );
+  // 2. Reset Info (Nickname, Profile Image) & Update Mask (Retry logic for collision)
+  let retries = 0;
+  const MAX_RETRIES = 5;
 
-  return await getUserProfile(userId);
+  while (retries < MAX_RETRIES) {
+    try {
+      // Generate random 6-char hex suffix (16M combinations)
+      const randomSuffix = Math.floor(Math.random() * 0xFFFFFF).toString(16).toUpperCase().padStart(6, '0');
+      const newMask = `Anon#${randomSuffix}`;
+
+      await query(
+        `UPDATE yeope_schema.users 
+         SET nickname_mask = $1, 
+             nickname = NULL, 
+             profile_image_url = NULL 
+         WHERE id = $2`,
+        [newMask, userId]
+      );
+
+      return await getUserProfile(userId);
+    } catch (error) {
+      if (error.code === '23505') { // Unique violation
+        retries++;
+        logger.warn(`Nickname mask collision (Anon#...), retrying (${retries}/${MAX_RETRIES})`);
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw new Error('Failed to generate unique nickname mask after retries');
 };
 
 /**
@@ -343,6 +372,33 @@ const blockUser = async (blockerId, blockedId) => {
      ON CONFLICT (blocker_id, blocked_id) DO NOTHING`,
     [blockerId, blockedId, snapshotNickname]
   );
+
+  // Leave shared 1:1 rooms
+  try {
+    const activeRooms = await query(
+      `SELECT room_id FROM yeope_schema.rooms 
+       WHERE is_active = true 
+       AND (
+         (creator_id = $1 AND metadata->>'inviteeId' = $2) 
+         OR 
+         (creator_id = $2 AND metadata->>'inviteeId' = $1)
+       )`,
+      [blockerId, blockedId]
+    );
+
+    if (activeRooms.rows.length > 0) {
+      const roomService = require('./roomService');
+      for (const room of activeRooms.rows) {
+        await roomService.leaveRoom(blockerId, room.room_id);
+        // We only exit the blocker? User said "I should exit".
+        // Usually breaking the link is enough. The other user remains alone.
+      }
+      logger.info(`Blocked user ${blockedId}: Left ${activeRooms.rows.length} shared rooms.`);
+    }
+  } catch (err) {
+    logger.warn(`Failed to leave rooms during block: ${err.message}`);
+  }
+
   return true;
 };
 
@@ -393,8 +449,150 @@ const reportUser = async (reporterId, reportedId, reason, details) => {
   await query(
     `INSERT INTO yeope_schema.reports (reporter_id, reported_id, reason, details)
      VALUES ($1, $2, $3, $4)`,
-    [reporterId, reportedId, reason, details]
+    [reporterId, reportedId, reason, details || '']
   );
+
+  // --- Auto-Block Logic (Policy: Report = Block) ---
+  try {
+    // 신고와 동시에 차단 처리 (상호 레이더 은신, 1:1 방 나가기)
+    await blockUser(reporterId, reportedId);
+    logger.info(`User ${reporterId} auto-blocked ${reportedId} upon reporting.`);
+  } catch (err) {
+    logger.warn(`Auto-block failed during report: ${err.message}`);
+  }
+
+  // --- Auto-Blind Logic (Stage 1: Blind on 1st Report) ---
+  try {
+    // "선 차단, 후 심사" - 1회 신고 시 즉시 under_review 상태로 변경하여 레이더에서 은신
+    // 단, 이미 suspended/banned 상태인 경우 변경하지 않음
+    await query(
+      `UPDATE yeope_schema.users 
+       SET status = 'under_review' 
+       WHERE id = $1 AND status = 'active'`,
+      [reportedId]
+    );
+    logger.warn(`User ${reportedId} set to 'under_review' (BLIND) due to a report.`);
+  } catch (err) {
+    logger.error(`Failed to apply Auto-Blind: ${err.message}`);
+  }
+
+  // --- Auto-Ban Logic (Stage 1) ---
+  const REPORT_THRESHOLD = 3;
+  const SUSPENSION_HOURS = 24;
+
+  const countResult = await query(
+    `SELECT COUNT(DISTINCT reporter_id) as report_count 
+     FROM yeope_schema.reports 
+     WHERE reported_id = $1 
+     AND created_at > NOW() - INTERVAL '24 hours'`,
+    [reportedId]
+  );
+
+  const reportCount = parseInt(countResult.rows[0].report_count || 0);
+
+  if (reportCount >= REPORT_THRESHOLD) {
+    // Check if already suspended to avoid resetting timer repeatedly or check status
+    const userStatus = await query('SELECT status FROM yeope_schema.users WHERE id = $1', [reportedId]);
+    if (userStatus.rows[0].status !== 'suspended' && userStatus.rows[0].status !== 'banned') {
+
+      // Fetch Global Settings
+      const settingsService = require('./settingsService');
+      const durationStr = await settingsService.getValue('suspension_duration_hours', '24');
+      const reason = await settingsService.getValue('suspension_reason', JSON.stringify({
+        ko: '누적된 신고로 인해 시스템에 의해 자동으로 정지되었습니다.',
+        en: 'Automatically suspended by the system due to accumulated reports.'
+      }));
+      const hours = parseInt(durationStr, 10) || 24;
+
+      await query(
+        `UPDATE yeope_schema.users 
+         SET status = 'suspended', 
+             suspended_until = NOW() + INTERVAL '${hours} hours',
+             suspension_reason = $2
+         WHERE id = $1`,
+        [reportedId, reason]
+      );
+      logger.warn(`User ${reportedId} has been AUTO-SUSPENDED for ${hours}h due to ${reportCount} reports. Reason: ${reason}`);
+    }
+  }
+
+  return true;
+};
+
+/**
+ * 사용자 정지 (Temporary Suspension)
+ */
+const suspendUser = async (userId, hours, reason) => {
+  // If reason is an object (multilingual), stringify it
+  const reasonStr = typeof reason === 'object' ? JSON.stringify(reason) : reason;
+
+  await query(
+    `UPDATE yeope_schema.users 
+     SET status = 'suspended', 
+         suspended_until = NOW() + INTERVAL '${hours} hours',
+         suspension_reason = $2
+     WHERE id = $1`,
+    [userId, reasonStr]
+  );
+  logger.warn(`User ${userId} SUSPENDED for ${hours}h by admin. Reason: ${reasonStr}`);
+  return true;
+};
+
+/**
+ * 사용자 차단 (Permanent Ban / Deactivation)
+ */
+const banUser = async (userId, reason) => {
+  // If reason is an object (multilingual), stringify it
+  const reasonStr = typeof reason === 'object' ? JSON.stringify(reason) : reason;
+
+  await query(
+    `UPDATE yeope_schema.users 
+     SET is_active = false, 
+         suspension_reason = $2 
+     WHERE id = $1`,
+    [userId, reasonStr]
+  );
+  logger.warn(`User ${userId} BANNED by admin. Reason: ${reasonStr}`);
+  return true;
+};
+
+/**
+ * 사용자 정지 해제 (Admin)
+ */
+const unsuspendUser = async (userId) => {
+  await query(
+    `UPDATE yeope_schema.users 
+     SET status = 'active', 
+         suspended_until = NULL,
+         suspension_reason = NULL
+     WHERE id = $1`,
+    [userId]
+  );
+  logger.info(`User ${userId} has been UNSUSPENDED by admin.`);
+  return true;
+};
+
+/**
+ * 사용자 차단 해제 (Activation)
+ */
+const unbanUser = async (userId) => {
+  await query(
+    `UPDATE yeope_schema.users 
+     SET is_active = true, 
+         suspension_reason = NULL 
+     WHERE id = $1`,
+    [userId]
+  );
+  logger.info(`User ${userId} has been UNBANNED (Activated) by admin.`);
+  return true;
+};
+
+/**
+ * 사용자 신고 내역 초기화 (Admin)
+ */
+const clearReports = async (userId) => {
+  await query('DELETE FROM yeope_schema.reports WHERE reported_id = $1', [userId]);
+  logger.info(`Reports for user ${userId} have been cleared by admin.`);
   return true;
 };
 
@@ -412,6 +610,106 @@ module.exports = {
   blockUser,
   unblockUser,
   getBlockedUsers,
-  reportUser
+  reportUser,
+  unsuspendUser,
+  clearReports
+};
+
+/**
+ * 구제 신청 생성
+ */
+const createAppeal = async (userId, reason) => {
+  // 이미 진행 중인 신청이 있는지 확인
+  const existing = await query(
+    "SELECT id FROM yeope_schema.appeals WHERE user_id = $1 AND status = 'pending'",
+    [userId]
+  );
+
+  if (existing.rows.length > 0) {
+    throw new ValidationError('이미 진행 중인 구제 신청이 있습니다. 관리자 승인을 기다려주세요.');
+  }
+
+  await query(
+    'INSERT INTO yeope_schema.appeals (user_id, reason) VALUES ($1, $2)',
+    [userId, reason]
+  );
+  return true;
+};
+
+/**
+ * 구제 신청 목록 조회 (Admin)
+ */
+const getAppeals = async (status = 'pending') => {
+  const result = await query(`
+    SELECT a.*, u.email, u.nickname, u.nickname_mask, u.status as user_status, u.suspended_until
+    FROM yeope_schema.appeals a
+    JOIN yeope_schema.users u ON a.user_id = u.id
+    WHERE a.status = $1
+    ORDER BY a.created_at DESC
+  `, [status]);
+  return result.rows;
+};
+
+/**
+ * 구제 신청 처리 (Admin)
+ */
+const resolveAppeal = async (appealId, status, adminComment) => {
+  if (!['approved', 'rejected'].includes(status)) {
+    throw new ValidationError('Invalid status');
+  }
+
+  const appealRes = await query(
+    'UPDATE yeope_schema.appeals SET status = $1, admin_comment = $2, updated_at = NOW() WHERE id = $3 RETURNING user_id',
+    [status, adminComment, appealId]
+  );
+
+  if (appealRes.rows.length === 0) {
+    throw new NotFoundError('Appeal not found');
+  }
+
+  // 승인 시 자동 정지 및 차단 해제 (완전 복구)
+  if (status === 'approved') {
+    const userId = appealRes.rows[0].user_id;
+
+    // Force Activate & Unsuspend
+    await query(
+      `UPDATE yeope_schema.users 
+         SET status = 'active', 
+             is_active = true,
+             suspended_until = NULL,
+             suspension_reason = NULL
+         WHERE id = $1`,
+      [userId]
+    );
+    logger.info(`User ${userId} restored via Appeal Approval.`);
+  }
+
+  return true;
+};
+
+// Re-export with new additions
+module.exports = {
+  findUserByEmail,
+  findUserById,
+  createUser,
+  loginUser,
+  getUserProfile,
+  verifyPassword,
+  updateUser,
+  loginSocialUser,
+  deleteUser,
+  regenerateMask,
+  blockUser,
+  unblockUser,
+  getBlockedUsers,
+  reportUser,
+  unsuspendUser,
+  suspendUser,
+  banUser,
+  unbanUser,
+  clearReports,
+  createAppeal,
+  getAppeals,
+  resolveAppeal
 };
 

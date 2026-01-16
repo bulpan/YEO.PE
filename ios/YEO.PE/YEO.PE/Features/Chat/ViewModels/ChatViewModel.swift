@@ -381,25 +381,24 @@ class ChatViewModel: ObservableObject {
         }
     }
     
-    private var isExiting = false // Flag to prevent re-join on exit
-
     func exitRoom(completion: @escaping (Bool) -> Void) {
         guard let room = room else { completion(true); return }
         isLoading = true
-        isExiting = true // Set flag to prevent updatePresence from re-joining
         
         APIService.shared.request("/rooms/\(room.uniqueId)/leave", method: "POST") { [weak self] (result: Result<LeaveRoomResponse, Error>) in 
             DispatchQueue.main.async {
                 self?.isLoading = false
                 switch result {
                 case .success:
-                    print("✅ Successfully left room via API")
+                    NSLog("✅ [ChatViewModel] Successfully left room via API")
                     self?.leaveRoom() // Disconnect socket listeners
                     completion(true)
                 case .failure(let error):
-                    print("❌ Failed to leave room: \(error)")
-                    self?.isExiting = false // Reset flag on failure
-                    completion(false)
+                    NSLog("❌ [ChatViewModel] Failed to leave room: \(error)")
+                    // Fail-safe: Allow user to leave locally even if server fails
+                    // This prevents users from being stuck in "Zombie Rooms"
+                    self?.leaveRoom()
+                    completion(true)
                 }
             }
         }
@@ -451,12 +450,6 @@ class ChatViewModel: ObservableObject {
     
     func updatePresence() {
         guard let room = room else { return }
-        // Prevent re-joining if we are exiting the room
-        guard !isExiting else {
-            print("🛑 updatePresence skipped because isExiting=true")
-            return 
-        }
-        
         // Calling join endpoint updates last_seen_at for existing members
         // helping to clear unread badges accurately
         APIService.shared.request("/rooms/\(room.uniqueId)/join", method: "POST") { (result: Result<JoinResponse, Error>) in

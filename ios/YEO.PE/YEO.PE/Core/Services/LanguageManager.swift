@@ -47,10 +47,15 @@ class LanguageManager: ObservableObject {
     }
     
     private func updateBundle() {
-        if let path = Bundle.main.path(forResource: currentLanguage.rawValue, ofType: "lproj") {
+        let lang = currentLanguage.rawValue
+        if let path = Bundle.main.path(forResource: lang, ofType: "lproj") {
+            bundle = Bundle(path: path)
+        } else if let path = Bundle.main.path(forResource: lang, ofType: "lproj", inDirectory: "Resources") {
             bundle = Bundle(path: path)
         } else {
+            // Fallback: Try to force load main bundle, but this follows system locale
             bundle = Bundle.main
+            print("LanguageManager: Failed to load bundle for \(lang). Falling back to system.")
         }
     }
     
