@@ -34,10 +34,17 @@ router.post('/ble/uid', authenticate, async (req, res, next) => {
  * POST /api/users/ble/scan
  * UID 목록으로 사용자 정보 조회
  */
-router.post('/ble/scan', authenticate, async (req, res, next) => {
+// 3.5.0 Update: Guest Access for Radar
+const { authenticate, optionalAuthenticate } = require('../middleware/auth');
+
+/**
+ * POST /api/users/ble/scan
+ * UID 목록으로 사용자 정보 조회 (Guest allowed)
+ */
+router.post('/ble/scan', optionalAuthenticate, async (req, res, next) => {
     try {
         const { uids } = req.body;
-        const userId = req.user.userId;
+        const userId = req.user ? req.user.userId : null;
 
         if (!uids || !Array.isArray(uids) || uids.length === 0) {
             throw new ValidationError('UID 목록이 필요합니다');
@@ -70,49 +77,46 @@ router.post('/ble/scan', authenticate, async (req, res, next) => {
         const pushService = require('../services/pushService');
         const redis = require('../config/redis');
 
-        // 3.5. 이미 대화 중인 사용자 필터링
-        const roomService = require('../services/roomService');
-        const myRooms = await roomService.getUserRooms(userId);
+        // 추가 로직: 대화 중인 사용자 필터링 및 Push/Redis (로그인 유저만)
+        if (userId) {
+            // 3.5. 이미 대화 중인 사용자 필터링
+            const roomService = require('../services/roomService');
+            const myRooms = await roomService.getUserRooms(userId);
 
-        // 내 방에 있는 상대방 ID 목록 추출 (Private 1:1 방의 경우)
-        // Creator이거나 Invitee인 경우 상대방 ID를 찾음
-        const chattingUserIds = new Set();
-        myRooms.forEach(r => {
-            if (r.isActive && r.metadata?.inviteeId) {
-                // 1:1 방으로 가정
-                if (r.creatorId === userId) chattingUserIds.add(r.metadata.inviteeId);
-                else if (r.metadata.inviteeId === userId) chattingUserIds.add(r.creatorId);
-            }
-        });
-
-        const usersToNotify = nearbyUsers.filter(u => !chattingUserIds.has(u.id));
-        const notifyUids = usersToNotify.map(u => u.uid);
-
-        // Redis Check against Last Scan
-        const lastScanKey = `ble:scan:${userId}`;
-        const lastScanResult = await redis.get(lastScanKey);
-        const lastUids = lastScanResult ? JSON.parse(lastScanResult) : [];
-
-        // 실제로 알림 보낼 대상: (이번 발견 목록 - 이미 대화중) - (저번에 발견함)
-        const currentUids = nearbyUsers.map(u => u.uid); // 캐시는 전체 저장 (그래야 사라졌을 때 등 추적 가능.. 아니면 알림만 필터?)
-        // 알림 로직: "New Nearby Found"
-        // 이미 대화 중인 사람은 "New"로 취급 안 함? 요구사항: "알림도 ... 제외해야해"
-        // 즉, 대화 중인 사람이 나타나도 알림 X.
-
-        const meaningfulNewUids = notifyUids.filter(uid => !lastUids.includes(uid));
-
-        // 새로운 대화 비참여 사용자가 발견된 경우 알림 전송
-        if (meaningfulNewUids.length > 0) {
-            pushService.sendNearbyUserFoundNotification(
-                userId,
-                meaningfulNewUids.length
-            ).catch(err => {
-                logger.error('주변 사용자 발견 알림 전송 실패:', err);
+            // 내 방에 있는 상대방 ID 목록 추출 (Private 1:1 방의 경우)
+            const chattingUserIds = new Set();
+            myRooms.forEach(r => {
+                if (r.isActive && r.metadata?.inviteeId) {
+                    if (r.creatorId === userId) chattingUserIds.add(r.metadata.inviteeId);
+                    else if (r.metadata.inviteeId === userId) chattingUserIds.add(r.creatorId);
+                }
             });
-        }
 
-        // 현재 스캔 결과 캐시 (1분 TTL - Testing)
-        await redis.setex(lastScanKey, 1 * 60, JSON.stringify(currentUids));
+            const usersToNotify = nearbyUsers.filter(u => !chattingUserIds.has(u.id));
+            const notifyUids = usersToNotify.map(u => u.uid);
+
+            // Redis Check against Last Scan
+            const lastScanKey = `ble:scan:${userId}`;
+            const lastScanResult = await redis.get(lastScanKey);
+            const lastUids = lastScanResult ? JSON.parse(lastScanResult) : [];
+
+            // 실제로 알림 보낼 대상: (이번 발견 목록 - 이미 대화중) - (저번에 발견함)
+            const currentUids = nearbyUsers.map(u => u.uid);
+            const meaningfulNewUids = notifyUids.filter(uid => !lastUids.includes(uid));
+
+            // 새로운 대화 비참여 사용자가 발견된 경우 알림 전송
+            if (meaningfulNewUids.length > 0) {
+                pushService.sendNearbyUserFoundNotification(
+                    userId,
+                    meaningfulNewUids.length
+                ).catch(err => {
+                    logger.error('주변 사용자 발견 알림 전송 실패:', err);
+                });
+            }
+
+            // 현재 스캔 결과 캐시 (1분 TTL)
+            await redis.setex(lastScanKey, 1 * 60, JSON.stringify(currentUids));
+        }
 
         res.json({
             users: nearbyUsers

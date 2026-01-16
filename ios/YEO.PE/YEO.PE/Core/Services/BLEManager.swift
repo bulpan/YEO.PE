@@ -363,7 +363,8 @@ class BLEManager: NSObject, ObservableObject {
     }
     
     private func reportDiscoveredUIDs() {
-        guard TokenManager.shared.isLoggedIn else { return }
+        // [Guest Access] Allow reporting even if not logged in
+        // guard TokenManager.shared.isLoggedIn else { return }
         guard !discoveredUIDs.isEmpty else { return }
         
         let scannedData = discoveredUIDs.map { ScannedUID(uid: $0.key, rssi: $0.value) }
