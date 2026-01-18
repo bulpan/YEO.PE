@@ -48,15 +48,26 @@ struct ProfileEditView: View {
                         .padding(.leading, 4)
                     
                     HStack {
-                        TextField("enter_nickname".localized, text: $nickname)
-                            .padding()
-                            .background(Color.theme.bgLayer1)
-                            .cornerRadius(12)
-                            .foregroundColor(Color.theme.textPrimary)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.theme.borderPrimary, lineWidth: 1)
-                            )
+                        ZStack(alignment: .trailing) {
+                            TextField("enter_nickname".localized, text: $nickname)
+                                .padding()
+                                .padding(.trailing, 30) // Make room for X button
+                                .background(Color.theme.bgLayer1)
+                                .cornerRadius(12)
+                                .foregroundColor(Color.theme.textPrimary)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.theme.borderPrimary, lineWidth: 1)
+                                )
+                            
+                            if !nickname.isEmpty {
+                                Button(action: { self.nickname = "" }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.gray)
+                                        .padding(.trailing, 12)
+                                }
+                            }
+                        }
                         
                         // Randomize Button
                         Button(action: {

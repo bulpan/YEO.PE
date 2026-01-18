@@ -84,9 +84,9 @@ struct LoginView: View {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: .neonGreen))
                 } else {
-                    NeonButton(title: "login_button".localized) {
+                    NeonButton(title: "login_button".localized, action: {
                         viewModel.login()
-                    }
+                    }, color: .gray, textColor: .white)
                 }
                 
                 VStack(spacing: 12) {

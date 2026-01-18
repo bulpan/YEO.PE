@@ -397,6 +397,8 @@ const joinRoom = async (userId, roomId) => {
           roomId: room.room_id,
           userId,
           nickname, // Include nickname for client display
+          nicknameMask: userRes.rows[0]?.nickname_mask, // [Fix] Include Mask for robust client display
+          userProfileImage: userRes.rows[0]?.profile_image_url, // Include profile image
           type: 'system',
           content: systemContent,
           createdAt
@@ -420,7 +422,7 @@ const joinRoom = async (userId, roomId) => {
 /**
  * 방 나가기
  */
-const leaveRoom = async (userId, roomId) => {
+const leaveRoom = async (userId, roomId, reason = 'left') => {
   const room = await findRoomByRoomId(roomId, true);
 
   if (!room) {
@@ -436,7 +438,6 @@ const leaveRoom = async (userId, roomId) => {
 
   if (member.rows.length === 0) {
     // 이미 방을 나갔거나, 참여하지 않은 상태
-    // 초대된 사용자(Invitee)인 경우, '거절' 처리를 위해 흔적을 남겨야 함 (getUserRooms에서 안 보이게)
     const metadata = typeof room.metadata === 'string' ? JSON.parse(room.metadata) : room.metadata;
     if (metadata && metadata.inviteeId === userId) {
       try {
@@ -462,21 +463,29 @@ const leaveRoom = async (userId, roomId) => {
   // 트랜잭션으로 방 나가기 처리
   const transactionResult = await transaction(async (client) => {
     // 1. 사용자 닉네임 조회 (시스템 메시지용)
-    const userRes = await client.query('SELECT nickname, nickname_mask FROM yeope_schema.users WHERE id = $1', [userId]);
+    const userRes = await client.query('SELECT nickname, nickname_mask, profile_image_url FROM yeope_schema.users WHERE id = $1', [userId]);
     const nickname = userRes.rows[0]?.nickname_mask || userRes.rows[0]?.nickname || 'Unknown';
 
-    // 2. 사용자의 모든 메시지 삭제 (Evaporation)
+    // 2. 사용자의 모든 메시지 삭제 (Evaporation) - Always happen for privacy/ephemeral nature
     await client.query(
       `DELETE FROM yeope_schema.messages 
        WHERE room_id = $1 AND user_id = $2`,
       [room.id, userId]
     );
 
-    // 3. 시스템 메시지 추가 (증발 알림)
-    const systemContent = `${nickname}'s messages have evaporated.`;
-    // 한글: `${nickname}님의 대화내용이 증발했습니다.` (클라이언트에서 로컬라이징하거나 서버에서 처리. 여기선 영어로 저장하고 클라이언트가 type=system일 때 처리 권장하지만, 요구사항이 "표기"이므로 텍스트 저장)
+    // 3. 시스템 메시지 추가
+    // Reason-based messaging:
+    // - 'reset' (New Mask): "X's messages have evaporated."
+    // - 'left' (Manual Leave): "X left the room." (Client will localize this)
+    let systemContent = ``;
+    if (reason === 'reset') {
+      systemContent = `${nickname}'s messages have evaporated.`;
+    } else {
+      systemContent = `${nickname} left the room.`;
+    }
+
     // 요구사항: "**명의 대화내용이 증발했습니다", "**명이 방에서 사라졌습니다"
-    // 여기서는 메시지 삭제 후 "증발했습니다" 메시지 삽입.
+    // The client parses specific English strings for localization.
 
     const msgResult = await client.query(
       `INSERT INTO yeope_schema.messages 
@@ -547,6 +556,9 @@ const leaveRoom = async (userId, roomId) => {
         messageId,
         roomId: room.room_id, // Use room_id (UUID) for client
         userId: userId,
+        nickname, // [Fix] consistent with joinRoom
+        nicknameMask: userRes.rows[0]?.nickname_mask, // [Fix] Include Mask
+        userProfileImage: userRes.rows[0]?.profile_image_url,
         type: 'system',
         content: systemContent,
         createdAt: new Date()
@@ -578,7 +590,7 @@ const getRoomMembers = async (roomId) => {
     [room.id]
   );
 
-  return result.rows.map(member => ({
+  const members = result.rows.map(member => ({
     userId: member.user_id,
     nickname: member.nickname_mask || member.nickname,
     nicknameMask: member.nickname_mask,
@@ -587,6 +599,8 @@ const getRoomMembers = async (roomId) => {
     joinedAt: member.joined_at,
     lastSeenAt: member.last_seen_at
   }));
+
+  return members;
 };
 
 /**
@@ -614,7 +628,8 @@ const getUserRooms = async (userId) => {
             (SELECT content FROM yeope_schema.messages m 
              WHERE m.room_id = r.id AND m.is_deleted = false
              ORDER BY m.created_at DESC LIMIT 1
-            ) as last_message
+            ) as last_message,
+            rp.recent_participants
      FROM yeope_schema.rooms r
      LEFT JOIN (
        SELECT DISTINCT ON (room_id) *
@@ -624,6 +639,24 @@ const getUserRooms = async (userId) => {
      ) rm ON r.id = rm.room_id
      LEFT JOIN yeope_schema.users u_creator ON r.creator_id = u_creator.id
      LEFT JOIN yeope_schema.users u_invitee ON r.metadata->>'inviteeId' = u_invitee.id::text
+     LEFT JOIN LATERAL (
+       SELECT json_agg(json_build_object(
+         'id', u.id,
+         'nickname', COALESCE(u.nickname_mask, u.nickname, 'Unknown'),
+         'nicknameMask', u.nickname_mask,
+         'profileImageUrl', u.profile_image_url
+       ))::jsonb as recent_participants
+       FROM (
+         SELECT rm_inner.user_id
+         FROM yeope_schema.room_members rm_inner
+         WHERE rm_inner.room_id = r.id 
+           AND rm_inner.user_id != $1 
+           AND rm_inner.left_at IS NULL
+         ORDER BY rm_inner.joined_at DESC
+         LIMIT 4
+       ) sub
+       JOIN yeope_schema.users u ON sub.user_id = u.id
+     ) rp ON true
      WHERE (rm.user_id IS NOT NULL AND r.expires_at > NOW())
         OR (
           r.metadata->>'inviteeId' = $1::text 
@@ -656,6 +689,7 @@ const getUserRooms = async (userId) => {
     inviteeNickname: room.invitee_nickname_mask || room.invitee_nickname, // Add invitee info
     inviteeNicknameMask: room.invitee_nickname_mask,
     inviteeProfileImageUrl: room.invitee_profile_image_url,
+    recentParticipants: room.recent_participants || [], // [New] Recent participants for UI
     metadata: typeof room.metadata === 'string'
       ? JSON.parse(room.metadata)
       : room.metadata
@@ -665,15 +699,18 @@ const getUserRooms = async (userId) => {
 /**
  * 사용자가 참여 중인 모든 방 나가기 (로그아웃 시 호출)
  */
-const leaveAllRooms = async (userId) => {
+/**
+ * 사용자가 참여 중인 모든 방 나가기 (로그아웃 시 호출)
+ */
+const leaveAllRooms = async (userId, reason = 'left') => {
   try {
     const rooms = await getUserRooms(userId);
-    logger.info(`[Logout] User ${userId} leaving ${rooms.length} rooms...`);
+    logger.info(`[Logout] User ${userId} leaving ${rooms.length} rooms... (Reason: ${reason})`);
 
     for (const room of rooms) {
       if (room.isActive) { // Only leave active rooms to send "left" message
         try {
-          await leaveRoom(userId, room.roomId);
+          await leaveRoom(userId, room.roomId, reason);
         } catch (err) {
           logger.warn(`[Logout] Failed to leave room ${room.roomId}: ${err.message}`);
         }

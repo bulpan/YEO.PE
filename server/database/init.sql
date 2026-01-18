@@ -1,13 +1,8 @@
 -- YEO.PE 데이터베이스 초기화 스크립트
+-- 데이터베이스 및 사용자는 Docker ENV로 생성됨
 
--- 데이터베이스 생성
-CREATE DATABASE yeope;
-
--- 사용자 생성
-CREATE USER yeope_user WITH PASSWORD 'yeope_password_2024';
-
--- 권한 부여
-GRANT ALL PRIVILEGES ON DATABASE yeope TO yeope_user;
+-- yeope 데이터베이스에 연결 (이미 연결되어 있을 수 있지만 명시)
+\c yeope
 
 -- yeope 데이터베이스에 연결
 \c yeope

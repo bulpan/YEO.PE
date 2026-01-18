@@ -13,13 +13,7 @@ const maskNickname = (nickname) => {
   if (!nickname || nickname.length === 0) {
     return '*';
   }
-  
-  if (nickname.length <= 2) {
-    return nickname[0] + '*';
-  }
-  
-  // 첫 글자 + 나머지는 모두 *
-  return nickname[0] + '*'.repeat(nickname.length - 1);
+  return nickname;
 };
 
 module.exports = {

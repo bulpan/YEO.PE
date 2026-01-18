@@ -37,26 +37,28 @@ struct ChatView: View {
                     .padding(.trailing, 8)
                     
                     // Profile Avatar
-                    if let profilePath = viewModel.displayProfileImageUrl, !profilePath.isEmpty, let url = getHeaderProfileUrl(from: profilePath) {
-                        CachedAsyncImage(url: url)
-                            .frame(width: 36, height: 36)
-                            .clipShape(Circle())
-                            .padding(.trailing, 8)
-                    } else {
-                        Circle()
-                            .fill(Color.theme.accentPrimary.opacity(0.1))
-                            .frame(width: 36, height: 36)
-                            .overlay(
-                                Text(String(viewModel.displayTitle.prefix(1)))
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundColor(Color.theme.accentPrimary)
-                            )
-                            .padding(.trailing, 8)
+                    if (viewModel.targetUser != nil || viewModel.room?.metadata?.category == "quick_question") {
+                        if let profilePath = viewModel.displayProfileImageUrl, !profilePath.isEmpty, let url = getHeaderProfileUrl(from: profilePath) {
+                            CachedAsyncImage(url: url)
+                                .frame(width: 36, height: 36)
+                                .clipShape(Circle())
+                                .padding(.trailing, 8)
+                        } else {
+                            Circle()
+                                .fill(Color.theme.accentPrimary.opacity(0.1))
+                                .frame(width: 36, height: 36)
+                                .overlay(
+                                    Text(String(viewModel.displayTitle.prefix(1)))
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundColor(Color.theme.accentPrimary)
+                                )
+                                .padding(.trailing, 8)
+                        }
                     }
                     
                     VStack(alignment: .leading, spacing: 2) {
                         Text(viewModel.displayTitle)
-                            .font(.radarHeadline)
+                            .font(.system(size: 20, weight: .bold)) // Reduced 70% from 28
                             .foregroundColor(Color.theme.textPrimary)
                             .lineLimit(1)
                         
@@ -66,7 +68,7 @@ struct ChatView: View {
                                     .fill(viewModel.isTargetUserActive ? Color.theme.accentPrimary : Color.textSecondary)
                                     .frame(width: 6, height: 6)
                                 Text(viewModel.isTargetUserActive ? "active".localized : "waiting_for_user".localized)
-                                    .font(.radarCaption)
+                                    .font(.system(size: 10)) // Reduced caption
                                     .foregroundColor(Color.theme.textSecondary)
                             }
                         }
@@ -78,11 +80,12 @@ struct ChatView: View {
                         showMenu = true
                     }) {
                         Image(systemName: "line.3.horizontal")
-                            .font(.system(size: 24))
+                            .font(.system(size: 20)) // Reduced icon
                             .foregroundColor(Color.theme.textPrimary)
                     }
                 }
-                .padding()
+                .padding(.horizontal, 10) // Reduced padding from default
+                .padding(.vertical, 10) // Reduced height
                 .background(Color.theme.bgLayer1)
                 
                 ScrollViewReader { proxy in
@@ -97,8 +100,8 @@ struct ChatView: View {
                                 .id(message.id)
                             }
                         }
-                        .padding()
-                        .padding(.bottom, 10)
+                        .padding(.horizontal, 8) // Reduced 50% (approx 16 -> 8)
+                        .padding(.vertical, 10)
                     }
                     .onTapGesture {
                         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
@@ -365,18 +368,21 @@ struct MessageRow: View {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         
-        if let date = formatter.date(from: message.createdAt) {
+        func format(_ date: Date) -> String {
             let displayFormatter = DateFormatter()
-            displayFormatter.dateFormat = "HH:mm:ss"
+            displayFormatter.locale = Locale(identifier: "ko_KR")
+            displayFormatter.dateFormat = "a h:mm"
             return displayFormatter.string(from: date)
+        }
+        
+        if let date = formatter.date(from: message.createdAt) {
+            return format(date)
         }
         
         // Fallback for standard ISO without fractional
         formatter.formatOptions = [.withInternetDateTime]
         if let date = formatter.date(from: message.createdAt) {
-            let displayFormatter = DateFormatter()
-            displayFormatter.dateFormat = "HH:mm:ss"
-            return displayFormatter.string(from: date)
+            return format(date)
         }
         
         return ""
@@ -407,12 +413,28 @@ struct MessageRow: View {
                     Spacer()
                     let displayContent: String = {
                         let original = message.content ?? ""
-                        let displayName = shouldMask ? (message.nicknameMask ?? (message.nickname ?? "Unknown")) : (message.nickname ?? "Unknown")
+                        
+                        // Improved Nickname Resolution:
+                        // If sender is nil (user left), 'shouldMask' is false, falling back to 'message.nickname'.
+                        // But 'message.nickname' might be "Unknown" if server joined failed.
+                        // We should try 'message.nicknameMask' if 'message.nickname' seems invalid.
+                        var displayName = message.nickname ?? "Unknown"
+                        
+                        // If nickname is missing/Unknown, try mask
+                        if (displayName == "Unknown" || displayName.isEmpty), let mask = message.nicknameMask, !mask.isEmpty {
+                            displayName = mask
+                        }
+                        // Or if we should mask (normal case)
+                        else if shouldMask {
+                             displayName = message.nicknameMask ?? displayName
+                        }
                         
                         if original.contains("joined the room") {
                             return String(format: "sys_joined_room".localized, displayName)
                         } else if original.contains("messages have evaporated") {
                             return String(format: "sys_msg_evaporated".localized, displayName)
+                        } else if original.contains("left the room") {
+                            return String(format: "sys_left_room".localized, displayName)
                         }
                         
                         if shouldMask, let nickname = message.nickname, let mask = message.nicknameMask {
@@ -429,14 +451,17 @@ struct MessageRow: View {
                 }
             }
         } else {
-            HStack(alignment: .bottom, spacing: 8) {
+            HStack(alignment: .top, spacing: 8) { // Align top (Avatar matches Nickname top)
                 if isMe {
                     Spacer()
                     // Time for sent message (Left of bubble)
-                    Text(formattedTime)
-                        .font(.caption2)
-                        .foregroundColor(.textSecondary)
-                        .padding(.bottom, 2)
+                    VStack {
+                        Spacer()
+                        Text(formattedTime)
+                            .font(.caption2)
+                            .foregroundColor(.textSecondary)
+                            .padding(.bottom, 2)
+                    }
                 }
                 
                 if !isMe {
@@ -447,9 +472,9 @@ struct MessageRow: View {
                             // Temp user fallback
                             let tempUser = User(
                                 id: message.userId,
-                                nickname: message.nickname ?? "Unknown",
-                                nicknameMask: message.nicknameMask,
-                                profileImageUrl: message.userProfileImage
+                                 nickname: message.nickname ?? "Unknown",
+                                 nicknameMask: message.nicknameMask,
+                                 profileImageUrl: message.userProfileImage
                             )
                             onAvatarTap?(tempUser)
                         }
@@ -471,6 +496,7 @@ struct MessageRow: View {
                             fallbackAvatar
                         }
                     }
+                    .padding(.top, 0) // Ensure no extra top padding affecting alignment
                 }
                 
                 VStack(alignment: isMe ? .trailing : .leading, spacing: 4) {
@@ -487,25 +513,27 @@ struct MessageRow: View {
                                 .frame(width: 15, height: 15)
                         }
                         
-                        Text(message.content ?? "")
-                            .font(.radarBody)
-                            .padding(12)
-                            .background(
-                                isMe ? 
-                                    (ThemeManager.shared.isDarkMode ? Color.neonGreen : Color.textPrimary.opacity(0.1)) 
-                                    : Color.textPrimary.opacity(0.1)
-                            )
-                            .foregroundColor(
-                                isMe ? 
-                                    (ThemeManager.shared.isDarkMode ? .black : .textPrimary) 
-                                    : (ThemeManager.shared.isDarkMode ? .white : .black)
-                            )
-                            .cornerRadius(16)
-                            .opacity(message.localStatus == .sending ? 0.7 : 1.0)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(Color.textPrimary.opacity(0.1), lineWidth: isMe ? 0 : 1)
-                            )
+                        if message.imageUrl == nil {
+                            Text(message.content ?? "")
+                                .font(.system(size: 13)) // Reduced 80%
+                                .padding(9) // Reduced 70%
+                                .background(
+                                    (isMe ? 
+                                        (ThemeManager.shared.isDarkMode ? Color.neonGreen : Color.textPrimary.opacity(0.1)) 
+                                        : Color.textPrimary.opacity(0.1))
+                                    .clipShape(ChatBubbleShape(isMe: isMe))
+                                )
+                                .foregroundColor(
+                                    isMe ? 
+                                        (ThemeManager.shared.isDarkMode ? .black : .textPrimary) 
+                                        : (ThemeManager.shared.isDarkMode ? .white : .black)
+                                )
+                                .opacity(message.localStatus == .sending ? 0.7 : 1.0)
+                                .overlay(
+                                    ChatBubbleShape(isMe: isMe)
+                                        .stroke(Color.textPrimary.opacity(0.1), lineWidth: isMe ? 0 : 1)
+                                )
+                        }
                         
                         if let imageUrl = message.imageUrl, let url = URL(string: AppConfig.baseURL + imageUrl) {
                             CachedAsyncImage(url: url)
@@ -513,19 +541,37 @@ struct MessageRow: View {
                                 .aspectRatio(contentMode: .fill)
                                 .cornerRadius(12)
                         }
+                        
+                        // [Fix] Time moved inside HStack to hug the bubble, ignoring long nicknames
+                        if !isMe {
+                            Text(formattedTime)
+                                .font(.caption2)
+                                .foregroundColor(.textSecondary)
+                                .padding(.bottom, 2)
+                        }
                     }
-                }
-                
-                if !isMe {
-                    // Time for received message (Right of bubble)
-                    Text(formattedTime)
-                        .font(.caption2)
-                        .foregroundColor(.textSecondary)
-                        .padding(.bottom, 2)
-                    Spacer()
                 }
             }
             .frame(maxWidth: .infinity, alignment: isMe ? .trailing : .leading)
         }
+    }
+}
+
+// Custom Bubble Shape for "Tail" effect
+struct ChatBubbleShape: Shape {
+    var isMe: Bool
+    
+    func path(in rect: CGRect) -> Path {
+        let path = UIBezierPath(
+            roundedRect: rect,
+            byRoundingCorners: [
+                .bottomLeft,
+                .bottomRight,
+                isMe ? .topLeft : .topRight
+            ],
+            cornerRadii: CGSize(width: 16, height: 16)
+        )
+        // The "missing" corner (isMe ? topRight : topLeft) remains sharp (radius 0), creating the "tail" effect.
+        return Path(path.cgPath)
     }
 }

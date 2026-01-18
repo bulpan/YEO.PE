@@ -310,7 +310,7 @@ const deleteUser = async (userId) => {
 const regenerateMask = async (userId) => {
   // 1. Leave All Rooms
   const roomService = require('./roomService');
-  await roomService.leaveAllRooms(userId, 'reset');
+  await roomService.leaveAllRooms(userId);
 
   // 2. Reset Info (Nickname, Profile Image) & Update Mask (Retry logic for collision)
   let retries = 0;
@@ -714,4 +714,3 @@ module.exports = {
   resolveAppeal
 };
 
-// touch

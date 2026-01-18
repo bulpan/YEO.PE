@@ -29,39 +29,32 @@ struct RoomListView: View {
                         }) {
                             VStack(spacing: 0) {
                                 RoomRow(room: room, currentUserId: authViewModel.userId)
-                                    .padding(.vertical, 6) // Reduced height (approx 80% of original 8+8=16 padding? actually simply reducing wrapper padding)
-                                    
-                                Divider() // Full width separator
+                                    .padding(.vertical, 6)
+                                
+                                Divider()
                                     .background(Color.theme.borderPrimary)
                             }
                         }
-                        .listRowInsets(EdgeInsets()) // Remove default insets for full width
-                        .listRowSeparator(.hidden) // Hide default
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
                         .listRowBackground(Color.theme.bgLayer1)
                         .disabled(authViewModel.userId == room.creatorId && room.isActive == false)
                     }
                 }
             }
-            .listStyle(PlainListStyle()) // Better control over background
-            .navigationBarTitleDisplayMode(.inline) // Make large title inline (smaller) or hide it to use custom
+            .listStyle(PlainListStyle())
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     Text("rooms_title".localized)
-                        .font(.headline) // Standard size, not large
+                        .font(.headline)
                         .foregroundColor(Color.theme.textPrimary)
                 }
             }
             .onAppear {
-                 // Force transparent list background so global background shows
-                 UITableView.appearance().backgroundColor = .clear
-                 UITableViewCell.appearance().backgroundColor = .clear
-                 // Fetch is handled by MainView or manual refresh, but we can keep it for safety if MainView didn't fetch yet?
-                 // Since MainView fetches on Appear, and we share the VM, we might not need this. 
-                 // But manual pull-to-refresh would be good. For now, keep it? 
-                 // NO, MainView overwrites logic. Let's rely on MainView's cycle or explicit refresh. 
-                 // Actually, leaving it doesn't hurt, but removing it prevents the "Overwrite" race condition if this view appears often.
-                 // User asked to clean up logic. Let's KEEP it for now but note that MainView owns it.
-                 viewModel.fetchMyRooms()
+                UITableView.appearance().backgroundColor = .clear
+                UITableViewCell.appearance().backgroundColor = .clear
+                viewModel.fetchMyRooms()
             }
             .background(Color.theme.bgMain.edgesIgnoringSafeArea(.all))
             .navigationBarItems(trailing: Button(action: {
@@ -80,7 +73,6 @@ struct RoomListView: View {
                         get: { selectedRoom != nil },
                         set: { isActive in 
                             if !isActive {
-                                // Logic: User left the room (popped back)
                                 if let room = selectedRoom {
                                     print("🔙 Returning from room \(room.name). Clearing unread count locally.")
                                     viewModel.markAsRead(roomId: room.uniqueId)
@@ -131,14 +123,12 @@ struct RoomListView: View {
                         }
                         
                         Button(action: {
-                            // Get nearby users from BLEManager singleton
                             let nearbyUserIds = BLEManager.shared.discoveredUsers.compactMap { $0.id }
                             
                             viewModel.createRoom(name: newRoomName, nearbyUserIds: nearbyUserIds) { success in
                                 if success {
                                     withAnimation { isShowingCreateRoom = false }
                                     newRoomName = ""
-                                    // Refresh list immediately
                                     viewModel.fetchMyRooms()
                                 }
                             }
@@ -207,49 +197,89 @@ struct RoomRow: View {
         HStack {
             // Icon / Avatar Area
             ZStack {
-                if isQuickQuestion {
-                    Circle()
-                        .fill(Color.yellow.opacity(0.1))
-                        .frame(width: 50, height: 50)
-                        .overlay(
-                            Image(systemName: "bolt.fill")
-                                .font(.system(size: 24))
-                                .foregroundColor(.yellow)
-                        )
-                        .overlay(
-                            Circle()
-                                .stroke(Color.yellow.opacity(0.3), lineWidth: 1)
-                        )
-                } else if isWaitingForResponse {
-                    Circle()
-                        .fill(Color.gray.opacity(0.1))
-                        .frame(width: 50, height: 50)
-                        .overlay(
-                            Image(systemName: "clock")
-                                .font(.system(size: 20))
-                                .foregroundColor(.gray)
-                        )
+                if let participants = room.recentParticipants, participants.count > 1 {
+                    // Multi-Avatar Stack (Group ID)
+                    HStack(spacing: -15) { // Overlap
+                        ForEach(Array(participants.prefix(4).enumerated()), id: \.offset) { index, participant in
+                            if let profilePath = participant.profileImageUrl, !profilePath.isEmpty, let url = getProfileUrl(from: profilePath) {
+                                CachedAsyncImage(url: url)
+                                    .frame(width: 35, height: 35)
+                                    .clipShape(Circle())
+                                    .overlay(Circle().stroke(Color.theme.bgMain, lineWidth: 2))
+                                    .zIndex(Double(4 - index))
+                            } else {
+                                Circle()
+                                    .fill(Color.theme.accentPrimary.opacity(0.1))
+                                    .frame(width: 35, height: 35)
+                                    .overlay(
+                                        Text(String((participant.nicknameMask ?? participant.nickname ?? "?").prefix(1)))
+                                            .font(.system(size: 14, weight: .bold))
+                                            .foregroundColor(Color.theme.accentPrimary)
+                                    )
+                                    .clipShape(Circle())
+                                    .overlay(Circle().stroke(Color.theme.bgMain, lineWidth: 2))
+                                    .zIndex(Double(4 - index))
+                            }
+                        }
+                    }
                 } else {
-                    // General / Active Room
-                    // General / Active Room
-                    if let profilePath = room.displayProfileImageUrl, !profilePath.isEmpty, let url = getProfileUrl(from: profilePath) {
-                         CachedAsyncImage(url: url)
-                             .frame(width: 50, height: 50)
-                             .clipShape(Circle())
+                    // Single Avatar logic (1:1 or fallback)
+                    if isQuickQuestion {
+                        Circle()
+                            .fill(Color.yellow.opacity(0.1))
+                            .frame(width: 35, height: 35)
+                            .overlay(
+                                Image(systemName: "bolt.fill")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(.yellow)
+                            )
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.yellow.opacity(0.3), lineWidth: 1)
+                            )
+                    } else if isWaitingForResponse {
+                        Circle()
+                            .fill(Color.gray.opacity(0.1))
+                            .frame(width: 35, height: 35)
+                            .overlay(
+                                Image(systemName: "clock")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(.gray)
+                            )
                     } else {
-                        fallbackAvatar
+                        // General / Active Room
+                        if let profilePath = room.displayProfileImageUrl, !profilePath.isEmpty, let url = getProfileUrl(from: profilePath) {
+                             CachedAsyncImage(url: url)
+                                 .frame(width: 35, height: 35)
+                                 .clipShape(Circle())
+                        } else {
+                            Circle()
+                                .fill(Color.theme.accentPrimary.opacity(0.1))
+                                .frame(width: 35, height: 35)
+                                .overlay(
+                                    Text(String(room.displayName.prefix(1)))
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(Color.theme.accentPrimary)
+                                )
+                        }
                     }
                 }
             }
             .padding(.trailing, 8)
-            .padding(.leading, 16) // Add leading padding since we removed listRowInsets
             
             // Content
             VStack(alignment: .leading, spacing: 4) {
-                HStack {
+                HStack(spacing: 6) {
                     Text(room.displayName)
                         .font(.headline)
                         .foregroundColor(isWaitingForResponse ? .gray : .textPrimary)
+                    
+                    // Participant Count
+                    if let code = room.memberCount, code > 2 {
+                        Text("\(code)")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.gray)
+                    }
                     
                     if isQuickQuestion {
                         Text("OPEN")
@@ -268,7 +298,7 @@ struct RoomRow: View {
                         .foregroundColor(.textSecondary)
                         .lineLimit(1)
                 } else if isWaitingForResponse {
-                    Text("waiting_response_short".localized) // "Waiting for reply..."
+                    Text("waiting_response_short".localized)
                         .font(.caption)
                         .foregroundColor(.gray)
                         .italic()
@@ -292,8 +322,9 @@ struct RoomRow: View {
                     .clipShape(Circle())
             }
         }
-        //.padding(.vertical, 4) // Handled by wrapper
-        .padding(.trailing, 16) // Add trailing padding since we removed listRowInsets
+        //.padding(.vertical, 4)
+        .padding(.leading, 20)
+        .padding(.trailing, 16)
         .opacity(isWaitingForResponse ? 0.6 : 1.0)
     }
 }

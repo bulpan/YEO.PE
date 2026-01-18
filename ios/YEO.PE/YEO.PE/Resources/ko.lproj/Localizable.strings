@@ -164,7 +164,8 @@
 
 // System Messages (Client-side matching)
 "sys_joined_room" = "%@님이 입장하셨습니다";
-"sys_msg_evaporated" = "%@님의 메시지가 증발했습니다";
+"sys_msg_evaporated" = "%@님의 메시지가 삭제되었습니다";
+"sys_left_room" = "%@님이 퇴장하셨습니다";
 "ignore" = "무시";
 
 

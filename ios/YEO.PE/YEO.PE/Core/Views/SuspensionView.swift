@@ -97,14 +97,83 @@ struct SuspensionView: View {
                     .background(Color.black.opacity(0.7))
                     .cornerRadius(10)
             }
+            
+            // Custom Appeal Popup
+            if showingAppealAlert {
+                Color.black.opacity(0.6)
+                    .edgesIgnoringSafeArea(.all)
+                    .onTapGesture {
+                        showingAppealAlert = false
+                    }
+                
+                VStack(spacing: 20) {
+                    Text("appeal_title".localized)
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    
+                    Text("appeal_desc".localized)
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                        .multilineTextAlignment(.center)
+                    
+                    ZStack(alignment: .topLeading) {
+                        if appealReason.isEmpty {
+                            Text("appeal_reason_hint".localized)
+                                .foregroundColor(.gray.opacity(0.5))
+                                .padding(12)
+                                .font(.body)
+                        }
+                        
+                        TextEditor(text: $appealReason)
+                            .scrollContentBackground(.hidden)
+                            .background(Color.white.opacity(0.1))
+                            .foregroundColor(.white)
+                            .cornerRadius(8)
+                            .frame(height: 150) // Larger Text Area
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                            )
+                    }
+                    
+                    HStack(spacing: 12) {
+                        Button(action: {
+                            showingAppealAlert = false
+                        }) {
+                            Text("cancel".localized)
+                                .font(.headline)
+                                .foregroundColor(.white.opacity(0.8))
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.white.opacity(0.15))
+                                .cornerRadius(12)
+                        }
+                        
+                        Button(action: {
+                            submitAppeal()
+                            showingAppealAlert = false
+                        }) {
+                            Text("submit".localized)
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.blue)
+                                .cornerRadius(12)
+                        }
+                    }
+                }
+                .padding(24)
+                .background(Color(UIColor.systemGray6).opacity(0.15).background(.ultraThinMaterial))
+                .cornerRadius(24)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24)
+                        .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+                )
+                .padding(.horizontal, 30)
+                .shadow(color: .black.opacity(0.5), radius: 20, x: 0, y: 10)
+            }
         }
-        .alert("appeal_title".localized, isPresented: $showingAppealAlert, actions: {
-            TextField("appeal_reason_hint".localized, text: $appealReason)
-            Button("cancel".localized, role: .cancel) { }
-            Button("submit".localized, action: submitAppeal)
-        }, message: {
-            Text("appeal_desc".localized)
-        })
     }
     
     var titleText: String {

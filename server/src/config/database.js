@@ -14,7 +14,8 @@ const pool = new Pool({
   max: 20, // 최대 연결 수
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
-  schema: 'yeope_schema'
+  schema: 'yeope_schema',
+  ssl: false // Disable SSL for internal Docker network
 });
 
 // 연결 테스트

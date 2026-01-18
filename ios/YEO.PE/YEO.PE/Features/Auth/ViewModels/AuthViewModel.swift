@@ -175,8 +175,7 @@ class AuthViewModel: ObservableObject {
                 TokenManager.shared.clearTokens()
                 
                 // Stop BLE to prevent ghost user (User disappears from Radar)
-                BLEManager.shared.stop()
-                BLEManager.shared.discoveredUsers.removeAll()
+                BLEManager.shared.clearIdentity()
                 
                 self?.isLoggedIn = false
                 self?.currentUser = nil

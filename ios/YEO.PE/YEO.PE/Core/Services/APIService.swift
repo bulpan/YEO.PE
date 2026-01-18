@@ -104,8 +104,7 @@ class APIService {
                             
                             DispatchQueue.main.async {
                                 NotificationCenter.default.post(name: .accountSuspended, object: nil, userInfo: [
-                                    "date": suspendedDate as Any, 
-                                    "date": suspendedDate as Any, 
+                                    "date": suspendedDate as Any,
                                     "reason": (errorResponse.error.details?.reasonDict ?? errorResponse.error.details?.reasonString) as Any,
                                     "suspendedAt": suspendedAtDate as Any
                                 ])

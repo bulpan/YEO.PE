@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Configuration
-KEY_PATH="./yeope-ssh-key.key"
-SERVER_IP="152.67.208.177"
-USER="opc"
-REMOTE_DIR="/opt/yeope"
+KEY_PATH="./gcp-yeope-key"
+SERVER_IP="34.47.109.80"
+USER="yeope-gcp"
+REMOTE_DIR="/home/yeope-gcp/yeope"
 
 # Check for quick mode (static files only)
 QUICK_MODE=false

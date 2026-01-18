@@ -87,7 +87,7 @@ const createMessage = async (userId, roomId, type, content, imageUrl = null) => 
     roomId: room.room_id,
     userId: message.user_id,
     nickname: user.nickname_mask || user.nickname,
-    nicknameMask: user.nickname_mask || require('../utils/nickname').maskNickname(user.nickname),
+    nicknameMask: (user.nickname_mask && !user.nickname_mask.includes('*')) ? user.nickname_mask : user.nickname,
     type: message.type,
     content: message.content,
     imageUrl: message.image_url,
@@ -113,7 +113,7 @@ const getMessages = async (roomId, options = {}) => {
   let queryText = `
     SELECT m.*, u.nickname, u.nickname_mask, u.profile_image_url
     FROM yeope_schema.messages m
-    JOIN yeope_schema.users u ON m.user_id = u.id
+    LEFT JOIN yeope_schema.users u ON m.user_id = u.id
     WHERE m.room_id = $1 AND m.is_deleted = false
   `;
 
@@ -132,17 +132,42 @@ const getMessages = async (roomId, options = {}) => {
   const result = await query(queryText, params);
 
   // 최신 메시지가 먼저 오도록 정렬 (역순)
-  const messages = result.rows.reverse().map(msg => ({
-    messageId: msg.id,
-    userId: msg.user_id,
-    nickname: msg.nickname_mask || msg.nickname,
-    nicknameMask: msg.nickname_mask,
-    userProfileImage: msg.profile_image_url, // Add profile image
-    type: msg.type,
-    content: msg.content,
-    imageUrl: msg.image_url,
-    createdAt: msg.created_at
-  }));
+  const messages = result.rows.reverse().map(msg => {
+    let finalNickname = msg.nickname_mask || msg.nickname || "Unknown User";
+    let finalMask = msg.nickname_mask;
+
+    // [Fix] System Message Historical Identity Preservation
+    // If the user deleted account or changed mask, the join/leave messages should still show who they *were*.
+    // We try to extract the nickname from the frozen system message content.
+    if (msg.type === 'system' && msg.content) {
+      // 1. Evaporation Message: "{Nickname}'s messages have evaporated."
+      const evapMatch = msg.content.match(/^(.*)'s messages have evaporated\.$/);
+      if (evapMatch) {
+        finalNickname = evapMatch[1];
+        finalMask = evapMatch[1]; // Treat as mask for display priority
+      }
+      // 2. Join Message: "{Nickname} joined the room." (Optional, if we want to preserve historical joiner name)
+      else {
+        const joinMatch = msg.content.match(/^(.*) joined the room\.$/);
+        if (joinMatch) {
+          finalNickname = joinMatch[1];
+          finalMask = joinMatch[1];
+        }
+      }
+    }
+
+    return {
+      messageId: msg.id,
+      userId: msg.user_id,
+      nickname: finalNickname,
+      nicknameMask: finalMask,
+      userProfileImage: msg.profile_image_url,
+      type: msg.type,
+      content: msg.content,
+      imageUrl: msg.image_url,
+      createdAt: msg.created_at
+    };
+  });
 
   return {
     messages,

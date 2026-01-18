@@ -9,12 +9,23 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const logger = require('./utils/logger');
-
-// 데이터베이스 및 서비스 초기화
-// 데이터베이스 및 서비스 초기화
-const { pool, query } = require('./config/database'); // PostgreSQL 연결
 const fs = require('fs');
 const path = require('path');
+
+// 데이터베이스 및 서비스 초기화
+const { pool, query } = require('./config/database'); // PostgreSQL 연결
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: process.env.CORS_ORIGIN || '*',
+    methods: ['GET', 'POST']
+  }
+});
+
+// Socket.io instance sharing
+app.set('io', io);
 
 // [Migration] Run Blocked Users & Nickname Migrations on Startup
 const runMigration = async () => {
@@ -49,41 +60,16 @@ const runMigration = async () => {
     }
   }
 };
-runMigration();
-
-require('./config/redis'); // Redis 연결
-const { startTTLScheduler } = require('./services/ttlService');
-const { startWorker } = require('./workers/pushWorker');
-
-// Start Background Workers
-startWorker();
-
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: process.env.CORS_ORIGIN || '*',
-    methods: ['GET', 'POST']
-  }
-});
 
 // 미들웨어
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Socket.io instance sharing
-app.set('io', io);
-
-// Request logging middleware
 // Request logging middleware
 app.use(require('./middleware/requestLogger'));
 
-// 정적 파일 서빙 (랜딩 페이지)
-// 정적 파일 서빙 (랜딩 페이지)
-// 정적 파일 서빙 (랜딩 페이지)
-// Admin Panel Static Files (Prioritize specific admin handling)
-// Admin Panel Static Files (Prioritize specific admin handling)
+// Admin Panel Static Files
 app.use('/admin', express.static(path.join(__dirname, '../public/admin'), {
   setHeaders: (res, path) => {
     if (path.endsWith('index.html')) {
@@ -131,8 +117,6 @@ app.get('/health', (req, res) => {
   });
 });
 
-// 랜딩 페이지는 정적 파일로 서빙 (public/index.html)
-
 // API 라우트
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/rooms', require('./routes/rooms'));
@@ -144,17 +128,15 @@ app.use('/api/reports', require('./routes/reports'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/config', require('./routes/config'));
 
-// Firebase 초기화 (푸시 알림)
+// Firebase & WebSocket
 const pushService = require('./services/pushService');
 pushService.initializeFirebase();
 
-// WebSocket 연결
 const socketHandler = require('./socket/socketHandler');
 socketHandler(io);
 
 // 에러 핸들링
 app.use((err, req, res, next) => {
-  // 커스텀 에러인 경우
   if (err.isOperational) {
     logger.warn(`Operational Error: ${err.message}`, {
       statusCode: err.statusCode,
@@ -168,7 +150,6 @@ app.use((err, req, res, next) => {
     });
   }
 
-  // 예상치 못한 에러
   logger.error('Unexpected Error:', {
     error: err.message,
     stack: err.stack,
@@ -186,20 +167,44 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 핸들러 (API 요청만 JSON 응답)
+// 404 핸들러
 app.use('/api', (req, res) => {
   res.status(404).json({ error: 'Not Found' });
 });
 
 const PORT = process.env.PORT || 3000;
 
-server.listen(PORT, '0.0.0.0', () => {
-  logger.info(`🚀 YEO.PE Server is running on port ${PORT}`);
-  logger.info(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
+// [Sequential Startup]
+const startServer = async () => {
+  try {
+    logger.info('🚀 Starting server setup...');
 
-  // TTL 정리 스케줄러 시작
-  startTTLScheduler();
-});
+    // 1. Database & Migrations
+    logger.info('📦 Running migrations...');
+    await runMigration();
+    logger.info('✅ Migrations complete.');
+
+    // 2. Services
+    require('./config/redis');
+    const { startTTLScheduler } = require('./services/ttlService');
+    const { startWorker } = require('./workers/pushWorker');
+
+    startWorker();
+
+    // 3. Bind Port
+    server.listen(PORT, '0.0.0.0', () => {
+      logger.info(`🚀 YEO.PE Server is running on port ${PORT}`);
+      logger.info(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
+
+      startTTLScheduler();
+    });
+  } catch (error) {
+    logger.error('❌ Server failed to start:', error);
+    process.exit(1);
+  }
+};
+
+startServer();
 
 // Graceful shutdown
 const gracefulShutdown = async () => {
@@ -208,12 +213,10 @@ const gracefulShutdown = async () => {
   server.close(() => {
     logger.info('HTTP server closed');
 
-    // 데이터베이스 연결 종료
     const { pool } = require('./config/database');
     pool.end(() => {
       logger.info('PostgreSQL connection pool closed');
 
-      // Redis 연결 종료
       const redis = require('./config/redis');
       redis.quit(() => {
         logger.info('Redis connection closed');
@@ -227,4 +230,3 @@ process.on('SIGTERM', gracefulShutdown);
 process.on('SIGINT', gracefulShutdown);
 
 module.exports = { app, server, io };
-

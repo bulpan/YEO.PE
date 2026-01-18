@@ -4,13 +4,14 @@ struct NeonButton: View {
     let title: String
     let action: () -> Void
     var color: Color = .neonGreen
+    var textColor: Color = .black
     
     var body: some View {
         Button(action: action) {
             Text(title)
                 .font(.radarBody)
                 .fontWeight(.bold)
-                .foregroundColor(.black)
+                .foregroundColor(textColor)
                 .padding()
                 .frame(maxWidth: .infinity)
                 .background(color)

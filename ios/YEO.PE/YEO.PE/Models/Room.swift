@@ -19,10 +19,12 @@ struct Room: Codable, Identifiable, Hashable, Equatable {
     let inviteeNicknameMask: String?
     let inviteeProfileImageUrl: String?
     let metadata: RoomMetadata?
+    let recentParticipants: [UserSummary]?
     
     enum CodingKeys: String, CodingKey {
         case id, roomId, name, memberCount, isActive, unreadCount, lastMessage, createdAt
         case creatorId, creatorNickname, creatorNicknameMask, creatorProfileImageUrl, inviteeNickname, inviteeNicknameMask, inviteeProfileImageUrl, metadata
+        case recentParticipants
     }
     
     // Helper to use either id or roomId
@@ -107,6 +109,7 @@ struct Room: Codable, Identifiable, Hashable, Equatable {
         inviteeNicknameMask = try container.decodeIfPresent(String.self, forKey: .inviteeNicknameMask)
         inviteeProfileImageUrl = try container.decodeIfPresent(String.self, forKey: .inviteeProfileImageUrl)
         metadata = try container.decodeIfPresent(RoomMetadata.self, forKey: .metadata)
+        recentParticipants = try container.decodeIfPresent([UserSummary].self, forKey: .recentParticipants)
         
         // Defaults for server-fetched messages
         // localStatus is not in CodingKeys, so we don't decode it.
@@ -134,7 +137,15 @@ struct Room: Codable, Identifiable, Hashable, Equatable {
         try container.encodeIfPresent(inviteeNicknameMask, forKey: .inviteeNicknameMask)
         try container.encodeIfPresent(inviteeProfileImageUrl, forKey: .inviteeProfileImageUrl)
         try container.encodeIfPresent(metadata, forKey: .metadata)
+        try container.encodeIfPresent(recentParticipants, forKey: .recentParticipants)
     }
+}
+
+struct UserSummary: Codable, Hashable {
+    let id: String
+    let nickname: String?
+    let nicknameMask: String?
+    let profileImageUrl: String?
 }
 
 struct RoomMetadata: Codable, Hashable, Equatable {

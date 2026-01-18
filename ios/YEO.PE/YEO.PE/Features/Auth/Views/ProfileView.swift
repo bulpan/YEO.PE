@@ -551,9 +551,20 @@ struct NicknameEditSheet: View {
                         .font(.headline)
                         .foregroundColor(Color.theme.textPrimary)
                     
-                    TextField("nickname".localized, text: $nickname)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .padding(.horizontal)
+                    ZStack(alignment: .trailing) {
+                        TextField("nickname".localized, text: $nickname)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .padding(.horizontal)
+                            .foregroundColor(Color.theme.textPrimary) // Adaptive color
+                        
+                        if !nickname.isEmpty {
+                            Button(action: { nickname = "" }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.gray)
+                                    .padding(.trailing, 24) // Adjust padding for inner border
+                            }
+                        }
+                    }
                     
                     Text("nickname_hint".localized)
                         .font(.caption)

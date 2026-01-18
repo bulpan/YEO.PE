@@ -28,8 +28,9 @@ class ChatViewModel: ObservableObject {
     let currentUser: User?
     
     var isTargetUserActive: Bool {
-        guard let targetUser = targetUser else { return true } 
-        return members.contains(where: { $0.id == targetUser.id })
+        // 1:1 Chat: Always active to allow "Room Resurrection" (sending a message re-invites/wakes up the user)
+        // This also fixes the issue where a fresh room (invitee not joined yet) was disabled.
+        return true
     }
 
     var displayTitle: String {

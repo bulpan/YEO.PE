@@ -148,6 +148,22 @@ class BLEManager: NSObject, ObservableObject {
         stopScanning()
     }
     
+    func clearIdentity() {
+        print("🧹 Clearing BLE Identity (Guest Mode Activated)...")
+        refreshTimer?.invalidate() // Stop any pending UID refresh
+        stopAdvertising() // Only stop advertising
+        currentUID = nil
+        uidExpiresAt = nil
+        discoveredUsers.removeAll()
+        discoveredUIDs.removeAll()
+        lastSeenMap.removeAll()
+        
+        // Restart scanning for Guest Mode (Passive Observer)
+        startScanningLoop()
+    }
+    
+
+    
     // MARK: - Advertising Logic
     
     private func fetchUIDAndStartAdvertising() {
@@ -158,6 +174,12 @@ class BLEManager: NSObject, ObservableObject {
         
         BLEService.shared.getUID { [weak self] result in
             DispatchQueue.main.async {
+                // Ensure user is still logged in before starting to advertise
+                guard TokenManager.shared.isLoggedIn else {
+                    print("⚠️ User logged out during UID fetch. Aborting advertising.")
+                    return
+                }
+                
                 switch result {
                 case .success(let (uid, expiresAt, nicknameMask)):
                     print("✅ New UID acquired: \(uid) (Expires: \(expiresAt))")
@@ -235,6 +257,7 @@ class BLEManager: NSObject, ObservableObject {
     
     private func stopAdvertising() {
         peripheralManager?.stopAdvertising()
+        peripheralManager?.removeAllServices() // Ensure services are removed from GATT
         isAdvertising = false
     }
 
@@ -316,11 +339,11 @@ class BLEManager: NSObject, ObservableObject {
     
     // Strikes Logic
     private var strikesMap: [String: Int] = [:]
-    private let maxStrikes = 5
+    private let maxStrikes = 3 // Increased to 3 to survive 1 missed packet (Remove after ~30s)
     
     private func cleanupExpiredUsers() {
         let now = Date()
-        let timeout: TimeInterval = 15.0
+        let timeout: TimeInterval = 12.0 // Increased to 12s to cover the 10s Scan Interval safely
         
         if isRawScanMode {
             for (id, peripheral) in rawPeripherals {
