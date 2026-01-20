@@ -19,6 +19,8 @@ struct User: Codable, Identifiable, Equatable {
         case roomId, roomName, uid
         case profileImageUrl // CamelCase (Server Standard)
         case profile_image_url // SnakeCase (DB/Legacy)
+        case phoneNumber // Camel
+        case phone_number // Snake
     }
     
     init(from decoder: Decoder) throws {
@@ -44,6 +46,9 @@ struct User: Codable, Identifiable, Equatable {
         uid = try container.decodeIfPresent(String.self, forKey: .uid)
         profileImageUrl = try container.decodeIfPresent(String.self, forKey: .profileImageUrl) 
                           ?? container.decodeIfPresent(String.self, forKey: .profile_image_url)
+        
+        phoneNumber = try container.decodeIfPresent(String.self, forKey: .phoneNumber)
+                      ?? container.decodeIfPresent(String.self, forKey: .phone_number)
     }
     
     // Encodable conformance
@@ -63,10 +68,11 @@ struct User: Codable, Identifiable, Equatable {
         try container.encodeIfPresent(roomName, forKey: .roomName)
         try container.encodeIfPresent(uid, forKey: .uid)
         try container.encodeIfPresent(profileImageUrl, forKey: .profileImageUrl)
+        try container.encodeIfPresent(phoneNumber, forKey: .phoneNumber)
     }
     
     // Explicit init for memberwise creation (lost when adding custom init)
-    init(id: String, email: String? = nil, nickname: String? = nil, nicknameMask: String? = nil, nickname_mask: String? = nil, settings: UserSettings? = nil, createdAt: String? = nil, lastLoginAt: String? = nil, distance: Double? = nil, hasActiveRoom: Bool? = nil, roomId: String? = nil, roomName: String? = nil, uid: String? = nil, profileImageUrl: String? = nil) {
+    init(id: String, email: String? = nil, nickname: String? = nil, nicknameMask: String? = nil, nickname_mask: String? = nil, settings: UserSettings? = nil, createdAt: String? = nil, lastLoginAt: String? = nil, distance: Double? = nil, hasActiveRoom: Bool? = nil, roomId: String? = nil, roomName: String? = nil, uid: String? = nil, profileImageUrl: String? = nil, phoneNumber: String? = nil) {
         self.id = id
         self.email = email
         self.nickname = nickname
@@ -81,6 +87,7 @@ struct User: Codable, Identifiable, Equatable {
         self.roomName = roomName
         self.uid = uid
         self.profileImageUrl = profileImageUrl
+        self.phoneNumber = phoneNumber
     }
     
     var resolvedMask: String? {
@@ -109,6 +116,7 @@ struct User: Codable, Identifiable, Equatable {
     var roomName: String?
     var uid: String? // BLE Short UID
     var profileImageUrl: String? // URL string
+    var phoneNumber: String? // Phone number (verified)
     
     var fullProfileFileURL: URL? {
         guard let path = profileImageUrl else { return nil }
@@ -147,4 +155,5 @@ struct AuthResponse: Codable {
     let token: String
     let refreshToken: String
     let user: User
+    let isNewUser: Bool?
 }

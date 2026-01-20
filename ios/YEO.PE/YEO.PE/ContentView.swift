@@ -110,11 +110,12 @@ struct ContentView: View {
                         
                         Text("random_nickname_title".localized)
                             .font(.radarHeadline)
+                            .foregroundColor(Color.theme.textPrimary)
                             .multilineTextAlignment(.center)
                         
-                        Text("random_nickname_desc".localized)
+                        Text(String(format: "random_nickname_desc".localized, authViewModel.nicknameForConfirmation))
                             .font(.radarBody)
-                            .foregroundColor(.gray)
+                            .foregroundColor(Color.theme.textSecondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
                         
@@ -126,8 +127,15 @@ struct ContentView: View {
                             }) {
                                 Text("keep_it".localized)
                                     .font(.radarBody)
-                                    .foregroundColor(.gray)
-                                    .padding()
+                                    .foregroundColor(Color.theme.textPrimary)
+                                    .padding(.horizontal, 20)
+                                    .padding(.vertical, 12)
+                                    .background(Color.theme.bgLayer1)
+                                    .cornerRadius(20)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 20)
+                                            .stroke(Color.theme.borderPrimary, lineWidth: 1)
+                                    )
                             }
                             
                             Button(action: {
@@ -139,7 +147,7 @@ struct ContentView: View {
                                 Text("change_nickname".localized)
                                     .font(.radarBody)
                                     .fontWeight(.bold)
-                                    .foregroundColor(.black)
+                                    .foregroundColor(ThemeManager.shared.isDarkMode ? .black : .white)
                                     .padding(.horizontal, 20)
                                     .padding(.vertical, 12)
                                     .background(Color.neonGreen)

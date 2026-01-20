@@ -6,5 +6,5 @@
 import Foundation
 
 struct GeneratedConfig {
-    static let localIP = "192.168.219.128"
+    static let localIP = "192.168.219.133"
 }

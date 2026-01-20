@@ -18,6 +18,7 @@ export default function Layout({ children }) {
         { path: '/reports', label: '신고 내역', icon: '🚨' },
         { path: '/logs', label: '서버 로그', icon: '📜' },
         { path: '/push-logs', label: '푸시 로그', icon: '📨' },
+        { path: '/archives', label: '아카이브', icon: '💾' },
         { path: '/settings', label: '정책 설정', icon: '⚙️' },
     ];
 

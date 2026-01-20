@@ -229,12 +229,9 @@ const loginSocialUser = async (provider, providerId, email, nickname) => {
   let user = result.rows[0];
 
   // 2. 없으면 생성
+  let isNewUser = false;
   if (!user) {
-    // 이메일 중복 체크 (선택사항: 소셜 이메일이 기존 이메일과 겹칠 경우 병합할지, 에러낼지. 여기선 별도 계정으로 처리하거나 에러 무시)
-    // 간단히하기 위해 이메일이 겹치면 해당 이메일 유저에게 연동...은 복잡하므로,
-    // 이메일이 unique constraint가 있으므로, 만약 겹치면 에러가 날 것임.
-    // 여기서는 이메일 뒤에 provider를 붙여서 저장하거나, 그냥 try-catch로 처리.
-    // MVP: 그냥 생성 시도.
+    isNewUser = true;
 
     const nicknameMask = maskNickname(nickname);
 
@@ -259,11 +256,9 @@ const loginSocialUser = async (provider, providerId, email, nickname) => {
     } catch (error) {
       // 이메일 중복 에러인 경우
       if (error.code === '23505') { // unique_violation
-        // 기존 이메일 유저 찾아서 연동? 아니면 에러?
-        // 여기서는 기존 유저를 찾아서 리턴 (이메일 신뢰)
+        isNewUser = false;
         const existingUser = await findUserByEmail(email);
         if (existingUser) {
-          // TODO: provider_id 업데이트?
           user = existingUser;
         } else {
           throw error;
@@ -283,10 +278,13 @@ const loginSocialUser = async (provider, providerId, email, nickname) => {
   }
 
   return {
-    id: user.id,
-    email: user.email,
-    nickname: user.nickname,
-    nicknameMask: user.nickname_mask
+    user: {
+      id: user.id,
+      email: user.email,
+      nickname: user.nickname,
+      nicknameMask: user.nickname_mask
+    },
+    isNewUser
   };
 };
 
@@ -597,23 +595,26 @@ const clearReports = async (userId) => {
   return true;
 };
 
-module.exports = {
-  findUserByEmail,
-  findUserById,
-  createUser,
-  loginUser,
-  getUserProfile,
-  verifyPassword,
-  updateUser,
-  loginSocialUser,
-  deleteUser,
-  regenerateMask,
-  blockUser,
-  unblockUser,
-  getBlockedUsers,
-  reportUser,
-  unsuspendUser,
-  clearReports
+/**
+ * 사용자 전화번호 업데이트 (본인인증)
+ */
+const updateUserPhoneNumber = async (userId, phoneNumber) => {
+  // 중복 체크 (이미 다른 계정에 연동된 번호인지)
+  const existing = await query(
+    'SELECT id FROM yeope_schema.users WHERE phone_number = $1',
+    [phoneNumber]
+  );
+
+  if (existing.rows.length > 0 && existing.rows[0].id !== userId) {
+    throw new ValidationError('이미 다른 계정에 등록된 전화번호입니다.');
+  }
+
+  await query(
+    'UPDATE yeope_schema.users SET phone_number = $1 WHERE id = $2',
+    [phoneNumber, userId]
+  );
+
+  return true;
 };
 
 /**
@@ -709,6 +710,7 @@ module.exports = {
   banUser,
   unbanUser,
   clearReports,
+  updateUserPhoneNumber, // Added back to main exports
   createAppeal,
   getAppeals,
   resolveAppeal

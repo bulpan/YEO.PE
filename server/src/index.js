@@ -44,7 +44,9 @@ const runMigration = async () => {
     { name: 'Appeals', file: 'migration_add_appeals.sql' },
     { name: 'Suspension Reason', file: 'migration_add_suspension_reason.sql' },
     { name: 'System Settings', file: 'migration_add_system_settings.sql' },
-    { name: 'Suspended At', file: 'migration_add_suspended_at.sql' }
+    { name: 'Suspended At', file: 'migration_add_suspended_at.sql' },
+    { name: 'Phone Number', file: 'migration_add_phone_number.sql' },
+    { name: 'Archives', file: 'migration_add_archiving.sql' }
   ];
 
   for (const m of migrations) {

@@ -33,12 +33,16 @@
 "create_account" = "계정 만들기";
 "login_button" = "로그인";
 
-// ProfileView
+// ProfileView / Edit
 "logout" = "로그아웃";
 "user" = "사용자";
 "edit_nickname" = "닉네임 수정";
+"edit_profile" = "프로필 수정";
 "nickname" = "닉네임";
+"enter_nickname" = "닉네임을 입력하세요";
 "nickname_hint" = "이 닉네임은 다른 사용자에게 표시됩니다.";
+"public_nickname" = "공개 닉네임";
+"public_nickname_desc" = "이 이름은 다른 사람들에게 표시됩니다.";
 
 // SettingsView
 "settings" = "설정";
@@ -113,8 +117,8 @@
 "identity_info_tooltip" = "닉네임을 설정하면 익명 가면(Anon#...)이 사라지고 나만의 닉네임으로 활동하게 됩니다. 언제든 변경할 수 있습니다.";
 
 // Random Nickname Dialog
-"random_nickname_title" = "새로운 가면 발급 완료!";
-"random_nickname_desc" = "익명 여행을 위한 새로운 ID가 생성되었습니다.";
+"random_nickname_title" = "닉네임 확인";
+"random_nickname_desc" = "닉네임: %@";
 "keep_it" = "그냥 쓰기";
 "change_nickname" = "변경하기";
 "change_identity" = "적용하기";
@@ -239,3 +243,17 @@
 "confirm" = "확인";
 "notification" = "공지사항";
 "user_has_left" = "상대방이 대화방을 나갔습니다.";
+
+// Phone Verification
+"identity_verification" = "본인 인증";
+"verify_phone_title" = "전화번호 인증";
+"verify_phone_subtitle" = "인증번호를 받을 전화번호를 입력하세요.";
+"phone_number" = "전화번호";
+"verification_code" = "인증번호";
+"send_code" = "인증번호 전송";
+"verify_complete" = "인증 완료";
+"retry_phone_number" = "전화번호 다시 입력";
+"verification_success_message" = "본인인증이 완료되었습니다.";
+"alert" = "알림";
+"verification_failed" = "인증 실패";
+"nickname_length_error" = "닉네임은 2자에서 20자 사이여야 합니다.";

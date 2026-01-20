@@ -76,16 +76,17 @@ const messageHandler = (socket, io) => {
 
       // 푸시 알림 전송 (백그라운드에서 비동기 처리)
       // WebSocket에 연결되지 않은 사용자에게만 전송
-      logger.info(`[PushTrace] Calling sendMessageNotification for room ${roomId}`);
+      logger.info(`[PushSummary] Calling sendMessageNotification for room ${roomId} (msg: ${message.messageId})`);
       pushService.sendMessageNotification(
         roomId,
         userId,
         message.nicknameMask,
         message.content,
         message.type,
-        io // Socket.io 인스턴스 전달 (연결 상태 확인용)
+        io, // Socket.io 인스턴스 전달 (연결 상태 확인용)
+        message.messageId // Deduplication ID
       ).then(result => {
-        logger.info(`[PushTrace] sendMessageNotification completed: ${JSON.stringify(result)}`);
+        logger.info(`[PushSummary] sendMessageNotification completed: ${JSON.stringify(result)}`);
       }).catch(err => {
         logger.error('[PushSummary] 푸시 알림 전송 실패 (Handler):', err);
       });

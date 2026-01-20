@@ -3,7 +3,7 @@
  * - DB 조회, Firebase 전송, 토큰 관리 등 무거운 작업을 담당
  */
 
-const admin = require('firebase-admin');
+// const admin = require('firebase-admin'); // Removed to avoid conflict
 const { query } = require('../config/database');
 const logger = require('../utils/logger');
 const tokenService = require('./tokenService');
@@ -11,57 +11,21 @@ const { createPushPayload, PushType } = require('../constants/pushTypes');
 const redis = require('../config/redis');
 const path = require('path');
 
-let firebaseInitialized = false;
+const { admin, initializeFirebase } = require('../config/firebase');
 
-// 1. Firebase 초기화 (Worker 시작 시 실행)
-const initializeFirebase = () => {
-    if (firebaseInitialized) return;
+// 1. Firebase 초기화 (Worker 시작 시 실행 혹은 Config 로드 시 자동 실행됨)
+// Facade pattern kept for compatibility if needed, but logic delegated to config/firebase.js
+// initializeFirebase is now imported.
 
-    try {
-        const serviceAccountPath = process.env.FCM_SERVICE_ACCOUNT_PATH;
-        const serviceAccountJson = process.env.FCM_SERVICE_ACCOUNT_JSON;
-
-        if (serviceAccountPath) {
-            const resolvedPath = path.isAbsolute(serviceAccountPath)
-                ? serviceAccountPath
-                : path.resolve(process.cwd(), serviceAccountPath);
-
-            logger.info(`[PushWorker] Loading Firebase config from: ${resolvedPath}`);
-            const serviceAccount = require(resolvedPath);
-            admin.initializeApp({
-                credential: admin.credential.cert(serviceAccount)
-            });
-        } else if (serviceAccountJson) {
-            logger.info('[PushWorker] Loading Firebase config from JSON string');
-            const serviceAccount = JSON.parse(serviceAccountJson);
-            admin.initializeApp({
-                credential: admin.credential.cert(serviceAccount)
-            });
-        } else {
-            logger.warn('[PushWorker] FCM 서비스 계정이 설정되지 않았습니다.');
-            return;
-        }
-
-        firebaseInitialized = true;
-        logger.info('[PushWorker] Firebase Admin SDK Initialized');
-    } catch (error) {
-        logger.error('[PushWorker] Firebase Init Failed:', error);
-    }
-};
 
 // 2. 단일 발송 내부 함수
 const _sendToFCM = async (message) => {
-    if (!firebaseInitialized) {
-        throw new Error('Firebase not initialized');
-    }
+    // admin is singleton from config/firebase.js
     return admin.messaging().send(message);
 };
 
 // 3. 배치 발송 내부 함수
 const _sendBatchToFCM = async (message) => {
-    if (!firebaseInitialized) {
-        throw new Error('Firebase not initialized');
-    }
     return admin.messaging().sendEachForMulticast(message);
 };
 
@@ -69,12 +33,22 @@ const _sendBatchToFCM = async (message) => {
 // 핵심 로직 (Original pushService.js logic adapted)
 // ------------------------------------------------------------------
 
-const processSendMessage = async ({ roomId, senderUserId, senderNicknameMask, messageContent, messageType, excludeUserIds = [] }) => {
+const processSendMessage = async ({ roomId, senderUserId, senderNicknameMask, messageContent, messageType, excludeUserIds = [], messageId = null }) => {
+    // Deduplication Logic
+    if (messageId) {
+        const dedupKey = `push:dedup:msg:${messageId}`;
+        const isNew = await redis.set(dedupKey, '1', 'EX', 30, 'NX'); // 30s dedup
+        if (!isNew) {
+            logger.info(`[PushSummary] Duplicated job skipped for message ${messageId}`);
+            return { success: true, sent: 0, reason: 'Duplicate' };
+        }
+    }
+
     // Rate Limiting Logic
     const rateKey = `push:limit:room:${roomId}`;
     const isLimited = await redis.set(rateKey, '1', 'EX', 2, 'NX');
     if (!isLimited) {
-        logger.info(`[PushWorker] Rate limit hit for room ${roomId}`);
+        logger.info(`[PushSummary] Rate limit hit for room ${roomId}`);
         return { success: true, sent: 0, reason: 'Rate limited' };
     }
 

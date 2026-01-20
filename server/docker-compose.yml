@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   app-blue:
-    build: .
+    image: bulpankim/yeope:latest
     container_name: yeope-app-blue
     restart: always
     init: true
@@ -28,11 +28,13 @@ services:
       - ./uploads:/usr/src/app/public/uploads
       - ./src:/usr/src/app/src
       - ./logs:/usr/src/app/logs
+      - ./database:/usr/src/app/database
+      - ./public/admin:/usr/src/app/public/admin
     networks:
       - yeope-network
 
   app-green:
-    build: .
+    image: bulpankim/yeope:latest
     container_name: yeope-app-green
     restart: always
     init: true
@@ -58,6 +60,8 @@ services:
       - ./uploads:/usr/src/app/public/uploads
       - ./src:/usr/src/app/src
       - ./logs:/usr/src/app/logs
+      - ./database:/usr/src/app/database
+      - ./public/admin:/usr/src/app/public/admin
     networks:
       - yeope-network
 

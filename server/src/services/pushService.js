@@ -33,7 +33,7 @@ logger.info('[PushService] Queue Initialized');
 
 // 2. Queue Wrapper Functions
 
-const sendMessageNotification = async (roomId, senderUserId, senderNicknameMask, messageContent, messageType = 'text', io = null) => {
+const sendMessageNotification = async (roomId, senderUserId, senderNicknameMask, messageContent, messageType = 'text', io = null, messageId = null) => {
   try {
     // [Policy] Suppress Push if User is Online in Room
     let excludeUserIds = [];
@@ -62,9 +62,10 @@ const sendMessageNotification = async (roomId, senderUserId, senderNicknameMask,
       senderNicknameMask,
       messageContent,
       messageType,
-      excludeUserIds // Pass exclusion list to Worker
+      excludeUserIds, // Pass exclusion list to Worker
+      messageId
     });
-    return { success: true, queued: true };
+    return { success: true, queued: true, messageId };
   } catch (error) {
     logger.error('[PushService] Queue Error:', error);
     return { success: false, error: 'Queue Error' };

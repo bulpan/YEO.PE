@@ -23,6 +23,10 @@ import FirebaseCore
 import FirebaseMessaging
 #endif
 
+#if canImport(FirebaseAuth)
+import FirebaseAuth
+#endif
+
 class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         
@@ -39,6 +43,11 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         #if canImport(KakaoSDKCommon)
         // Replace with your native app key
         KakaoSDK.initSDK(appKey: "159b87acd87f2a049822bfdb62c3a18a")
+        #endif
+        
+        // Disable API verification for testing (Fixes Internal Error in Dev and prevents SMS costs)
+        #if DEBUG && canImport(FirebaseAuth)
+        Auth.auth().settings?.isAppVerificationDisabledForTesting = true
         #endif
         
         // Initialize Naver SDK
@@ -120,6 +129,24 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
         print("❌ Failed to register for remote notifications: \(error)")
+    }
+}
+
+// MARK: - Silent Push Notification Handling
+extension AppDelegate {
+    func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
+        
+        // Pass notification to Firebase Auth for phone verification
+        #if canImport(FirebaseAuth)
+        if Auth.auth().canHandleNotification(userInfo) {
+            completionHandler(.noData)
+            return
+        }
+        #endif
+        
+        // Handle other silent pushes here if needed
+        print("🔔 Silent Push: \(userInfo)")
+        completionHandler(.newData)
     }
 }
 

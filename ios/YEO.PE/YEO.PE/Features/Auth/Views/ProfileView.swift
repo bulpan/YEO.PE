@@ -20,6 +20,9 @@ struct ProfileView: View {
     @State private var showNicknameEdit = false
     @State private var newNickname = ""
     
+    // Phone Verification
+    @State private var showPhoneVerification = false
+    
     // Computed Properties for Settings
     private func friendlyEmail(_ email: String) -> String {
         if email.hasPrefix("apple_") {
@@ -58,7 +61,7 @@ struct ProfileView: View {
     
     var body: some View {
         ZStack {
-            Color.theme.bgMain.edgesIgnoringSafeArea(.all) // Deep Black / Concrete Gray
+            Color(UIColor.systemBackground).edgesIgnoringSafeArea(.all)
             
             ScrollView {
                 VStack(spacing: 28) { // Reduced to 70% of 40
@@ -143,7 +146,7 @@ struct ProfileView: View {
                             HStack(alignment: .center, spacing: 8) {
                                 Text(viewModel.currentUser?.displayName ?? "Anonymous")
                                     .font(.system(size: 28, weight: .black, design: .rounded))
-                                    .foregroundColor(.textPrimary)
+                                    .foregroundColor(.primary)
                                 
                                 // Nickname Edit Button
                                 Button(action: {
@@ -166,8 +169,29 @@ struct ProfileView: View {
                             if let email = viewModel.currentUser?.email {
                                 Text(friendlyEmail(email))
                                     .font(.caption)
-                                    .foregroundColor(.gray)
+                                    .foregroundColor(.secondary)
                             }
+
+                            /*
+                            // Phone Verification Badge/Button (Disabled due to cost)
+                            Button(action: { showPhoneVerification = true }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "checkmark.shield.fill")
+                                        .font(.system(size: 10))
+                                    Text(viewModel.currentUser?.phoneNumber != nil ? "verification_complete".localized : "identity_verification".localized)
+                                        .font(.caption2)
+                                        .fontWeight(.bold)
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(viewModel.currentUser?.phoneNumber != nil ? Color.neonGreen.opacity(0.2) : Color.gray.opacity(0.3))
+                                .foregroundColor(viewModel.currentUser?.phoneNumber != nil ? Color.neonGreen : .primary)
+                                .cornerRadius(8)
+                            }
+                            .fullScreenCover(isPresented: $showPhoneVerification) {
+                                PhoneVerificationView(viewModel: viewModel)
+                            }
+                            */
                         }
                         
                         // Status Badge
@@ -221,7 +245,7 @@ struct ProfileView: View {
                             ZStack(alignment: .bottomTrailing) {
                                 VStack(alignment: .leading, spacing: 12) {
                                     HStack {
-                                        Image(systemName: "dice.fill")
+                                        Image(systemName: "theatermasks.fill")
                                             .font(.title2)
                                             .foregroundColor(Color.theme.accentSecondary)
                                         Spacer()
@@ -544,7 +568,7 @@ struct NicknameEditSheet: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color.theme.bgMain.edgesIgnoringSafeArea(.all)
+                Color(UIColor.systemBackground).edgesIgnoringSafeArea(.all)
                 
                 VStack(spacing: 20) {
                     Text("edit_nickname".localized)

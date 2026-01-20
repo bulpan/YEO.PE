@@ -1,7 +1,17 @@
-/* 
-  Localizable.strings
-  YEO.PE
-*/
+
+// Phone Verification
+"identity_verification" = "Verify Identity";
+"verify_phone_title" = "Verify Phone";
+"verify_phone_subtitle" = "Enter your phone number to receive a verification code.";
+"phone_number" = "Phone Number";
+"verification_code" = "Verification Code";
+"send_code" = "Send Code";
+"verify_complete" = "Verify Complete";
+"retry_phone_number" = "Change Phone Number";
+"verification_success_message" = "Phone verification successful.";
+"alert" = "Alert";
+"verification_failed" = "Verification Failed";
+"nickname_length_error" = "Nickname must be between 2 and 20 characters.";
 
 // Common
 "cancel" = "Cancel";
@@ -32,12 +42,16 @@
 "create_account" = "Create Account";
 "login_button" = "LOGIN";
 
-// ProfileView
+// ProfileView / Edit
 "logout" = "LOGOUT";
 "user" = "User";
 "edit_nickname" = "Edit Nickname";
+"edit_profile" = "Edit Profile";
 "nickname" = "Nickname";
+"enter_nickname" = "Enter nickname";
 "nickname_hint" = "This nickname is visible to other users.";
+"public_nickname" = "Public Nickname";
+"public_nickname_desc" = "This name is shown to others.";
 
 // SettingsView
 "settings" = "Settings";
@@ -108,8 +122,8 @@
 "identity_info_tooltip" = "Setting a nickname replaces your anonymous mask (Anon#...) with your chosen name. You can change it at any time.";
 
 // Random Nickname Dialog
-"random_nickname_title" = "New Mask Generated!";
-"random_nickname_desc" = "A new ID for your anonymous journey has been generated.";
+"random_nickname_title" = "Confirm Nickname";
+"random_nickname_desc" = "Nickname: %@";
 "keep_it" = "Keep it";
 "change_nickname" = "Change";
 
@@ -229,3 +243,4 @@
 "notification" = "Notice";
 "notification" = "Notice";
 "user_has_left" = "User has left the chat.";
+

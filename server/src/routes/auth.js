@@ -11,6 +11,7 @@ const userService = require('../services/userService');
 const redis = require('../config/redis');
 const { ValidationError } = require('../utils/errors');
 const logger = require('../utils/logger');
+const { admin } = require('../config/firebase');
 
 /**
  * POST /api/auth/register
@@ -230,34 +231,42 @@ router.post('/social/:provider', async (req, res, next) => {
     let email;
     let nickname;
 
-    // Provider별 토큰 처리
-    if (provider === 'google' || provider === 'apple') {
-      // JWT 디코딩 (서명 검증은 생략하고 Payload만 확인 - MVP)
-      const jwt = require('jsonwebtoken');
-      const decoded = jwt.decode(token);
+    // Provider별 토큰 검증 및 처리
+    if (provider === 'google') {
+      // Google: ID Token 검증
+      const { OAuth2Client } = require('google-auth-library');
+      const client = new OAuth2Client(); // 클라이언트 ID는 환경변수 등에서 로드 권장
 
-      if (!decoded) {
-        throw new ValidationError('유효하지 않은 토큰입니다');
+      const ticket = await client.verifyIdToken({
+        idToken: token,
+        // audience: process.env.GOOGLE_CLIENT_ID,  // 실제 운영 시 필수 체크
+      });
+      const payload = ticket.getPayload();
+
+      providerId = payload.sub;
+      email = payload.email;
+      nickname = payload.name;
+
+    } else if (provider === 'apple') {
+      // Apple: ID Token (JWT) 검증
+      // 참고: Apple은 서명 검증을 위해 JWKS를 조회해야 함.
+      // MVP 단계에서는 Payload 디코딩 + '비암호화된' 검증만 수행하고, 추후 jwks-rsa 등으로 보강 권장
+      const jwt = require('jsonwebtoken');
+      const decoded = jwt.decode(token); // 서명 검증 없는 디코딩 (주의)
+
+      if (!decoded || !decoded.sub) {
+        throw new ValidationError('유효하지 않은 Apple 토큰입니다');
       }
 
       providerId = decoded.sub;
-      email = decoded.email;
-      nickname = decoded.name || (email ? email.split('@')[0] : `User_${providerId.substring(0, 6)}`);
-
-      if (!email) {
-        // Apple의 경우 이메일 비공개시 email이 없을 수 있음. 가상 이메일 생성
-        email = `${provider}_${providerId}@yeo.pe`;
-      }
+      email = decoded.email || `${provider}_${providerId}@yeo.pe`; // 이메일은 첫 로그인 시에만 올 수 있음
+      // Apple은 닉네임을 토큰에 안 줌 (클라이언트가 별도로 보내거나 user field에 있음)
+      nickname = `User_${providerId.substring(0, 6)}`;
 
     } else if (provider === 'kakao') {
-      // Kakao는 Access Token이므로 자체 검증 필요하지만,
-      // MVP에서는 토큰 자체를 ID로 사용하거나, 클라이언트에서 ID를 보내줘야 함.
-      // 여기서는 임시로 토큰의 해시를 ID로 사용하거나, 그냥 토큰 앞부분 사용.
-      // 실제로는 Kakao API 호출해야 함: https://kapi.kakao.com/v2/user/me
-
-      // 임시 구현: Kakao API 호출 시도 (axios 필요)
+      // Kakao: Access Token으로 사용자 정보 조회 (보안 강화)
+      const axios = require('axios');
       try {
-        const axios = require('axios');
         const kakaoRes = await axios.get('https://kapi.kakao.com/v2/user/me', {
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -266,47 +275,38 @@ router.post('/social/:provider', async (req, res, next) => {
         const kakaoAccount = kakaoRes.data.kakao_account || {};
         email = kakaoAccount.email || `kakao_${providerId}@yeo.pe`;
         nickname = (kakaoAccount.profile && kakaoAccount.profile.nickname) || `KakaoUser_${providerId}`;
-
       } catch (e) {
-        logger.warn(`Kakao API 호출 실패: ${e.message}. Mocking login.`);
-        // API 호출 실패시 (테스트용 토큰 등) Mock 처리
-        providerId = `mock_kakao_${token.substring(0, 10)}`;
-        email = `kakao_${providerId}@yeo.pe`;
-        nickname = `KakaoUser`;
+        logger.error(`Kakao API Verification Failed: ${e.response?.data?.msg || e.message}`);
+        throw new ValidationError('유효하지 않은 카카오 토큰입니다');
       }
-    } else if (provider === 'naver') {
-      // Naver Login
-      // https://developers.naver.com/docs/login/api/v1/nid/me
 
+    } else if (provider === 'naver') {
+      // Naver: Access Token으로 사용자 정보 조회 (보안 강화)
+      const axios = require('axios');
       try {
-        const axios = require('axios');
         const naverRes = await axios.get('https://openapi.naver.com/v1/nid/me', {
           headers: { Authorization: `Bearer ${token}` }
         });
 
         if (naverRes.data.resultcode !== '00') {
-          throw new Error(`Naver API Error: ${naverRes.data.message}`);
+          throw new ValidationError('유효하지 않은 네이버 토큰입니다');
         }
 
         const naverAccount = naverRes.data.response;
         providerId = naverAccount.id;
         email = naverAccount.email || `naver_${providerId}@yeo.pe`;
         nickname = naverAccount.nickname || `NaverUser_${providerId.substring(0, 6)}`;
-
       } catch (e) {
-        logger.warn(`Naver API 호출 실패: ${e.message}. Mocking login for dev/test.`);
-        // API 호출 실패시 (테스트용 토큰 등) Mock 처리
-        // 실제 운영 환경에서는 이 부분을 제거하거나 더 엄격하게 처리해야 함
-        providerId = `mock_naver_${token.substring(0, 10)}`;
-        email = `naver_${providerId}@yeo.pe`;
-        nickname = `NaverUser`;
+        logger.error(`Naver API Verification Failed: ${e.message}`);
+        throw new ValidationError('유효하지 않은 네이버 토큰입니다');
       }
+
     } else {
       throw new ValidationError('지원하지 않는 소셜 공급자입니다');
     }
 
     // 사용자 로그인/생성
-    const user = await userService.loginSocialUser(provider, providerId, email, nickname);
+    const { user, isNewUser } = await userService.loginSocialUser(provider, providerId, email, nickname);
 
     // JWT 토큰 생성
     const accessToken = generateAccessToken({
@@ -330,6 +330,7 @@ router.post('/social/:provider', async (req, res, next) => {
     res.json({
       token: accessToken,
       refreshToken: refreshToken,
+      isNewUser: isNewUser,
       user: {
         id: user.id,
         email: user.email,
@@ -339,6 +340,52 @@ router.post('/social/:provider', async (req, res, next) => {
     });
 
   } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/auth/verify/phone
+ * Firebase Phone Auth ID Token 검증 및 전화번호 연동
+ */
+router.post('/verify/phone', authenticate, async (req, res, next) => {
+  try {
+    const { idToken } = req.body;
+    const userId = req.user.userId;
+
+    if (!idToken) {
+      throw new ValidationError('Firebase ID Token이 필요합니다');
+    }
+
+    // 1. Firebase Admin으로 토큰 검증
+    if (!admin) {
+      throw new Error('Firebase Admin이 초기화되지 않았습니다. 서버 설정을 확인해주세요.');
+    }
+
+    logger.info(`[PhoneAuth] Verifying token for user ${userId}...`);
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const phoneNumber = decodedToken.phone_number;
+
+    if (!phoneNumber) {
+      throw new ValidationError('유효한 전화번호가 포함되지 않은 토큰입니다');
+    }
+
+    logger.info(`[PhoneAuth] Token verified. Phone: ${phoneNumber}`);
+
+    // 2. User DB 업데이트
+    await userService.updateUserPhoneNumber(userId, phoneNumber);
+
+    res.json({
+      success: true,
+      message: '본인인증(전화번호)이 완료되었습니다.',
+      phoneNumber
+    });
+
+  } catch (error) {
+    if (error.code && error.code.startsWith('auth/')) {
+      logger.error(`[PhoneAuth] Firebase Error: ${error.code} - ${error.message}`);
+      return next(new ValidationError('유효하지 않거나 만료된 인증 토큰입니다.'));
+    }
     next(error);
   }
 });

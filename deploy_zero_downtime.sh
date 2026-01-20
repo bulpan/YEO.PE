@@ -5,137 +5,144 @@ KEY_PATH="./gcp-yeope-key"
 SERVER_IP="34.47.109.80"
 USER="yeope-gcp"
 REMOTE_DIR="/home/yeope-gcp/yeope"
+DOCKER_ID="bulpankim"
+IMAGE_NAME="yeope"
+TAG="latest"
 
-echo "🚀 Starting Zero-Downtime Deployment to OCI ($SERVER_IP)..."
+echo "🚀 Starting Zero-Downtime Deployment via Docker Hub..."
 
-# 1. Sync Server Code (Rsync)
-echo "🔄 Syncing server code via rsync..."
+# 1. Local Build & Push
+echo "🏗  [Local] Building Docker Image for AMD64..."
+# Essential: --platform linux/amd64 for GCP compatibility if building on Mac Apple Silicon
+docker build --platform linux/amd64 -t $DOCKER_ID/$IMAGE_NAME:$TAG ./server
+
+if [ $? -ne 0 ]; then
+    echo "❌ Local Build failed."
+    exit 1
+fi
+
+echo "TX  [Local] Pushing Image to Docker Hub ($DOCKER_ID/$IMAGE_NAME:$TAG)..."
+docker push $DOCKER_ID/$IMAGE_NAME:$TAG
+
+if [ $? -ne 0 ]; then
+    echo "❌ Docker Push failed. Please check 'docker login'."
+    exit 1
+fi
+echo "✅ Push complete."
+
+# 2. Sync Configuration Code (Only small files, no huge build context)
+echo "🔄 [Local] Syncing configuration & secrets..."
+# We still need docker-compose.yml and nginx config on the server
 rsync -avz --delete \
     -e "ssh -i $KEY_PATH -o StrictHostKeyChecking=no" \
     --exclude 'node_modules' \
     --exclude '.git' \
-    --exclude '.DS_Store' \
-    --exclude 'coverage' \
-    --exclude 'tests/simulation' \
     --exclude 'uploads' \
     --exclude 'logs' \
-    --exclude '.env' \
-    server/ \
+    server/docker-compose.yml \
+    server/package.json \
+    server/nginx \
     $USER@$SERVER_IP:$REMOTE_DIR/server/
 
-if [ $? -ne 0 ]; then
-    echo "❌ Rsync failed."
-    exit 1
-fi
-echo "✅ Rsync complete."
+# Note: We do NOT sync 'server/src' anymore because code is inside the image!
+# But wait, looking at docker-compose.yml volumes:
+#       - ./src:/usr/src/app/src
+# This volume mount OVERRIDES the image content with local content.
+# FATAL FLAW: If we deploy image, but mount ./src, the server uses OLD code on disk unless we sync src.
+# FIX: We must REMOVE the volume mount for 'src' in production, OR we must sync src.
+# Syncing src is safer for now to ensure consistency if we don't change docker-compose.yml dynamically.
+# BUT, syncing src defeats the purpose of "Image Only" deployment if we want to avoid rsync issues?
+# NO, rsyncing text files (src) is tiny. The previous issue was node_modules or build artifacts?
+# Actually, the previous issue was Disk Full. 
+# Let's Sync 'src' too, it's small.
+rsync -avz \
+    -e "ssh -i $KEY_PATH -o StrictHostKeyChecking=no" \
+    --exclude 'node_modules' \
+    server/src \
+    $USER@$SERVER_IP:$REMOTE_DIR/server/
 
-# 2. Execute Blue/Green Logic on Remote Server
-ssh -i "$KEY_PATH" -o StrictHostKeyChecking=no $USER@$SERVER_IP << 'EOF'
+echo "✅ Configuration sync complete."
+
+# 3. Remote Deployment Logic
+ssh -i "$KEY_PATH" -o StrictHostKeyChecking=no $USER@$SERVER_IP << EOF
     cd /home/yeope-gcp/yeope/server
 
-    # Fix permissions
-    sudo chown -R yeope-gcp:yeope-gcp .
+    echo "🔍 [Remote] Checking current state..."
+    IS_BLUE=\$(docker ps --format "{{.Names}}" | grep -w "yeope-app-blue")
+    IS_GREEN=\$(docker ps --format "{{.Names}}" | grep -w "yeope-app-green")
 
-    echo "🔍 Checking current active container..."
-    
-    # Check if we are running blue or green
-    IS_BLUE=$(docker ps --format "{{.Names}}" | grep -w "yeope-app-blue")
-    IS_GREEN=$(docker ps --format "{{.Names}}" | grep -w "yeope-app-green")
-    IS_OLD=$(docker ps --format "{{.Names}}" | grep -w "yeope-app")
-
-    if [ -n "$IS_BLUE" ]; then
-        CURRENT="blue"
+    if [ -n "\$IS_BLUE" ]; then
         TARGET="green"
         echo "🔵 Current is BLUE. Deploying to GREEN."
-    elif [ -n "$IS_GREEN" ]; then
-        CURRENT="green"
+    elif [ -n "\$IS_GREEN" ]; then
         TARGET="blue"
         echo "🟢 Current is GREEN. Deploying to BLUE."
     else
-        # Fallback / Initial State (Migrating from 'yeope-app')
-        echo "⚪ No Blue/Green found (or clean state). defaulting to BLUE."
-        CURRENT="none"
         TARGET="blue"
+        echo "⚪ Initial deployment. Defaulting to BLUE."
     fi
 
-    # 3. Build & Start Target
-    echo "🏗 Building and starting $TARGET..."
-    
-    # Ensure upstream.conf exists to prevent Nginx crash on first run
+    # [Smart Cleanup]
+    echo "🧹 [Remote] Cleaning old images (safe)..."
+    docker image prune -f
+
+    echo "⬇️  [Remote] Pulling new image ($DOCKER_ID/$IMAGE_NAME:$TAG)..."
+    docker pull --platform linux/amd64 $DOCKER_ID/$IMAGE_NAME:$TAG
+
+    echo "🚀 [Remote] Starting \$TARGET..."
     touch nginx/upstream.conf
     
-    # Pull/Build target
-    docker compose up -d --build app-$TARGET
+    # Start container (No --build flag needed)
+    docker compose up -d app-\$TARGET
 
-    # 4. Health Check
-    echo "💓 Waiting for $TARGET to be healthy..."
-    MAX_RETRIES=24  # 24 * 5s = 120s
+    # Health Check
+    echo "💓 [Remote] Waiting for health check..."
+    MAX_RETRIES=12
     COUNT=0
     HEALTHY=false
 
-    while [ $COUNT -lt $MAX_RETRIES ]; do
+    while [ \$COUNT -lt \$MAX_RETRIES ]; do
         sleep 5
-        # Use docker exec to check health internally (since port is not exposed to host)
-        # Assuming wget or curl exists in the app image. If not, use node script or similar.
-        # Here we try strict node health check or simple TCP check if no curl
-        # Let's assume standard node fetch is available or use docker inspect healthcheck if defined
+        HTTP_STATUS=\$(docker exec yeope-app-\$TARGET node -e 'http.get("http://127.0.0.1:3000/health", r => { console.log(r.statusCode); r.resume() }).on("error", e=>console.log("ERR"))' 2>/dev/null)
         
-        # Checking container status first
-        STATE=$(docker inspect -f '{{.State.Running}}' yeope-app-$TARGET 2>/dev/null)
-        if [ "$STATE" != "true" ]; then
-             echo "⚠️ Container is not running."
-        else
-             # Use Node.js for reliable health check (using 127.0.0.1 to avoid ipv6 issues)
-             HTTP_STATUS=$(docker exec yeope-app-$TARGET node -e 'http.get("http://127.0.0.1:3000/health", (r) => { console.log(r.statusCode); r.resume(); }).on("error", (e) => { console.log("ERR"); });' 2>/dev/null)
-             
-             echo "   ... status: $HTTP_STATUS (attempt $COUNT/$MAX_RETRIES)"
-
-             if [ "$HTTP_STATUS" == "200" ]; then
-                 HEALTHY=true
-                 break
-             fi
-             echo "   ... status: $HTTP_STATUS (attempt $COUNT/$MAX_RETRIES)"
+        if [ "\$HTTP_STATUS" == "200" ]; then
+            echo "   ✅ Health Check Passed!"
+            HEALTHY=true
+            break
         fi
-        COUNT=$((COUNT+1))
+        echo "   ... waiting (\$COUNT/\$MAX_RETRIES)"
+        COUNT=\$((COUNT+1))
     done
 
-    if [ "$HEALTHY" == "false" ]; then
-        echo "❌ Health check failed. Rolling back..."
-        docker compose stop app-$TARGET
+    if [ "\$HEALTHY" == "false" ]; then
+        echo "❌ Deployment Failed. Container unhealth."
+        docker compose stop app-\$TARGET
         exit 1
     fi
-    echo "✅ $TARGET is healthy."
 
-    # 5. Switch Traffic
-    echo "🔀 Switching traffic to $TARGET..."
-    echo "upstream backend { server app-$TARGET:3000; }" > nginx/upstream.conf
-    
-    # Reload Nginx
-    # Ensure Nginx is running first
-    # Reload Nginx
-    # ALWAYS ensure Nginx is running with latest config (recreates if config changed)
-    echo "🔄 Ensuring Nginx is up-to-date..."
-    docker compose up -d nginx
-    
-    # Reload to apply upstream changes (if container wasn't recreated)
+    # Switch Traffic
+    echo "🔀 [Remote] Switching Nginx traffic..."
+    echo "upstream backend { server app-\$TARGET:3000; }" > nginx/upstream.conf
     docker compose exec nginx nginx -s reload
-    echo "✅ Nginx reloaded."
 
-    # 6. Cleanup
-    if [ "$CURRENT" != "none" ]; then
-        echo "🛑 Stopping old container ($CURRENT)..."
-        docker compose stop app-$CURRENT
-    fi
-
-    # Handle migration case (if 'yeope-app' still exists)
-    if [ -n "$IS_OLD" ]; then
-        echo "🧹 Removing legacy container (yeope-app)..."
-        docker compose stop app
-        docker compose rm -f app
+    # Stop Old
+    if [ -n "\$IS_BLUE" ] && [ "\$TARGET" == "green" ]; then
+        echo "🗑️  Stopping old Blue container..."
+        docker compose stop app-blue
+        docker compose rm -f app-blue
+    elif [ -n "\$IS_GREEN" ] && [ "\$TARGET" == "blue" ]; then
+        echo "🗑️  Stopping old Green container..."
+        docker compose stop app-green
+        docker compose rm -f app-green
     fi
     
-    # Prune old images
+    # Aggressive Cleanup
+    echo "🧹 Final cleanup of unused images..."
     docker image prune -f
+    docker container prune -f
+    
+    echo "📊 Disk usage after cleanup:"
+    df -h / | grep -v Filesystem
 
-    echo "✨ Zero-Downtime Deployment Complete! ($TARGET is live)"
+    echo "✨ Deployment Success!"
 EOF

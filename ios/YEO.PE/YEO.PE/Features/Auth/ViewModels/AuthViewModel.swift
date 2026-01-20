@@ -2,6 +2,9 @@ import Foundation
 import Combine
 import UIKit
 
+import FirebaseAuth
+
+
 class AuthViewModel: ObservableObject {
     @Published var email = ""
     @Published var password = ""
@@ -9,6 +12,9 @@ class AuthViewModel: ObservableObject {
     @Published var isLoggedIn = false
     @Published var isLoading = false
     @Published var errorMessage: String?
+    
+    @Published var showRandomNicknameToast = false
+    @Published var nicknameForConfirmation: String = ""
     
     @Published var keepLoggedIn = true // Default to true for better background experience
     @Published var currentUser: User? {
@@ -136,7 +142,10 @@ class AuthViewModel: ObservableObject {
                     APIService.shared.registerFCMToken(token: nil) // Register cached token
                     
                     // Check for random nickname
-                    if let nick = response.user.nickname {
+                    if response.isNewUser == true {
+                        self.nicknameForConfirmation = response.user.nickname ?? ""
+                        self.showRandomNicknameToast = true
+                    } else if let nick = response.user.nickname {
                          if nick.hasPrefix("User_") || nick.hasPrefix("KakaoUser") || nick.hasPrefix("NaverUser") {
                              self.showRandomNicknameToast = true
                          }
@@ -201,7 +210,6 @@ class AuthViewModel: ObservableObject {
     }
     
     // Dedicated property for random nickname toast
-    @Published var showRandomNicknameToast = false
     
     func updateProfile(nickname: String? = nil, nicknameMask: String? = nil, completion: @escaping (Bool) -> Void) {
         isLoading = true
@@ -344,4 +352,116 @@ class AuthViewModel: ObservableObject {
             }
         }
     }
+    
+    // MARK: - Phone Authentication
+#if canImport(FirebaseAuth)
+    
+    func sendPhoneVerificationCode(_ phoneNumber: String, completion: @escaping (Result<String, Error>) -> Void) {
+        // Format check: iOS Firebase SDK usually prefers E.164 (e.g., +821012345678)
+        // If user enters 010-1234-5678, we should probably format it or expect user to type +82...
+        // For MVP, assuming user might type clean number.
+        
+        print("📱 Attempting to verify phone number: \(phoneNumber)")
+        PhoneAuthProvider.provider().verifyPhoneNumber(phoneNumber, uiDelegate: nil) { verificationID, error in
+            if let error = error {
+                print("❌ Firebase Phone Auth Error (send):")
+                print("   - Code: \((error as NSError).code)")
+                print("   - Domain: \((error as NSError).domain)")
+                print("   - Description: \(error.localizedDescription)")
+                completion(.failure(error))
+                return
+            }
+            if let verificationID = verificationID {
+                print("✅ Phone Auth Code Sent. VerificationID: \(verificationID)")
+                completion(.success(verificationID))
+            }
+        }
+    }
+    
+    func verifyPhoneCode(verificationID: String, code: String, completion: @escaping (Bool) -> Void) {
+        isLoading = true
+        let credential = PhoneAuthProvider.provider().credential(
+            withVerificationID: verificationID,
+            verificationCode: code
+        )
+        
+        // Sign in with Firebase (This verifies the code)
+        Auth.auth().signIn(with: credential) { [weak self] authResult, error in
+            if let error = error {
+                print("❌ Firebase Phone Auth Error (verify):")
+                print("   - Code: \((error as NSError).code)")
+                print("   - Domain: \((error as NSError).domain)")
+                print("   - Description: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self?.isLoading = false
+                    self?.errorMessage = error.localizedDescription
+                    completion(false)
+                }
+                return
+            }
+            
+            // Success Firebase Auth -> Get ID Token
+            authResult?.user.getIDToken { token, error in
+                if let error = error {
+                    DispatchQueue.main.async {
+                        self?.isLoading = false
+                        self?.errorMessage = "Failed to get ID Token: \(error.localizedDescription)"
+                        completion(false)
+                    }
+                    return
+                }
+                
+                if let token = token {
+                    // Send Token to our Server
+                    self?.completeServerPhoneVerification(idToken: token, completion: completion)
+                }
+            }
+        }
+    }
+    
+    private func completeServerPhoneVerification(idToken: String, completion: @escaping (Bool) -> Void) {
+        let body = ["idToken": idToken]
+        
+        APIService.shared.request("/auth/verify/phone", method: "POST", body: body) { [weak self] (result: Result<PhoneVerificationResponse, Error>) in
+            // Decode server response as PhoneVerificationResponse { success, phoneNumber, message }
+            DispatchQueue.main.async {
+                self?.isLoading = false
+                switch result {
+                case .success(let response):
+                    guard response.success else {
+                        self?.errorMessage = response.message ?? "Phone verification failed"
+                        completion(false)
+                        return
+                    }
+                    // Optionally log phone number
+                    if let phone = response.phoneNumber { print("✅ Phone verified: \(phone)") }
+                    // Update current user profile in case phone number was added
+                    self?.fetchProfile()
+                    completion(true)
+                case .failure(let error):
+                    self?.errorMessage = error.localizedDescription
+                    completion(false)
+                }
+            }
+        }
+    }
+#else
+    // Fallbacks when FirebaseAuth is not available
+    func sendPhoneVerificationCode(_ phoneNumber: String, completion: @escaping (Result<String, Error>) -> Void) {
+        let error = NSError(domain: "Auth", code: -1, userInfo: [NSLocalizedDescriptionKey: "Phone verification requires FirebaseAuth. Please add FirebaseAuth to the project or enable the target that includes it."])
+        completion(.failure(error))
+    }
+
+    func verifyPhoneCode(verificationID: String, code: String, completion: @escaping (Bool) -> Void) {
+        self.errorMessage = "Phone verification requires FirebaseAuth."
+        completion(false)
+    }
+#endif
+}
+
+// Helper Response Struct for Phone Verification (Internal)
+struct PhoneVerificationResponse: Decodable {
+    let success: Bool
+    let message: String?
+    let phoneNumber: String?
 }

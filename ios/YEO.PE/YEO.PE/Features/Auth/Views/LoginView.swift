@@ -86,7 +86,7 @@ struct LoginView: View {
                 } else {
                     NeonButton(title: "login_button".localized, action: {
                         viewModel.login()
-                    }, color: .gray, textColor: .white)
+                    }) // Removed hardcoded color/textColor to use NeonButton's new adaptive defaults
                 }
                 
                 VStack(spacing: 12) {
@@ -158,7 +158,7 @@ struct LoginView: View {
             }
             .padding()
         }
-        .sheet(isPresented: $isShowingRegister) {
+        . sheet(isPresented: $isShowingRegister) {
             RegisterView(viewModel: viewModel)
         }
         .onChange(of: viewModel.isLoggedIn) { isLoggedIn in

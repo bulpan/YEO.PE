@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		CE8461562F1E7E3C00607C56 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = CE8461552F1E7E3C00607C56 /* FirebaseAuth */; };
 		F4D05DC12ED9CA4E0044AACC /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = F4D05DC02ED9CA4E0044AACC /* SocketIO */; };
 		F4D05DC42ED9CAF30044AACC /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = F4D05DC32ED9CAF30044AACC /* FirebaseCrashlytics */; };
 		F4D05DC62ED9CAF30044AACC /* FirebaseInAppMessaging-Beta in Frameworks */ = {isa = PBXBuildFile; productRef = F4D05DC52ED9CAF30044AACC /* FirebaseInAppMessaging-Beta */; };
@@ -44,6 +45,7 @@
 				F4D05DC42ED9CAF30044AACC /* FirebaseCrashlytics in Frameworks */,
 				F4D05DE12ED9D7860044AACC /* KakaoSDKCommon in Frameworks */,
 				F4D05DC62ED9CAF30044AACC /* FirebaseInAppMessaging-Beta in Frameworks */,
+				CE8461562F1E7E3C00607C56 /* FirebaseAuth in Frameworks */,
 				F4D05DCA2ED9CAF30044AACC /* FirebaseRemoteConfig in Frameworks */,
 				F4D05DDA2ED9D6C80044AACC /* GoogleSignIn in Frameworks */,
 				F4D05DE32ED9D7860044AACC /* KakaoSDKUser in Frameworks */,
@@ -54,10 +56,18 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		CE8461542F1E7D1A00607C56 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		F4D05D7F2ED9C7F70044AACC = {
 			isa = PBXGroup;
 			children = (
 				F4D05D8A2ED9C7F70044AACC /* YEO.PE */,
+				CE8461542F1E7D1A00607C56 /* Frameworks */,
 				F4D05D892ED9C7F70044AACC /* Products */,
 			);
 			sourceTree = "<group>";
@@ -102,6 +112,7 @@
 				F4D05DE02ED9D7860044AACC /* KakaoSDKCommon */,
 				F4D05DE22ED9D7860044AACC /* KakaoSDKUser */,
 				F4D05DE52ED9D7DC0044AACC /* NaverThirdPartyLogin */,
+				CE8461552F1E7E3C00607C56 /* FirebaseAuth */,
 			);
 			productName = YEO.PE;
 			productReference = F4D05D882ED9C7F70044AACC /* YEO.PE.app */;
@@ -476,6 +487,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		CE8461552F1E7E3C00607C56 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F4D05DC22ED9CAF30044AACC /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
 		F4D05DC02ED9CA4E0044AACC /* SocketIO */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = F4D05DBF2ED9CA4E0044AACC /* XCRemoteSwiftPackageReference "socket" */;

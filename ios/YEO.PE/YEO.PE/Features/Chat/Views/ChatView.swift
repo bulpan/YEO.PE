@@ -182,11 +182,11 @@ struct ChatView: View {
                 VStack(spacing: 20) {
                     Text("leave_room".localized)
                         .font(.headline)
-                        .foregroundColor(.white)
+                        .foregroundColor(Color.theme.textPrimary)
                     
                     Text("leave_room_confirm".localized)
                         .font(.subheadline)
-                        .foregroundColor(.gray)
+                        .foregroundColor(Color.theme.textSecondary)
                         .multilineTextAlignment(.center)
                     
                     HStack(spacing: 20) {
@@ -195,12 +195,12 @@ struct ChatView: View {
                             withAnimation { showLeaveConfirmation = false }
                         }) {
                             Text("cancel".localized)
-                                .foregroundColor(.white)
+                                .foregroundColor(Color.theme.textPrimary)
                                 .padding(.vertical, 10)
                                 .padding(.horizontal, 20)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color.gray, lineWidth: 1)
+                                        .stroke(Color.theme.borderPrimary, lineWidth: 1)
                                 )
                         }
                         
@@ -218,7 +218,7 @@ struct ChatView: View {
                                 .foregroundColor(.white)
                                 .padding(.vertical, 10)
                                 .padding(.horizontal, 20)
-                                .background(Color.red)
+                                .background(Color.theme.signalRed)
                                 .cornerRadius(8)
                         }
                     }

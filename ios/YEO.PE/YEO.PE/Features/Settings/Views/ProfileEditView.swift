@@ -79,7 +79,7 @@ struct ProfileEditView: View {
                                 }
                             }
                         }) {
-                            Image(systemName: "dice.fill")
+                            Image(systemName: "theatermasks.fill")
                                 .font(.title2)
                                 .foregroundColor(.neonGreen)
                                 .frame(width: 50, height: 50)
@@ -122,7 +122,7 @@ struct ProfileEditView: View {
         // Validation
         let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.count < 2 || trimmed.count > 20 {
-            errorMessage = "Nickname must be between 2 and 20 characters."
+            errorMessage = "nickname_length_error".localized
             return
         }
         

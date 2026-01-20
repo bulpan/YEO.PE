@@ -27,13 +27,28 @@ const logger = winston.createLogger({
   ]
 });
 
-// 모든 환경에서 파일에 로그 저장 (Admin Console용)
-logger.add(
-  new winston.transports.File({ filename: 'logs/error.log', level: 'error' })
-);
-logger.add(
-  new winston.transports.File({ filename: 'logs/combined.log' })
-);
+// Log Rotation Implementation
+require('winston-daily-rotate-file');
+
+const errorTransport = new winston.transports.DailyRotateFile({
+  filename: 'logs/error-%DATE%.log',
+  datePattern: 'YYYY-MM-DD',
+  level: 'error',
+  zippedArchive: true, // 압축 저장
+  maxSize: '20m',      // 파일당 최대 20MB
+  maxFiles: '14d'      // 14일치만 보관
+});
+
+const combinedTransport = new winston.transports.DailyRotateFile({
+  filename: 'logs/combined-%DATE%.log',
+  datePattern: 'YYYY-MM-DD',
+  zippedArchive: true,
+  maxSize: '20m',
+  maxFiles: '14d'
+});
+
+logger.add(errorTransport);
+logger.add(combinedTransport);
 
 module.exports = logger;
 

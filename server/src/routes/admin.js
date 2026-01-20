@@ -375,19 +375,34 @@ router.get('/logs', (req, res, next) => {
         // Assuming logs are in logs/combined.log or similar from Winston
         // Adjust path based on where logger saves files
         const logDir = path.join(__dirname, '../../logs');
-        const logFile = path.join(logDir, 'combined.log'); // or error.log
 
-        console.log(`[Debug] Log Path Check: ${logFile}, Exists: ${fs.existsSync(logFile)}`);
+        // Robust discovery: Find the most recently modified combined log file
+        let logFiles = [];
+        try {
+            if (fs.existsSync(logDir)) {
+                logFiles = fs.readdirSync(logDir)
+                    .filter(f => f.startsWith('combined') && f.endsWith('.log'))
+                    .map(f => ({
+                        name: f,
+                        path: path.join(logDir, f),
+                        mtime: fs.statSync(path.join(logDir, f)).mtime
+                    }))
+                    .sort((a, b) => b.mtime - a.mtime);
+            }
+        } catch (e) {
+            console.error('[AdminLogs] Error reading log directory:', e);
+        }
 
+        let logFile = logFiles.length > 0 ? logFiles[0].path : path.join(logDir, 'combined.log');
 
         if (!fs.existsSync(logFile)) {
             return res.json({ logs: [] });
         }
 
-        // Read last 10KB or so
+        // Read last 200KB to ensure we catch recent events
         const stats = fs.statSync(logFile);
         const size = stats.size;
-        const start = Math.max(0, size - 20000); // Last 20KB
+        const start = Math.max(0, size - 200000); // Last 200KB (increased from 20KB)
 
         const stream = fs.createReadStream(logFile, { start, encoding: 'utf8' });
         let data = '';
@@ -408,14 +423,19 @@ router.get('/logs', (req, res, next) => {
 
             // Optional: Filter by query
             const filter = req.query.filter;
+            const search = filter;
+
             if (filter) {
-                // SPECIAL HANDLING: If frontend asks for 'PushSummary', search for 'Push' to include all worker logs
-                let search = filter;
                 if (filter === 'PushSummary') {
-                    search = 'Push';
+                    // Match 'Push', 'FCM', or 'Worker' for push-related logs
+                    const filtered = parsedLogs.filter(logStr =>
+                        /Push|FCM|Worker/i.test(logStr)
+                    );
+                    res.json({ logs: filtered });
+                } else {
+                    const filtered = parsedLogs.filter(logStr => logStr.toLowerCase().includes(search.toLowerCase()));
+                    res.json({ logs: filtered });
                 }
-                const filtered = parsedLogs.filter(logStr => logStr.includes(search));
-                res.json({ logs: filtered });
             } else {
                 res.json({ logs: parsedLogs });
             }
@@ -551,6 +571,52 @@ router.post('/settings', async (req, res, next) => {
         }
 
         res.json({ success: true, message: 'Settings updated' });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * Archived Messages Search
+ * GET /api/admin/archives/messages
+ */
+router.get('/archives/messages', async (req, res, next) => {
+    try {
+        const { userId, keyword, limit = 50 } = req.query;
+
+        let queryText = `
+            SELECT 
+                am.*, 
+                ar.name as room_name,
+                u.nickname as user_nickname,
+                u.email as user_email
+            FROM yeope_schema.archived_messages am
+            LEFT JOIN yeope_schema.archived_rooms ar ON am.room_id = ar.id
+            LEFT JOIN yeope_schema.users u ON am.user_id = u.id
+            WHERE 1=1
+        `;
+
+        const params = [];
+        let paramIndex = 1;
+
+        if (userId) {
+            queryText += ` AND am.user_id = $${paramIndex}`;
+            params.push(userId);
+            paramIndex++;
+        }
+
+        if (keyword) {
+            // Simple content search
+            queryText += ` AND am.content ILIKE $${paramIndex}`;
+            params.push(`%${keyword}%`);
+            paramIndex++;
+        }
+
+        queryText += ` ORDER BY am.created_at DESC LIMIT $${paramIndex}`;
+        params.push(limit);
+
+        const result = await pool.query(queryText, params);
+        res.json(result.rows);
     } catch (error) {
         next(error);
     }
