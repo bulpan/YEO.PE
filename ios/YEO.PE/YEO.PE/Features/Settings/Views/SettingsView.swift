@@ -21,6 +21,7 @@ struct SettingsView: View {
     @State private var showBlockedUsers = false
     @State private var showOpenSource = false
     @State private var showLogoutConfirmation = false
+    @State private var inquiryUnreadCount: Int = 0
     
     // Alert Type for Single Alert Pattern
     enum AlertType: Identifiable {
@@ -67,6 +68,41 @@ struct SettingsView: View {
                         notificationSection
                         messageSection
                         privacySection
+                        
+                        // Support Section
+                        VStack(alignment: .leading, spacing: 15) {
+                            Text("settings_header_support".localized)
+                                .font(.radarCaption)
+                                .foregroundColor(Color.theme.textSecondary)
+                                .padding(.leading, 4)
+                            
+                            VStack(spacing: 0) {
+                                NavigationLink(destination: InquiryListView()) {
+                                    HStack {
+                                        Text("contact_us".localized) // "1:1 문의"
+                                            .foregroundColor(Color.theme.textPrimary)
+                                        Spacer()
+                                        if inquiryUnreadCount > 0 {
+                                            Text("N")
+                                                .font(.caption2)
+                                                .fontWeight(.bold)
+                                                .foregroundColor(.white)
+                                                .padding(6)
+                                                .background(Circle().fill(Color.red))
+                                        }
+                                        Image(systemName: "chevron.right")
+                                            .font(.caption)
+                                            .foregroundColor(Color.theme.textSecondary)
+                                    }
+                                    .padding()
+                                    .background(Color.theme.bgLayer1)
+                                }
+                            }
+                            .cornerRadius(12)
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.theme.borderSubtle, lineWidth: 1))
+                        }
+                        .padding(.horizontal)
+                        
                         legalSection
                         accountSection // 맨 아래로 이동
                     }
@@ -287,7 +323,7 @@ struct SettingsView: View {
     
     var notificationSection: some View {
         VStack(alignment: .leading, spacing: 15) {
-            Text("notifications".localized) // "Notifications"
+            Text("settings_header_notification".localized) // "Notification Settings"
                 .font(.radarCaption)
                 .foregroundColor(Color.theme.textSecondary)
                 .padding(.leading, 4)
@@ -399,7 +435,7 @@ struct SettingsView: View {
     
     var accountSection: some View {
         VStack(alignment: .leading, spacing: 15) {
-            Text("account".localized)
+            Text("settings_header_account".localized)
                 .font(.radarCaption)
                 .foregroundColor(Color.theme.textSecondary)
                 .padding(.leading, 4)

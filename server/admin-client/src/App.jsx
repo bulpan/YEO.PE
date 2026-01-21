@@ -11,6 +11,7 @@ import BlockedUsers from './pages/BlockedUsers';
 import Appeals from './pages/Appeals';
 import Settings from './pages/Settings';
 import ArchivedMessages from './pages/ArchivedMessages';
+import Inquiries from './pages/Inquiries'; // Import Inquiries
 import Layout from './components/Layout';
 
 function PrivateRoute({ children }) {
@@ -84,11 +85,8 @@ export default function App() {
           </PrivateRoute>
         } />
 
-        <Route path="/archives" element={
-          <PrivateRoute>
-            <ArchivedMessages />
-          </PrivateRoute>
-        } />
+        <Route path="/archives" element={<PrivateRoute><ArchivedMessages /></PrivateRoute>} />
+        <Route path="/inquiries" element={<PrivateRoute><Inquiries /></PrivateRoute>} />
       </Routes>
     </BrowserRouter>
   );

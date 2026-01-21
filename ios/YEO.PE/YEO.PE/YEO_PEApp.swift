@@ -21,6 +21,18 @@ import NaverThirdPartyLogin
 struct YEO_PEApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
+    init() {
+        #if canImport(NaverThirdPartyLogin)
+        let instance = NaverThirdPartyLoginConnection.getSharedInstance()
+        instance?.isNaverAppOauthEnable = true
+        instance?.isInAppOauthEnable = true
+        instance?.serviceUrlScheme = "yeope" 
+        instance?.consumerKey = "YYUxrPRGNFnyWSACh5fc"
+        instance?.consumerSecret = "Klvg0QI6I4"
+        instance?.appName = "YEO.PE"
+        #endif
+    }
+    
     // Global State
     @StateObject private var themeManager = ThemeManager.shared
     @State private var showSplash = true

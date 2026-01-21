@@ -29,7 +29,8 @@ services:
       - ./src:/usr/src/app/src
       - ./logs:/usr/src/app/logs
       - ./database:/usr/src/app/database
-      - ./public/admin:/usr/src/app/public/admin
+      # - ./public/admin:/usr/src/app/public/admin (Removed to use image version)
+      - ./config:/usr/src/app/config
     networks:
       - yeope-network
 
@@ -61,7 +62,8 @@ services:
       - ./src:/usr/src/app/src
       - ./logs:/usr/src/app/logs
       - ./database:/usr/src/app/database
-      - ./public/admin:/usr/src/app/public/admin
+      # - ./public/admin:/usr/src/app/public/admin (Removed to use image version)
+      - ./config:/usr/src/app/config
     networks:
       - yeope-network
 

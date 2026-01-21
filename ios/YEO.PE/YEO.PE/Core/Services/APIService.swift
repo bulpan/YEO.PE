@@ -13,6 +13,40 @@ enum APIError: Error {
 class APIService {
     static let shared = APIService()
     
+    // MARK: - Inquiries
+    
+    func fetchMyInquiries(completion: @escaping (Result<[Inquiry], Error>) -> Void) {
+        request("/inquiries/my", method: "GET", completion: completion)
+    }
+    
+    func createInquiry(category: Inquiry.Category, content: String, completion: @escaping (Result<Inquiry, Error>) -> Void) {
+        let body: [String: Any] = [
+            "category": category.rawValue,
+            "content": content
+        ]
+        request("/inquiries", method: "POST", body: body, completion: completion)
+    }
+    
+    func getInquiryUnreadCount(completion: @escaping (Result<Int, Error>) -> Void) {
+        // Defines a response struct locally for this call
+        struct CountResponse: Decodable {
+            let count: Int
+        }
+        
+        request("/inquiries/unread-count", method: "GET") { (result: Result<CountResponse, Error>) in
+            switch result {
+            case .success(let response):
+                completion(.success(response.count))
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
+    }
+    
+    func getInquiryDetail(id: String, completion: @escaping (Result<Inquiry, Error>) -> Void) {
+         request("/inquiries/\(id)", method: "GET", completion: completion)
+    }
+
     // Debug Subject
     let debugMessageSubject = PassthroughSubject<String, Never>()
     

@@ -27,6 +27,9 @@ struct MainView: View {
     @State private var keyboardHeight: CGFloat = 0 // Track keyboard height
     @FocusState private var isInputFocused: Bool // Added FocusState
     
+    // Throttling
+    @State private var lastRefreshTime: Date?
+    
     // Notice Popup State
     @State private var showNoticePopup = false
     @State private var noticeContent: LocalizedContent?
@@ -46,20 +49,6 @@ struct MainView: View {
         withAnimation {
             isBoosting = true
         }
-
-// ... inside body ...
-
-                             TextEditor(text: $quickQuestionText)
-                                 .focused($isInputFocused) // Attach FocusState
-                                 .frame(height: 60)
-                                 .scrollContentBackground(.hidden)
-                                 .padding(8)
-                                 .background(Color.theme.bgLayer2)
-                                 .cornerRadius(8)
-                                 .foregroundColor(Color.theme.textPrimary)
-                                 .accentColor(Color.theme.accentPrimary)
-                                 .foregroundColor(Color.theme.textPrimary)
-                                 .accentColor(Color.theme.accentPrimary)
         
         let visibleUIDs = bleManager.discoveredUsers.compactMap { $0.uid }
         APIService.shared.sendQuickQuestion(uids: visibleUIDs, content: quickQuestionText) { result in
@@ -98,11 +87,11 @@ struct MainView: View {
                         showSettingsSheet = true
                     }) {
                         Image(systemName: "gearshape.fill")
-                            .font(.system(size: 24))
-                            .foregroundColor(ThemeManager.shared.isDarkMode ? .neonGreen : .structuralGray)
-                            .padding(12)
-                            .background(Color.textPrimary.opacity(0.05))
-                            .clipShape(Circle())
+                        .font(.system(size: 24))
+                        .foregroundColor(ThemeManager.shared.isDarkMode ? .neonGreen : .structuralGray)
+                        .padding(12)
+                        .background(Color.textPrimary.opacity(0.05))
+                        .clipShape(Circle())
                     }
                 }
                 .padding()
@@ -401,7 +390,9 @@ struct MainView: View {
             ProfileView(viewModel: authViewModel).environmentObject(themeManager)
         }
         .sheet(isPresented: $showSettingsSheet) {
-            SettingsView(authViewModel: authViewModel).environmentObject(themeManager)
+            NavigationView {
+                SettingsView(authViewModel: authViewModel).environmentObject(themeManager)
+            }
         }
         .alert(isPresented: $authViewModel.showIdentityRegeneratedAlert) {
             Alert(
@@ -415,31 +406,39 @@ struct MainView: View {
              NavigationLink(destination: RoomListView(viewModel: roomViewModel).environmentObject(themeManager), isActive: $showRoomList) { EmptyView() }
         )
         .onAppear {
-            roomViewModel.fetchNearbyRooms()
-            roomViewModel.fetchMyRooms()
-            roomViewModel.fetchMyRooms()
-            bleManager.start()
-            
-            // Check for Notices
-            APIService.shared.fetchAppConfig { result in
-                switch result {
-                case .success(let response):
-                    if response.notice.active {
-                        let lastSeen = UserDefaults.standard.integer(forKey: "lastSeenNoticeVersion")
-                        if response.notice.version > lastSeen {
-                            DispatchQueue.main.async {
-                                self.noticeContent = response.notice.content
-                                self.noticeVersion = response.notice.version
-                                withAnimation {
-                                    self.showNoticePopup = true
+            // Throttle: Only refresh if > 10 seconds passed
+            let now = Date()
+            if let last = lastRefreshTime, now.timeIntervalSince(last) < 10 {
+                print("⏳ [MainView] Refresh throttled (Last: \(Int(now.timeIntervalSince(last)))s ago)")
+            } else {
+                print("🔄 [MainView] Refreshing Data...")
+                roomViewModel.fetchNearbyRooms()
+                roomViewModel.fetchMyRooms()
+                lastRefreshTime = now
+                
+                // Check for Notices (Only check when refreshing data)
+                APIService.shared.fetchAppConfig { result in
+                    switch result {
+                    case .success(let response):
+                        if response.notice.active {
+                            let lastSeen = UserDefaults.standard.integer(forKey: "lastSeenNoticeVersion")
+                            if response.notice.version > lastSeen {
+                                DispatchQueue.main.async {
+                                    self.noticeContent = response.notice.content
+                                    self.noticeVersion = response.notice.version
+                                    withAnimation {
+                                        self.showNoticePopup = true
+                                    }
                                 }
                             }
                         }
+                    case .failure(let error):
+                        print("Config fetch failed: \(error)")
                     }
-                case .failure(let error):
-                    print("Config fetch failed: \(error)")
                 }
             }
+            
+            bleManager.start()
             
             SocketManager.shared.on("new-message") { data, ack in
                 guard let messageData = data.first as? [String: Any],

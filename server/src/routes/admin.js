@@ -5,6 +5,7 @@ const { generateAdminToken } = require('../config/auth');
 const { AuthenticationError } = require('../utils/errors');
 const { pool } = require('../config/database');
 const userService = require('../services/userService');
+const inquiryService = require('../services/inquiryService'); // Import inquiryService
 const fs = require('fs');
 const path = require('path');
 
@@ -619,6 +620,103 @@ router.get('/archives/messages', async (req, res, next) => {
         res.json(result.rows);
     } catch (error) {
         next(error);
+    }
+});
+
+/**
+ * System Status
+ * GET /api/admin/system-status
+ */
+router.get('/system-status', async (req, res, next) => {
+    try {
+        const os = require('os');
+        const { exec } = require('child_process');
+
+        // 1. Process Memory
+        const memoryUsage = process.memoryUsage();
+
+        // 2. System Info
+        const uptime = os.uptime();
+        const loadAvg = os.loadavg();
+        const freeMem = os.freemem();
+        const totalMem = os.totalmem();
+
+        // 3. Disk Usage (Async)
+        exec('df -h /', (error, stdout, stderr) => {
+            let diskInfo = 'N/A';
+            if (!error) {
+                // Parse stdout to find relevant line
+                // Filesystem      Size  Used Avail Use% Mounted on
+                // overlay         ...   ...  ...   ...  /
+                const lines = stdout.trim().split('\n');
+                if (lines.length >= 2) {
+                    diskInfo = lines[1];
+                }
+            }
+
+            res.json({
+                process: {
+                    rss: memoryUsage.rss,
+                    heapTotal: memoryUsage.heapTotal,
+                    heapUsed: memoryUsage.heapUsed,
+                },
+                system: {
+                    uptime,
+                    loadAvg,
+                    freeMem,
+                    totalMem,
+                    platform: os.platform(),
+                    arch: os.arch(),
+                    cpus: os.cpus().length
+                },
+                disk: diskInfo
+            });
+        });
+
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Admin: Get Inquiries
+router.get('/inquiries', authenticateAdmin, async (req, res) => {
+    try {
+        const { status = 'all', page = 1, limit = 50 } = req.query;
+        const offset = (page - 1) * limit;
+
+        const result = await inquiryService.getAllInquiries(status, limit, offset);
+
+        res.json({
+            inquiries: result.inquiries,
+            pagination: {
+                total: result.total,
+                page: parseInt(page),
+                pages: Math.ceil(result.total / limit)
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching inquiries:', error);
+        res.status(500).json({ error: 'Failed to fetch inquiries' });
+    }
+});
+
+// Admin: Answer Inquiry
+router.post('/inquiries/:id/answer', authenticateAdmin, async (req, res) => {
+    try {
+        const { answer } = req.body;
+        if (!answer) {
+            return res.status(400).json({ error: 'Answer content is required' });
+        }
+
+        const updatedInquiry = await inquiryService.answerInquiry(req.params.id, answer);
+        if (!updatedInquiry) {
+            return res.status(404).json({ error: 'Inquiry not found' });
+        }
+
+        res.json(updatedInquiry);
+    } catch (error) {
+        console.error('Error answering inquiry:', error);
+        res.status(500).json({ error: 'Failed to answer inquiry' });
     }
 });
 

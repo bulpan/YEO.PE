@@ -131,8 +131,7 @@ struct LoginView: View {
                         }
                     }
                     
-                    // Naver (Hidden for now)
-                    /*
+                    // Naver
                     SocialLoginButton(
                         provider: "Naver",
                         imageName: "n.circle.fill",
@@ -144,7 +143,6 @@ struct LoginView: View {
                             handleSocialLoginResult(provider: "naver", result: result)
                         }
                     }
-                    */
                 }
                 .padding(.top, 10)
                 

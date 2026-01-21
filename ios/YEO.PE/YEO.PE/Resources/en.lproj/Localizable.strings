@@ -244,3 +244,21 @@
 "notification" = "Notice";
 "user_has_left" = "User has left the chat.";
 
+// Inquiry System (1:1 Inquiries)
+"contact_us" = "Contact Us";
+"inquiry_title" = "1:1 Inquiries";
+"inquiry_empty" = "No inquiries yet.";
+"new_inquiry" = "New Inquiry";
+"inquiry_detail" = "Inquiry Details";
+"category" = "Category";
+"content" = "Content";
+"bug" = "Bug/Error";
+"complaint" = "Complaint/Report";
+"suggestion" = "Suggestion/Idea";
+"other" = "Other";
+"waiting" = "Waiting";
+"answered" = "Answered";
+"admin_answer" = "Admin Answer";
+"waiting_for_answer" = "Waiting for admin response.";
+
+

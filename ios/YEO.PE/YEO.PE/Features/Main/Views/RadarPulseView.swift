@@ -42,13 +42,13 @@ struct RadarPulseView: View {
                 let time = context.date.timeIntervalSinceReferenceDate
                 
                 ForEach(0..<3) { index in
-                    let duration: Double = 3.0
+                    let duration: Double = 3.3
                     let offset = Double(index)
                     // Calculate progress 0.0 to 1.0 based on current time
                     let progress = (time + offset).truncatingRemainder(dividingBy: duration) / duration
                     
                     Circle()
-                        .stroke(Color.neonGreen.opacity(0.5 * (1.0 - progress)), lineWidth: 1)
+                        .stroke(Color.neonGreen.opacity(0.5 * (1.0 - progress)), lineWidth: 0.5)
                         .frame(width: 20 + (480 * progress), height: 20 + (480 * progress))
                 }
             }

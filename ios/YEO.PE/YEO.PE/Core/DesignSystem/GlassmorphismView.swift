@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct GlassmorphismView: ViewModifier {
+    @ObservedObject private var themeManager = ThemeManager.shared
     var cornerRadius: CGFloat = 20
     
     func body(content: Content) -> some View {

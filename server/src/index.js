@@ -46,7 +46,8 @@ const runMigration = async () => {
     { name: 'System Settings', file: 'migration_add_system_settings.sql' },
     { name: 'Suspended At', file: 'migration_add_suspended_at.sql' },
     { name: 'Phone Number', file: 'migration_add_phone_number.sql' },
-    { name: 'Archives', file: 'migration_add_archiving.sql' }
+    { name: 'Archives', file: 'migration_add_archiving.sql' },
+    { name: 'Inquiries', file: 'migration_add_inquiries.sql' } // Add inquiries table
   ];
 
   for (const m of migrations) {
@@ -129,6 +130,7 @@ app.use('/api/upload', require('./routes/upload'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/config', require('./routes/config'));
+app.use('/api/inquiries', require('./routes/inquiries')); // Use inquiries routes
 
 // Firebase & WebSocket
 const pushService = require('./services/pushService');

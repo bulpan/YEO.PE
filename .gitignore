@@ -67,3 +67,5 @@ yeope_secrets_backup.zip
 secrets.zip
 gcp-yeope-key
 gcp-yeope-key.pub
+server/config/firebase-service-account.json
+

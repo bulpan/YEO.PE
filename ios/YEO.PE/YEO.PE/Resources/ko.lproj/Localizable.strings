@@ -4,6 +4,9 @@
 */
 
 // Common
+"settings_header_notification" = "알림설정";
+"settings_header_support" = "고객센터";
+"settings_header_account" = "계정";
 "cancel" = "취소";
 "confirm" = "확인";
 "close" = "닫기";
@@ -257,3 +260,21 @@
 "alert" = "알림";
 "verification_failed" = "인증 실패";
 "nickname_length_error" = "닉네임은 2자에서 20자 사이여야 합니다.";
+
+// Inquiry System (1:1 문의)
+"contact_us" = "1:1 문의";
+"inquiry_title" = "1:1 문의";
+"inquiry_empty" = "문의 내역이 없습니다.";
+"new_inquiry" = "문의하기";
+"inquiry_detail" = "문의 상세";
+"category" = "카테고리";
+"content" = "내용";
+"bug" = "버그/에러";
+"complaint" = "불편/신고";
+"suggestion" = "제안/아이디어";
+"other" = "기타";
+"waiting" = "답변 대기";
+"answered" = "답변 완료";
+"admin_answer" = "관리자 답변";
+"waiting_for_answer" = "관리자의 답변을 기다리고 있습니다.";
+
