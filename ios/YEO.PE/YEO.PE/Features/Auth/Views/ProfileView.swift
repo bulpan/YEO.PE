@@ -61,7 +61,7 @@ struct ProfileView: View {
     
     var body: some View {
         ZStack {
-            Color(UIColor.systemBackground).edgesIgnoringSafeArea(.all)
+            Color.theme.bgMain.edgesIgnoringSafeArea(.all)
             
             ScrollView {
                 VStack(spacing: 28) { // Reduced to 70% of 40
@@ -218,111 +218,73 @@ struct ProfileView: View {
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
                         
                         // Cell 1: Ghost Mode
-                        ControlCell(
+                        PremiumGridCell(
                             icon: "eye.slash.fill",
                             title: "ghost_mode".localized,
                             subtitle: bleVisibleBinding.wrappedValue ? "visible".localized : "invisible".localized,
-                            isOn: Binding(
+                            borderColor: .clear,
+                            onTap: { bleVisibleBinding.wrappedValue.toggle() },
+                            onInfoTap: { activeTooltip = "ghost_mode_tooltip" }
+                        ) {
+                            Toggle("", isOn: Binding(
                                 get: { !bleVisibleBinding.wrappedValue },
                                 set: { bleVisibleBinding.wrappedValue = !$0 }
-                            ),
-                            onInfoTap: { activeTooltip = "ghost_mode_tooltip" }
-                        )
+                            ))
+                            .labelsHidden()
+                            .toggleStyle(SwitchToggleStyle(tint: Color.theme.accentPrimary))
+                            .scaleEffect(0.8)
+                        }
+                        .frame(height: 110)
                         
                         // Cell 2: Notifications
-                        ControlCell(
+                        PremiumGridCell(
                             icon: "bell.fill",
                             title: "radar_alert".localized,
                             subtitle: pushEnabledBinding.wrappedValue ? "on".localized : "off".localized,
-                            isOn: pushEnabledBinding.wrappedValueBinding,
+                            borderColor: .clear,
+                            onTap: { pushEnabledBinding.wrappedValue.toggle() },
                             onInfoTap: { activeTooltip = "radar_alert_tooltip" }
-                        )
+                        ) {
+                            Toggle("", isOn: pushEnabledBinding.wrappedValueBinding)
+                                .labelsHidden()
+                                .toggleStyle(SwitchToggleStyle(tint: Color.theme.accentPrimary))
+                                .scaleEffect(0.8)
+                        }
+                        .frame(height: 110)
                         
                         // Cell 3: Change Mask
-                        Button(action: {
-                            showNewMaskAlert = true
-                        }) {
-                            ZStack(alignment: .bottomTrailing) {
-                                VStack(alignment: .leading, spacing: 12) {
-                                    HStack {
-                                        Image(systemName: "theatermasks.fill")
-                                            .font(.title2)
-                                            .foregroundColor(Color.theme.accentSecondary)
-                                        Spacer()
-                                    }
-                                    
-                                    VStack(alignment: .leading) {
-                                        Text("new_mask".localized)
-                                            .font(.headline)
-                                            .foregroundColor(Color.theme.textPrimary)
-                                        Text("randomize_identity".localized)
-                                            .font(.caption)
-                                            .foregroundColor(Color.theme.textSecondary)
-                                    }
-                                }
-                                .padding()
-                                
-                                Button(action: { activeTooltip = "new_mask_tooltip" }) {
-                                    Image(systemName: "info.circle")
-                                        .font(.body)
-                                        .foregroundColor(Color.theme.textSecondary)
-                                        .padding(8)
-                                }
-                                .padding([.bottom, .trailing], 8)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.theme.bgLayer1)
-                            .cornerRadius(16)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(Color.theme.borderPrimary, lineWidth: 1)
-                            )
+                        PremiumGridCell(
+                            icon: "theatermasks.fill",
+                            title: "new_mask".localized,
+                            subtitle: "randomize_identity".localized,
+                            iconColor: Color.theme.accentSecondary,
+                            borderColor: .clear,
+                            onTap: { showNewMaskAlert = true },
+                            onInfoTap: { activeTooltip = "new_mask_tooltip" }
+                        ) {
+                            EmptyView()
                         }
+                        .frame(height: 110)
                         
-                        // Cell 4: Retention (Cycle)
-                        Button(action: {
-                            var settings = viewModel.currentUser?.settings ?? UserSettings(bleVisible: true, pushEnabled: true, messageRetention: 24, roomExitCondition: "24h", maskId: false)
-                            let current = settings.messageRetention ?? 24
-                            let next = current == 6 ? 12 : (current == 12 ? 24 : 6)
-                            settings.messageRetention = next
-                            viewModel.updateSettings(settings)
-                        }) {
-                            ZStack(alignment: .bottomTrailing) {
-                                VStack(alignment: .leading, spacing: 12) {
-                                    HStack {
-                                        Image(systemName: "hourglass")
-                                            .font(.title2)
-                                            .foregroundColor(.orange)
-                                        Spacer()
-                                    }
-                                    
-                                    VStack(alignment: .leading) {
-                                        Text("retention".localized)
-                                            .font(.headline)
-                                            .foregroundColor(Color.theme.textPrimary)
-                                        Text("\(viewModel.currentUser?.settings?.messageRetention ?? 24) " + "hours".localized)
-                                            .font(.caption)
-                                            .foregroundColor(Color.theme.textSecondary)
-                                    }
-                                }
-                                .padding()
-                                
-                                Button(action: { activeTooltip = "retention_tooltip" }) {
-                                    Image(systemName: "info.circle")
-                                        .font(.body)
-                                        .foregroundColor(Color.theme.textSecondary)
-                                        .padding(8)
-                                }
-                                .padding([.bottom, .trailing], 8)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.theme.bgLayer1)
-                            .cornerRadius(16)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(Color.theme.borderPrimary, lineWidth: 1)
-                            )
+                        // Cell 4: Retention
+                        PremiumGridCell(
+                            icon: "hourglass",
+                            title: "retention".localized,
+                            subtitle: "\(viewModel.currentUser?.settings?.messageRetention ?? 24) " + "hours".localized,
+                            iconColor: .orange,
+                            borderColor: .clear,
+                            onTap: {
+                                var settings = viewModel.currentUser?.settings ?? UserSettings(bleVisible: true, pushEnabled: true, messageRetention: 24, roomExitCondition: "24h", maskId: false)
+                                let current = settings.messageRetention ?? 24
+                                let next = current == 6 ? 12 : (current == 12 ? 24 : 6)
+                                settings.messageRetention = next
+                                viewModel.updateSettings(settings)
+                            },
+                            onInfoTap: { activeTooltip = "retention_tooltip" }
+                        ) {
+                            EmptyView()
                         }
+                        .frame(height: 110)
                     }
                     .padding(.horizontal)
                     
@@ -478,55 +440,82 @@ extension Binding where Value == Bool {
     }
 }
 
-// Helper Component: Control Cell
-struct ControlCell: View {
+// Helper Component: Premium Grid Cell
+struct PremiumGridCell<Content: View>: View {
     let icon: String
     let title: String
     let subtitle: String
-    @Binding var isOn: Bool
+    var iconColor: Color? = nil
+    var borderColor: Color = .clear
+    var onTap: () -> Void
     var onInfoTap: () -> Void
+    var trailingContent: () -> Content
+    
+    init(
+        icon: String,
+        title: String,
+        subtitle: String,
+        iconColor: Color? = nil,
+        borderColor: Color = .clear,
+        onTap: @escaping () -> Void,
+        onInfoTap: @escaping () -> Void,
+        @ViewBuilder trailingContent: @escaping () -> Content
+    ) {
+        self.icon = icon
+        self.title = title
+        self.subtitle = subtitle
+        self.iconColor = iconColor
+        self.borderColor = borderColor
+        self.onTap = onTap
+        self.onInfoTap = onInfoTap
+        self.trailingContent = trailingContent
+    }
     
     var body: some View {
-        Button(action: { isOn.toggle() }) {
+        Button(action: onTap) {
             ZStack(alignment: .bottomTrailing) {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 12) { // Standard Spacing
                     HStack {
                         Image(systemName: icon)
                             .font(.title2)
-                            .foregroundColor(isOn ? Color.theme.accentPrimary : Color.theme.textSecondary)
+                            .foregroundColor(iconColor ?? Color.theme.accentPrimary)
                         
                         Spacer()
                         
-                        Toggle("", isOn: $isOn)
-                            .labelsHidden()
-                            .toggleStyle(SwitchToggleStyle(tint: Color.theme.accentPrimary))
+                        trailingContent()
                     }
                     
-                    VStack(alignment: .leading) {
+                    VStack(alignment: .leading, spacing: 4) { // Slightly increased spacing for legibility
                         Text(title)
                             .font(.headline)
                             .foregroundColor(Color.theme.textPrimary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            
                         Text(subtitle)
                             .font(.caption)
                             .foregroundColor(Color.theme.textSecondary)
+                            .lineLimit(1)
                     }
                 }
-                .padding()
+                .padding(16) // Standard Padding
+                .frame(maxWidth: .infinity, alignment: .topLeading)
                 
                 Button(action: onInfoTap) {
                     Image(systemName: "info.circle")
                         .font(.body)
                         .foregroundColor(Color.theme.textSecondary)
-                        .padding(8) // increase tap area
+                        .padding(8)
                 }
                 .padding([.bottom, .trailing], 8)
             }
-            .background(Color.theme.bgLayer1)
-            .cornerRadius(16)
+            .background(ThemeManager.shared.isDarkMode ? Color.theme.bgLayer2 : Color.theme.bgLayer1)
+            .cornerRadius(24)
             .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(isOn ? Color.theme.accentPrimary.opacity(0.3) : Color.theme.borderPrimary, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 24)
+                    .stroke(borderColor != .clear ? borderColor : Color.theme.borderSubtle, lineWidth: borderColor != .clear ? 1.5 : (ThemeManager.shared.isDarkMode ? 0.5 : 0))
             )
+            .shadow(color: Color.black.opacity(ThemeManager.shared.isDarkMode ? 0.2 : 0.03), radius: 10, x: 0, y: 4)
         }
     }
 }

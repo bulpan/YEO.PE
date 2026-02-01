@@ -11,38 +11,32 @@ struct RoomListView: View {
     
     var body: some View {
         ZStack {
-            // Main List Content
-            List {
-                if viewModel.myRooms.isEmpty {
-                    Text("no_active_rooms".localized)
-                        .foregroundColor(.gray)
-                        .listRowSeparator(.hidden)
-                } else {
-                    ForEach(viewModel.myRooms) { room in
-                        Button(action: {
-                            if let currentUserId = authViewModel.userId,
-                               room.isActive == false,
-                               room.creatorId == currentUserId {
-                            } else {
-                                selectedRoom = room
+            // Main ScrollView Content with Cards
+            ScrollView(showsIndicators: false) {
+                LazyVStack(spacing: 12) {
+                    if viewModel.myRooms.isEmpty {
+                        Text("no_active_rooms".localized)
+                            .foregroundColor(.gray)
+                            .padding(.top, 40)
+                    } else {
+                        ForEach(viewModel.myRooms) { room in
+                            Button(action: {
+                                if let currentUserId = authViewModel.userId,
+                                   room.isActive == false,
+                                   room.creatorId == currentUserId {
+                                } else {
+                                    selectedRoom = room
+                                }
+                            }) {
+                                RoomCard(room: room, currentUserId: authViewModel.userId)
                             }
-                        }) {
-                            VStack(spacing: 0) {
-                                RoomRow(room: room, currentUserId: authViewModel.userId)
-                                    .padding(.vertical, 6)
-                                
-                                Divider()
-                                    .background(Color.theme.borderPrimary)
-                            }
+                            .disabled(authViewModel.userId == room.creatorId && room.isActive == false)
                         }
-                        .listRowInsets(EdgeInsets())
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.theme.bgLayer1)
-                        .disabled(authViewModel.userId == room.creatorId && room.isActive == false)
                     }
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
             }
-            .listStyle(PlainListStyle())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
@@ -52,8 +46,8 @@ struct RoomListView: View {
                 }
             }
             .onAppear {
-                UITableView.appearance().backgroundColor = .clear
-                UITableViewCell.appearance().backgroundColor = .clear
+                // UITableView.appearance().backgroundColor = .clear // No longer needed for ScrollView
+                // UITableViewCell.appearance().backgroundColor = .clear // No longer needed for ScrollView
                 viewModel.fetchMyRooms()
             }
             .background(Color.theme.bgMain.edgesIgnoringSafeArea(.all))
@@ -161,7 +155,7 @@ struct RoomListView: View {
     }
 }
 
-struct RoomRow: View {
+struct RoomCard: View {
     let room: Room
     let currentUserId: String?
     
@@ -173,14 +167,33 @@ struct RoomRow: View {
         return room.isActive == false && currentUserId == room.creatorId
     }
     
+    // MARK: - Avatar Color Helper
+    
+    private func avatarColorPair(for name: String) -> (background: Color, foreground: Color) {
+        let initial = name.uppercased().first ?? "A"
+        switch initial {
+        case "A"..."E":
+            return (Color.orange.opacity(0.1), Color.orange)
+        case "F"..."J":
+            return (Color.purple.opacity(0.1), Color.purple)
+        case "K"..."O":
+            return (Color.blue.opacity(0.1), Color.blue)
+        case "P"..."T":
+            return (Color.green.opacity(0.1), Color.green)
+        default:
+            return (Color.pink.opacity(0.1), Color.pink)
+        }
+    }
+    
     var fallbackAvatar: some View {
-        Circle()
-            .fill(Color.theme.accentPrimary.opacity(0.1))
-            .frame(width: 50, height: 50)
+        let colors = avatarColorPair(for: room.displayName)
+        return Circle()
+            .fill(colors.background)
+            .frame(width: 56, height: 56)
             .overlay(
                 Text(String(room.displayName.prefix(1)))
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(Color.theme.accentPrimary)
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundColor(colors.foreground)
             )
     }
 
@@ -203,18 +216,21 @@ struct RoomRow: View {
                         ForEach(Array(participants.prefix(4).enumerated()), id: \.offset) { index, participant in
                             if let profilePath = participant.profileImageUrl, !profilePath.isEmpty, let url = getProfileUrl(from: profilePath) {
                                 CachedAsyncImage(url: url)
-                                    .frame(width: 35, height: 35)
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 40, height: 40)
                                     .clipShape(Circle())
                                     .overlay(Circle().stroke(Color.theme.bgMain, lineWidth: 2))
                                     .zIndex(Double(4 - index))
                             } else {
+                                let name = participant.nicknameMask ?? participant.nickname ?? "?"
+                                let colors = avatarColorPair(for: name)
                                 Circle()
-                                    .fill(Color.theme.accentPrimary.opacity(0.1))
-                                    .frame(width: 35, height: 35)
+                                    .fill(colors.background)
+                                    .frame(width: 40, height: 40)
                                     .overlay(
-                                        Text(String((participant.nicknameMask ?? participant.nickname ?? "?").prefix(1)))
-                                            .font(.system(size: 14, weight: .bold))
-                                            .foregroundColor(Color.theme.accentPrimary)
+                                        Text(String(name.prefix(1)))
+                                            .font(.system(size: 16, weight: .bold))
+                                            .foregroundColor(colors.foreground)
                                     )
                                     .clipShape(Circle())
                                     .overlay(Circle().stroke(Color.theme.bgMain, lineWidth: 2))
@@ -227,10 +243,10 @@ struct RoomRow: View {
                     if isQuickQuestion {
                         Circle()
                             .fill(Color.yellow.opacity(0.1))
-                            .frame(width: 35, height: 35)
+                            .frame(width: 56, height: 56)
                             .overlay(
                                 Image(systemName: "bolt.fill")
-                                    .font(.system(size: 18))
+                                    .font(.system(size: 24))
                                     .foregroundColor(.yellow)
                             )
                             .overlay(
@@ -240,32 +256,34 @@ struct RoomRow: View {
                     } else if isWaitingForResponse {
                         Circle()
                             .fill(Color.gray.opacity(0.1))
-                            .frame(width: 35, height: 35)
+                            .frame(width: 56, height: 56)
                             .overlay(
                                 Image(systemName: "clock")
-                                    .font(.system(size: 16))
+                                    .font(.system(size: 22))
                                     .foregroundColor(.gray)
                             )
                     } else {
                         // General / Active Room
                         if let profilePath = room.displayProfileImageUrl, !profilePath.isEmpty, let url = getProfileUrl(from: profilePath) {
                              CachedAsyncImage(url: url)
-                                 .frame(width: 35, height: 35)
+                                 .aspectRatio(contentMode: .fill)
+                                 .frame(width: 56, height: 56)
                                  .clipShape(Circle())
                         } else {
+                            let colors = avatarColorPair(for: room.displayName)
                             Circle()
-                                .fill(Color.theme.accentPrimary.opacity(0.1))
-                                .frame(width: 35, height: 35)
+                                .fill(colors.background)
+                                .frame(width: 56, height: 56)
                                 .overlay(
                                     Text(String(room.displayName.prefix(1)))
-                                        .font(.system(size: 14, weight: .bold))
-                                        .foregroundColor(Color.theme.accentPrimary)
+                                        .font(.system(size: 24, weight: .bold))
+                                        .foregroundColor(colors.foreground)
                                 )
                         }
                     }
                 }
             }
-            .padding(.trailing, 8)
+            .padding(.trailing, 12)
             
             // Content
             VStack(alignment: .leading, spacing: 4) {
@@ -322,9 +340,7 @@ struct RoomRow: View {
                     .clipShape(Circle())
             }
         }
-        //.padding(.vertical, 4)
-        .padding(.leading, 20)
-        .padding(.trailing, 16)
+        .premiumCardStyle()
         .opacity(isWaitingForResponse ? 0.6 : 1.0)
     }
 }

@@ -75,10 +75,6 @@ class BLEManager: NSObject, ObservableObject {
     // Block Filtering
     var blockedUserIds: Set<String> = []
     
-    // Notification Deduplication (Anti-Spam)
-    private var notifiedUserIds: [String: Date] = [:] // userId -> last notification time
-    private let notificationCooldown: TimeInterval = 1800 // 30 minutes (configurable)
-    
     override init() {
         super.init()
         setupAppStateObservers()
@@ -161,13 +157,10 @@ class BLEManager: NSObject, ObservableObject {
         discoveredUsers.removeAll()
         discoveredUIDs.removeAll()
         lastSeenMap.removeAll()
-        notifiedUserIds.removeAll() // Clear notification history
         
         // Restart scanning for Guest Mode (Passive Observer)
         startScanningLoop()
     }
-    
-
     
     // MARK: - Advertising Logic
     
@@ -303,7 +296,6 @@ class BLEManager: NSObject, ObservableObject {
         // Cleanup every 5 seconds
         cleanupTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
             self?.cleanupExpiredUsers()
-            self?.cleanupNotificationHistory() // Also cleanup old notification history
         }
         
         // Initial immediately
@@ -398,43 +390,12 @@ class BLEManager: NSObject, ObservableObject {
         
         let scannedData = discoveredUIDs.map { ScannedUID(uid: $0.key, rssi: $0.value) }
         BLEService.shared.reportScanResults(uids: scannedData) { [weak self] result in
-            guard let self = self else { return }
-            
             switch result {
             case .success(let users):
-                // 1. Filter blocked users
-                let blockList = self.blockedUserIds
-                var filtered = users.filter { !blockList.contains($0.id) }
-                
-                // 2. Filter recently notified users (Anti-Spam)
-                let now = Date()
-                let cooldown = self.notificationCooldown
-                
-                // Track which users are NEW (not notified recently)
-                for user in filtered {
-                    if let lastNotified = self.notifiedUserIds[user.id] {
-                        let elapsed = now.timeIntervalSince(lastNotified)
-                        if elapsed <= cooldown {
-                            // Still in cooldown period - user was notified recently
-                            print("🔇 Suppressing notification for \(user.nicknameMask ?? user.id) (cooldown: \(Int(cooldown - elapsed))s remaining)")
-                        } else {
-                            // Cooldown expired - allow new notification
-                            print("🔔 Cooldown expired for \(user.nicknameMask ?? user.id) - allowing notification")
-                            self.notifiedUserIds[user.id] = now
-                        }
-                    } else {
-                        // First time discovering this user - allow notification
-                        print("🆕 New user discovered: \(user.nicknameMask ?? user.id) - allowing notification")
-                        self.notifiedUserIds[user.id] = now
-                    }
-                }
-                
-                // 3. Update UI with all discovered users (not just new ones)
-                // UI shows ALL nearby users, but notifications only for new ones
-                DispatchQueue.main.async { 
-                    self.discoveredUsers = filtered 
-                }
-                
+                // Filter blocked users
+                let blockList = self?.blockedUserIds ?? []
+                let filtered = users.filter { !blockList.contains($0.id) }
+                DispatchQueue.main.async { self?.discoveredUsers = filtered }
             case .failure(let error):
                 print("Failed to report: \(error)")
             }
@@ -541,21 +502,6 @@ extension BLEManager: CBCentralManagerDelegate {
         }
         if dict[CBCentralManagerRestoredStateScanServicesKey] != nil {
             isScanning = true
-        }
-    }
-    
-    // MARK: - Notification History Cleanup
-    
-    private func cleanupNotificationHistory() {
-        let now = Date()
-        let maxAge: TimeInterval = 86400 // 24 hours - remove old history to prevent memory leaks
-        
-        notifiedUserIds = notifiedUserIds.filter { _, lastNotified in
-            now.timeIntervalSince(lastNotified) < maxAge
-        }
-        
-        if !notifiedUserIds.isEmpty {
-            print("🗑️ Cleaned notification history. Remaining entries: \(notifiedUserIds.count)")
         }
     }
 }

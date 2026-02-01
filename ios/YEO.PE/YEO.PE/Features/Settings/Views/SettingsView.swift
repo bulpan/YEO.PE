@@ -94,12 +94,10 @@ struct SettingsView: View {
                                             .font(.caption)
                                             .foregroundColor(Color.theme.textSecondary)
                                     }
-                                    .padding()
-                                    .background(Color.theme.bgLayer1)
+                                    .background(Color.clear)
                                 }
                             }
-                            .cornerRadius(12)
-                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.theme.borderSubtle, lineWidth: 1))
+                            .premiumCardStyle()
                         }
                         .padding(.horizontal)
                         
@@ -231,10 +229,7 @@ struct SettingsView: View {
                     Image(systemName: "pencil")
                         .foregroundColor(Color.theme.accentPrimary)
                 }
-                .padding()
-                .background(Color.theme.bgLayer1)
-                .cornerRadius(12)
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.theme.borderSubtle, lineWidth: 1))
+                .premiumCardStyle()
             }
         }
         .padding(.horizontal)
@@ -288,10 +283,7 @@ struct SettingsView: View {
                 .toggleStyle(SwitchToggleStyle(tint: Color.theme.accentPrimary))
                 .labelsHidden()
             }
-            .padding()
-            .background(Color.theme.bgLayer1)
-            .cornerRadius(12)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.theme.borderSubtle, lineWidth: 1))
+            .premiumCardStyle()
             
             // Language
             HStack {
@@ -313,10 +305,7 @@ struct SettingsView: View {
                     }
                 }
             }
-            .padding()
-            .background(Color.theme.bgLayer1)
-            .cornerRadius(12)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.theme.borderSubtle, lineWidth: 1))
+            .premiumCardStyle()
         }
         .padding(.horizontal)
     }
@@ -352,10 +341,7 @@ struct SettingsView: View {
                 .toggleStyle(SwitchToggleStyle(tint: Color.theme.accentPrimary))
                 .labelsHidden()
             }
-            .padding()
-            .background(Color.theme.bgLayer1)
-            .cornerRadius(12)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.theme.borderSubtle, lineWidth: 1))
+            .premiumCardStyle()
         }
         .padding(.horizontal)
     }
@@ -380,10 +366,7 @@ struct SettingsView: View {
                 .pickerStyle(MenuPickerStyle())
                 .accentColor(Color.theme.accentPrimary)
             }
-            .padding()
-            .background(Color.theme.bgLayer1)
-            .cornerRadius(12)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.theme.borderSubtle, lineWidth: 1))
+            .premiumCardStyle()
             
             // Room Exit
             HStack {
@@ -398,10 +381,7 @@ struct SettingsView: View {
                 .pickerStyle(MenuPickerStyle())
                 .accentColor(Color.theme.accentPrimary)
             }
-            .padding()
-            .background(Color.theme.bgLayer1)
-            .cornerRadius(12)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.theme.borderSubtle, lineWidth: 1))
+            .premiumCardStyle()
         }
         .padding(.horizontal)
     }
@@ -424,11 +404,8 @@ struct SettingsView: View {
                     Image(systemName: "chevron.right")
                         .foregroundColor(.gray)
                 }
-                .padding()
-                .background(Color.theme.bgLayer1)
+                .premiumCardStyle()
             }
-            .cornerRadius(12)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.theme.borderSubtle, lineWidth: 1))
         }
         .padding(.horizontal)
     }
@@ -448,11 +425,8 @@ struct SettingsView: View {
                     Image(systemName: "chevron.right")
                         .foregroundColor(.gray)
                 }
-                .padding()
-                .background(Color.theme.bgLayer1)
+                .premiumCardStyle()
             }
-            .cornerRadius(12)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.theme.borderSubtle, lineWidth: 1))
         }
         .padding(.horizontal)
     }
@@ -473,11 +447,8 @@ struct SettingsView: View {
                     Spacer()
                     Image(systemName: "chevron.right").foregroundColor(.gray)
                 }
-                .padding()
-                .background(Color.theme.bgLayer1)
+                .premiumCardStyle()
             }
-            .cornerRadius(12)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.theme.borderSubtle, lineWidth: 1))
             
             // 개인정보 처리방침
             Button(action: { showPrivacy = true }) {
@@ -501,11 +472,8 @@ struct SettingsView: View {
                     Spacer()
                     Image(systemName: "chevron.right").foregroundColor(.gray)
                 }
-                .padding()
-                .background(Color.theme.bgLayer1)
+                .premiumCardStyle()
             }
-            .cornerRadius(12)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.theme.borderSubtle, lineWidth: 1))
         }
         .padding(.horizontal)
     }
